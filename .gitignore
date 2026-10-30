@@ -6,3 +6,6 @@ __pycache__/
 # Notes stay local: only the README is published.
 *.md
 !README.md
+
+# Game files extracted with tools/vpp.py stay local.
+extracted/
