@@ -51,8 +51,11 @@ local function run_probe()
   if o then o:write(table.concat(out, "\n"), "\n"); o:close() end
 end
 
+local menu_error
 wml.on_frame(function()
-  MENU.update()
+  -- a menu error mustn't stop the probe, or nothing can be fixed live
+  local ok, err = pcall(MENU.update)
+  if not ok and err ~= menu_error then menu_error = err; wml.log("menu error: " .. tostring(err)) end
   tick = tick + 1
   if probe_on and tick % 15 == 0 then run_probe() end
 end)

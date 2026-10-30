@@ -220,8 +220,8 @@ function P.fall_active() return P.no_fall or fall_written end
 -- Everyone near you: the object table (0x90-byte entries at *(+45E8458)),
 -- entry i live when bit i of *(+4757300) is clear and (below *(+4724650))
 -- bit i of *(+4724648) is set, count *(+4757308); people are the live
--- entries with a human health component (0x8D), you left out.
-function P.people_near(radius)
+-- entries with a human health component (0x8D), you left out. (Vehicles: 0x44.)
+local function objects_near(radius, ctype)
   local B = wml.base
   local base, n = wml.read_u64(B + 0x45E8458), wml.read_u32(B + 0x4757308)
   local free_bits, live_bits, live_n = wml.read_u64(B + 0x4757300), wml.read_u64(B + 0x4724648), wml.read_u32(B + 0x4724650)
@@ -237,7 +237,7 @@ function P.people_near(radius)
       if dx * dx + dz * dz < r2 and e ~= me then
         local dy = s32(wml.read_u32(e + 0x34)) / 10000 - py
         if dx * dx + dy * dy + dz * dz < r2 then
-          local h = P.component(0x8D, e)
+          local h = P.component(ctype, e)
           if h then out[#out + 1] = { entry = e, health = h } end
         end
       end
@@ -245,20 +245,22 @@ function P.people_near(radius)
   end
   return out
 end
+function P.people_near(radius) return objects_near(radius, 0x8D) end
 
 -- Cash on the ground: the game's pickup spawner, +689830(0, 2, &source (none,
 -- +3C44910), &{ collectible, amount }, &transform, 0, 0), as its loot code
 -- calls it; the collectible from +13E2780(&cash hash, at +3C1A45C), the
 -- transform the player's with the position moved. Confirmed in play: within a
 -- few metres it's collected at once, further away it lies there until you
--- come close. It's real money: it stays in your save.
-function P.drop_cash(amount, side, up, ahead)
+-- come close. It's real money: it stays in your save. Any collectible_weapon_info
+-- name hash drops that weapon the same way (walking onto it awards it).
+function P.drop_pickup(hash, amount, side, up, ahead)
   local B, e = wml.base, P.object()
   if not e then return false end
   local fx, fz = wml.read_f32(e + 0x20), wml.read_f32(e + 0x28)
   local buf = wml.buffer(4)
   for i = 0, 0x78, 8 do wml.write_u64(buf + i, 0) end
-  wml.write_u32(buf, wml.read_u32(B + 0x3C1A45C))
+  wml.write_u32(buf, hash)
   local obj = wml.call(B + 0x13E2780, buf)
   if obj == 0 then return false end
   wml.write_u32(buf + 0x08, wml.read_u32(B + 0x3C44910))
@@ -268,6 +270,9 @@ function P.drop_cash(amount, side, up, ahead)
   local function add(off, m) wml.write_u32(buf + 0x20 + off, (s32(wml.read_u32(buf + 0x20 + off)) + math.floor(m * 10000)) & 0xFFFFFFFF) end
   add(0x30, fx * ahead + fz * side); add(0x34, up); add(0x38, fz * ahead - fx * side)
   return wml.call(B + 0x689830, 0, 2, buf + 8, buf + 0x10, buf + 0x20, 0, 0) & 0xFF ~= 0
+end
+function P.drop_cash(amount, side, up, ahead)
+  return P.drop_pickup(wml.read_u32(wml.base + 0x3C1A45C), amount, side, up, ahead)
 end
 -- Money rain: every `rain` frames a small pile, somewhere around you, falling.
 P.rain = false
@@ -304,29 +309,20 @@ function P.near_arms(armed, radius)
   return n
 end
 
--- Free shopping: every store price is a store_category_info's cost (+0x38,
--- int) times a per-item float, and a total of 0 skips the payment. The costs
--- go to 0 while it's on and back when it's off; they're the game's data, not
--- your save. Info: +DA4830(&class hash, &name hash).
+-- Free shopping: every store price is a store_category_info's m_cost times a
+-- per-item float, and a total of 0 skips the payment. The costs go to 0 while
+-- it's on and back when it's off; they're the game's data, not your save.
 P.free_shop = false
-local shop_orig
-function P.update_free_shop(names)
-  if P.free_shop and not shop_orig then
-    shop_orig = {}
-    local _, v = wml.game('return string_crc("store_category_info")')
-    local cls, buf = math.floor(v) & 0xFFFFFFFF, wml.buffer(4)
-    for _, hash in ipairs(names) do
-      wml.write_u32(buf, cls); wml.write_u32(buf + 4, hash)
-      local info = wml.call(wml.base + 0xDA4830, buf, buf + 4)
-      if info ~= 0 then shop_orig[#shop_orig + 1] = { info + 0x38, wml.read_u32(info + 0x38) } end
-    end
-    for _, o in ipairs(shop_orig) do wml.write_u32(o[1], 0) end
-    return #shop_orig
-  elseif not P.free_shop and shop_orig then
-    for _, o in ipairs(shop_orig) do wml.write_u32(o[1], o[2]) end
-    shop_orig = nil
+local shop_entries, shop_set
+function P.update_free_shop()
+  local V = require("vdata")
+  if P.free_shop and not shop_entries then
+    shop_entries = V.collect("store_category_info", { { path = "m_cost", what = "cost" } })
   end
-  return 0
+  if not shop_entries or (P.free_shop and true or false) == shop_set then return shop_entries and #shop_entries or 0 end
+  for _, e in ipairs(shop_entries) do V.write(e.addr, e.t, P.free_shop and 0 or e.orig) end
+  shop_set = P.free_shop and true or false
+  return #shop_entries
 end
 
 -- Your gravity: the locomotion component's +0x2A8 (read every frame into the
@@ -420,21 +416,124 @@ function P.update_spring()
   if changed then wml.write_u8(c + 0x232B, wml.read_u8(c + 0x232B) | 0x40) end
 end
 
+-- Owning a weapon: +988830(record, 1), what buying one does; +988AA0(record)
+-- reads it back. The record is found from one of its fields' address (the
+-- reflection lookup), stepping back to where its name hash sits, at +0x34:
+-- nothing is called unless that matches. Returns owned, or nil if not found.
+function P.weapon_record(name)
+  local q = string.format("%q", name)
+  local ok, ud, hash = wml.game('local w = vlib_info_object:get_object("inventory_weapon_info", ' .. q .. ') return w.m_target_reticle, string_crc(' .. q .. ')')
+  local a = ok and require("vdata").field_addr(ud)
+  if not a or type(hash) ~= "number" then return nil end
+  hash = math.floor(hash) & 0xFFFFFFFF
+  for back = 0, 0x800, 4 do
+    if wml.read_u32(a - back + 0x34) == hash then return a - back end
+  end
+  return nil
+end
+function P.own_weapon(name)
+  local r = P.weapon_record(name)
+  if not r then return false end
+  if wml.call(wml.base + 0x988AA0, r) & 0xFF == 0 then wml.call(wml.base + 0x988830, r, 1) end
+  return true
+end
+
 -- Ragdoll: the game's start-ragdoll (+18A5860(entry, 2 owner, 200 ms blend,
 -- the zero vector +3C44930, no impulse, 0)), for people with a ragdoll
--- (component type 2); confirmed in play. Kill, in two steps: health at 0
--- alone leaves people "down but not out" (seen in play), so first that's
--- switched off for each of them, as the game's
--- human_health_disable_dbno_on_death_node does: a reference on their handle
--- (the count at *(+2EB2330) + id * 4), then +3EEFD0(&id, 0), which releases
--- it and sends the change on (it may land a frame later). Then, some frames
--- on, the health range is pinned to 0 and the game's health setter (+3E58F0,
--- the source the script node passes, +3C1F3F8) runs the death. People with a
--- minimum health (mission characters) are left alone.
+-- (component type 2); confirmed in play.
 function P.ragdoll_near(radius)
   local n = 0
   for _, p in ipairs(P.people_near(radius)) do
     if P.component(2, p.entry) then wml.call(wml.base + 0x18A5860, p.entry, 2, 200, wml.base + 0x3C44930, 1, 0); n = n + 1 end
+  end
+  return n
+end
+
+-- Damage: the event weapon_request_damage_node sends, +14D3590(&packet): +0 its
+-- vtable, +8 target, +C cause, +10 weapon (ids), +14 damage type (crc of a
+-- damage_type name), +18 source type (a gun's own, 09C58CBC), +24 amount, +28
+-- and +2C 1.0, +44 -1, +48 section (4 = default). The health setter alone left
+-- people standing at 0; this runs the real death (+0x104 on the health is then 1).
+function P.damage(entry, amount)
+  local B, me = wml.base, P.object()
+  if not me then return false end
+  local _, ty = wml.game('return string_crc("physical")')
+  local ok, s = wml.game("return tostring(gml_get_local_player_weapon())")
+  local buf = wml.buffer(4) + 0x100
+  for i = 0, 0xFC, 4 do wml.write_u32(buf + i, 0) end
+  wml.write_u64(buf, B + 0x2966E68)
+  wml.write_u32(buf + 0x08, wml.read_u32(entry + 0x58))
+  wml.write_u32(buf + 0x0C, wml.read_u32(me + 0x58))
+  wml.write_u32(buf + 0x10, ok and tonumber((s or ""):match("object (%x+)") or "", 16) or 0)
+  wml.write_u32(buf + 0x14, math.floor(ty) & 0xFFFFFFFF)
+  wml.write_u32(buf + 0x18, 0x09C58CBC)
+  wml.write_f32(buf + 0x24, amount)
+  wml.write_f32(buf + 0x28, 1)
+  wml.write_f32(buf + 0x2C, 1)
+  wml.write_u32(buf + 0x44, 0xFFFFFFFF)
+  wml.write_u32(buf + 0x48, 4)
+  wml.call(B + 0x14D3590, buf)
+  return true
+end
+-- Mission characters (a minimum health) and the dead are left alone.
+function P.kill_near(radius)
+  local n = 0
+  for _, p in ipairs(P.people_near(radius)) do
+    if wml.read_f32(p.health + MIN) == 0 and wml.read_u8(p.health + 0x104) == 0 then
+      P.damage(p.entry, 1000000)
+      n = n + 1
+    end
+  end
+  return n
+end
+-- You: one hit only takes you to 1 health ("down but not out"). That's switched
+-- off first, as human_health_disable_dbno_on_death_node does it: a reference on
+-- your handle, then +3EEFD0(&id, 0), which releases it. Two hits a second apart,
+-- and it's switched back on (1) once you've respawned.
+local function set_dbno(e, on)
+  local B, id = wml.base, wml.read_u32(e + 0x58)
+  local buf = wml.buffer(4) + 0x300
+  wml.write_u32(buf, id)
+  local refs = wml.read_u64(B + 0x2EB2330) + id * 4
+  wml.write_u32(refs, wml.read_u32(refs) + 1)
+  wml.call(B + 0x3EEFD0, buf, on and 1 or 0)
+end
+local kill_wait, kill_hits
+function P.kill_self()
+  local e = P.object()
+  if not e or not P.health_component() then return false end
+  set_dbno(e, false)
+  kill_wait, kill_hits = 20, 2
+  return true
+end
+function P.kill_active() return kill_wait ~= nil end
+function P.update_kill_self()
+  local e, h = P.object(), P.health_component()
+  if not e or not h then return end
+  if kill_hits == 0 then
+    if wml.read_u8(h + 0x104) == 0 and wml.read_f32(h + CUR) > 0 and kill_wait <= 0 then
+      set_dbno(e, true)
+      kill_wait, kill_hits = nil, nil
+    end
+    kill_wait = kill_wait and kill_wait - 1
+    return
+  end
+  kill_wait = kill_wait - 1
+  if kill_wait <= 0 then
+    P.damage(e, 1000000)
+    kill_hits, kill_wait = kill_hits - 1, 60
+  end
+end
+-- Every car near but the one you're in, as Destroy this vehicle does it. Doors
+-- and panels have a 0x44 too: only what has wheels (0x12) is a whole vehicle.
+function P.destroy_near(radius)
+  local mine, n = P.vehicle_object(), 0
+  for _, v in ipairs(objects_near(radius, 0x44)) do
+    if v.entry ~= mine and P.component(0x12, v.entry) then
+      wml.write_u8(v.health + 0x56, wml.read_u8(v.health + 0x56) & ~0x05 & 0xFF)
+      wml.callf(wml.base + 0x1BA6F00, v.health, 0.0, wml.base + 0x48E778C, 0xFFFFFFFF, wml.base + 0x3C44910, 0)
+      n = n + 1
+    end
   end
   return n
 end
@@ -662,6 +761,30 @@ function P.update_run()
   wml.write_f32(c + 0x3A8, wml.read_f32(c + 0x278) * (x - 1))
 end
 
+-- Jump height: a jump lifts you about 1.35 m, +0x274 (vertical velocity) rising
+-- to 6.5 m/s; +0x4B1 is set while you're off the ground. That velocity includes
+-- the extra, so scaling it runs away (x10 went past 500 m): the extra is fixed,
+-- and lasts a quarter of a second from the jump button and leaving the ground.
+local jump_comp, jump_frames, jump_left, jump_armed, jump_was_up = nil, 0, 0, 0, false
+function P.update_jump()
+  local x = P.move.jump
+  if x == 1 then return end
+  jump_frames = jump_frames - 1
+  if jump_frames <= 0 or not jump_comp then jump_comp = P.component(0x10); jump_frames = 60 end
+  local c = jump_comp
+  if not c then return end
+  if wml.key_down("SPACE") or (wml.pad() or 0) & 0x1000 ~= 0 then jump_armed = 30
+  elseif jump_armed > 0 then jump_armed = jump_armed - 1 end
+  local up = wml.read_f32(c + 0x274) > 0.5
+  if jump_left > 0 then
+    jump_left = jump_left - 1
+    wml.write_f32(c + 0x3A4, 5 * (x - 1))
+  elseif up and not jump_was_up and jump_armed > 0 then
+    jump_left, jump_armed = 15, 0
+  end
+  jump_was_up = up
+end
+
 -- People the menu spawned (their object ids), and removing them: +1E6920(&id)
 -- destroys an object (the game's "gameplay util destroy"). An entry's own id
 -- is at +0x58; ids are reused, so an id is only removed while its entry still
@@ -808,7 +931,7 @@ function P.car_on() for _, v in pairs(P.car) do if v ~= 1 then return true end e
 -- Movement (experimental): the character locomotion component (type 0x1F).
 -- From +D0, in the reflection's order: gravity multiplier, walk, run, on-foot
 -- gain, in-air gain, in-air acceleration, swim gain, swim acceleration.
-P.move = { run = 1, air = 1, swim = 1, gravity = 1 }
+P.move = { run = 1, jump = 1, air = 1, swim = 1, gravity = 1 }
 -- (Run speed is the sprint speed stat, above: +D4 / +D8 changed nothing in
 -- play.) Originals are kept in a global: a reload of this file must not take
 -- changed values for the game's (it did, and they compounded).

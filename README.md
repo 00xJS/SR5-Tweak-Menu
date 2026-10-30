@@ -47,9 +47,9 @@ rows; every row has a help line in the menu.
 
 ### Player
 - **Health:** God mode (the game's own health floor, not its cheat), Health
-  (x2 to x10), Refill health, Health regen (none, fast, always full), No fall
+  (x2 to x10), Refill health, Kill yourself, Health regen (none, fast, always full), No fall
   damage, No ragdoll, No clip (W A S D, Space, Ctrl, Shift)
-- **Movement:** Run speed (up to x5), Air control, Swim speed, Your gravity
+- **Movement:** Run speed (up to x5), Jump height (up to x10), Air control, Swim speed, Your gravity
 - **Emotes:** D-pad emote 1 and D-pad emote 2 (swap the emotes on your
   D-pad, then use it as usual), Play emote, Repeat emote, Stop emote, Say a line (the game's
   voice lines)
@@ -57,9 +57,11 @@ rows; every row has a help line in the menu.
 - **Wingsuit:** Wingsuit boosts (every 2 s or unlimited), Wingsuit boost
   power, Wingsuit top speed, Wingsuit glide (floaty, level, climb)
 - Free shopping
-- **Progress:** Give XP, Give skill points, Add cash, Own every weapon,
-  Unlock everything in the stores, Unlock all collectibles (clothing, emotes, weapons,
-  vehicles, HQ props; these stay in your save)
+- Customize character (anywhere)
+- **Progress:** Give XP, Give skill points, Add cash, Unlock EVERYTHING (all of these at once),
+  Unlock fast travel points, Own every weapon, Unlock all skills, Unlock all perks, Unlock gang and homies,
+  Unlock all clothing, Unlock everything in the stores, Unlock all collectibles (clothing, emotes, weapons,
+  vehicles, HQ props). DLC and Boothill entries included; these stay in your save
 - **The game's cheats:** Invincibility, Give cash, Max level, Super Saints,
   Milk Bones, Pratfall, Heaven Bound
 
@@ -88,9 +90,9 @@ rows; every row has a help line in the menu.
 ### World
 - Weather, Weather (all: every weather the game has), Time of day, Freeze clock, Clock speed, Pause world
 - **People:** Spawn person (any of the game's 834 characters), Spawn a
-  crowd (ten around you), Spawn 10 random people, Remove spawned people, Drop cash, Money rain,
+  crowd (ten around you), Spawn 10 random people, Remove spawned people, Show activities on the map, Drop cash, Drop weapon, Money rain,
   Everyone near (cheer, laugh, taunt and more), Disarm and Re-arm everyone near,
-  Ragdoll everyone near, Angry pedestrians
+  Ragdoll everyone near, Kill everyone near, Blow up cars near, Angry pedestrians
 - Empty streets (no people or traffic), Low gravity
 - **Notoriety:** Never wanted (by anyone, by police: no cops, or by gangs),
   and raise, clear or max it with the Police, Idols, Marshal and Los Panteros
@@ -103,6 +105,7 @@ rows; every row has a help line in the menu.
 - **Camera:** Field of view, Shoulder camera (centred, right, left), Turn
   speed (past the options' top), Brightness, Camera shake, Looping camera shake, Camera
   bobbing
+- Letterbox
 - **Free camera:** Photo mode (the game's own free camera)
 
 ### Settings

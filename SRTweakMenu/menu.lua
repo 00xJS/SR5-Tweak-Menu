@@ -65,9 +65,11 @@ local TABS = {
     pset("god", "God mode", "You can't die. Not the game's cheat: your save stays clean.", { { "Off", false }, { "On", true } }),
     pset("health_mult", "Health", "Your maximum health.", { { "Game's", 1 }, { "x2", 2 }, { "x5", 5 }, { "x10", 10 } }),
     { kind = "refill", label = "Refill health", help = "Back to full health." },
+    { kind = "kill_self", label = "Kill yourself", help = "Press twice, with God mode off: you die as if shot, and respawn the way the game does." },
     pset("regen", "Health regen", "Experimental: None, Fast (five times, no wait after a hit) or Always back to full.", { { "Game's", "game" }, { "None", "none" }, { "Fast", "fast" }, { "Always full", "full" } }),
     pset("no_fall", "No fall damage", "Falls from any height don't hurt (the game's own fall limits raised).", { { "Off", false }, { "On", true } }),
     { kind = "mvset", key = "run", label = "Run speed", help = "How fast you walk, jog and sprint.", options = { { "Game's", 1 }, { "x1.5", 1.5 }, { "x2", 2 }, { "x3", 3 }, { "x5", 5 } }, sel = 1, save_key = "move.run" },
+    { kind = "mvset", key = "jump", label = "Jump height", help = "How high you jump. Big jumps need God mode or No fall damage.", options = { { "Game's", 1 }, { "x2", 2 }, { "x3", 3 }, { "x5", 5 }, { "x10", 10 } }, sel = 1, save_key = "move.jump" },
     { kind = "mvset", key = "air", label = "Air control", help = "Experimental: how much you steer in the air.", options = { { "Game's", 1 }, { "x2", 2 }, { "x4", 4 } }, sel = 1, save_key = "move.air" },
     { kind = "mvset", key = "swim", label = "Swim speed", help = "Experimental: how fast you swim.", options = { { "Game's", 1 }, { "x2", 2 }, { "x3", 3 } }, sel = 1, save_key = "move.swim" },
     { kind = "mvset", key = "gravity", label = "Your gravity", help = "Experimental: lower is floatier jumps and falls.", options = { { "Game's", 1 }, { "x0.5", 0.5 }, { "x0.25", 0.25 }, { "x2", 2 } }, sel = 1, save_key = "move.gravity" },
@@ -97,8 +99,15 @@ local TABS = {
     gchoice("Give XP", "Experimental: adds XP the game's way (it stays in your save).", award("xp", { { "1,000 XP", 1000 }, { "10,000 XP", 10000 }, { "100,000 XP", 100000 } })),
     gchoice("Give skill points", "Experimental: adds skill points (they stay in your save).", award("skill_point", { { "1", 1 }, { "5", 5 }, { "10", 10 } })),
     gchoice("Add cash", "Experimental: adds cash directly (it stays in your save).", award("cash", { { "$10,000", 10000 }, { "$100,000", 100000 }, { "$1,000,000", 1000000 } })),
-    { kind = "unlock", key = "weapons", label = "Own every weapon", help = "Press twice: every weapon is yours, as if bought (saved in your game)." },
-    { kind = "unlock", key = "stores", label = "Unlock everything in the stores", help = "Press twice: every store's clothing, weapons and props are yours (saved in your game)." },
+    gcall("Customize character", "Opens the game's character screen anywhere (through the phone). Esc back, Esc closes the phone.", [[gml_ui_gem_raise_event("ui_cell_phone_open", 1, "requested_screen", string_crci("cell_home_open_profile")) return "open: close this menu"]]),
+    { kind = "unlock", key = "everything", label = "Unlock EVERYTHING", help = "Press twice: every unlock row at once, DLC and all. Takes a minute or two (saved in your game)." },
+    { kind = "unlock", key = "travel", label = "Unlock fast travel points", help = "Press twice: all of them, on the map and in the menu (saved in your game)." },
+    { kind = "unlock", key = "weapons", label = "Own every weapon", help = "Press twice: every weapon entry in the game is yours, DLC and internal ones too (saved in your game)." },
+    { kind = "unlock", key = "skills", label = "Unlock all skills", help = "Press twice: every skill is yours, free, DLC and Boothill too (saved in your game)." },
+    { kind = "unlock", key = "perks", label = "Unlock all perks", help = "Press twice: every perk and perk slot is yours, free, DLC and Boothill too (saved in your game)." },
+    { kind = "unlock", key = "gang", label = "Unlock gang and homies", help = "Press twice: every crew look, crew vehicle, homie and homie outfit is yours (saved in your game)." },
+    { kind = "unlock", key = "clothing", label = "Unlock all clothing", help = "Press twice: every piece of clothing in the game is yours, sold in a store or not (saved in your game)." },
+    { kind = "unlock", key = "stores", label = "Unlock everything in the stores", help = "Press twice: every store's clothing and emotes are yours (saved in your game)." },
     { kind = "unlock", key = "collectibles", label = "Unlock all collectibles", help = "Press twice: every collectible outfit, emote, weapon, car and HQ prop (saved in your game)." },
     toggle("super_saints", "Super Saints", "The game's Super Saints cheat."),
     toggle("milk_bones", "Milk Bones", "The game's Milk Bones cheat."),
@@ -182,12 +191,16 @@ local TABS = {
     { kind = "random_people", label = "Spawn 10 random people", help = "Ten of the game's characters, picked at random, around you." },
     { kind = "despawn", label = "Remove spawned people", help = "Experimental: removes everyone the menu spawned." },
     { kind = "cash_drop", label = "Drop cash", help = "Left/Right picks how much, Enter drops it 8 m ahead of you. It's real money: it stays in your save.", sel = 1, options = { { "$1,000", 1000 }, { "$10,000", 10000 }, { "$100,000", 100000 } } },
+    { kind = "weapon_drop", label = "Drop weapon", help = "Left/Right picks a weapon, Enter drops it 6 m ahead of you. Walking onto it collects it (saved in your game).", sel = 1, options = {} },
     pset("rain", "Money rain", "Cash falls all around you ($250 a pile; what you pick up stays in your save).", { { "Off", false }, { "Light", 30 }, { "Heavy", 8 } }),
+    { kind = "unlock", key = "icons", label = "Show activities on the map", help = "Experimental, press twice: diversions, flashpoints and discoverables." },
     { kind = "reaction", label = "Everyone near", help = "Left/Right picks a reaction, Enter: everyone within 40 m does it.", sel = 1,
       options = { { "Cheer", "cheer" }, { "Laugh", "laugh" }, { "Taunt", "taunt" }, { "Take pics", "take pics" }, { "Wave", "wave" }, { "Hype", "hype emote" }, { "Angry", "angry" }, { "Disgusted", "disgusted" } } },
     { kind = "arms", armed = false, label = "Disarm everyone near", help = "Experimental: people within 40 m can't use their guns (new arrivals still can)." },
     { kind = "arms", armed = true, label = "Re-arm everyone near", help = "Gives people within 40 m their guns back." },
     { kind = "crowd_act", key = "ragdoll", label = "Ragdoll everyone near", help = "Everyone within 40 m falls over." },
+    { kind = "crowd_act", key = "kill", label = "Kill everyone near", help = "Everyone within 40 m dies, as if you shot them. Mission characters are left alone." },
+    { kind = "crowd_act", key = "cars", label = "Blow up cars near", help = "Every vehicle within 40 m explodes, except the one you're in." },
     { kind = "wdset", key = "empty_streets", label = "Empty streets", help = "Experimental: no more people or traffic appear; the ones out there go as you leave them.", options = { { "Off", false }, { "On", true } }, sel = 1, save_key = "world.empty_streets" },
     toggle("low_gravity", "Low gravity", "Everything floats a little."),
     toggle("ped_agro", "Angry pedestrians", "People on the street turn on you."),
@@ -216,6 +229,7 @@ local TABS = {
       { "Left shoulder", "gml_set_camera_ndc_offset(-0.45, 0) return 'left'" } }),
     { kind = "camset", key = "turn", label = "Turn speed", help = "Experimental: how fast the camera turns, mouse and controller, past the options' top.", options = { { "Game's", 1 }, { "x1.5", 1.5 }, { "x2", 2 }, { "x3", 3 } }, sel = 1, save_key = "camera.turn" },
     { kind = "camset", key = "bright", label = "Brightness", help = "Experimental: while it's on, the game stops adjusting brightness by itself (indoors, night).", options = { { "Game's", 0 }, { "Brighter", -1 }, { "Much brighter", -2 }, { "Darker", 1 }, { "Much darker", 2 } }, sel = 1 },
+    gchoice("Letterbox", "Black bars, as in the game's cutscenes.", { { "Off", [[gml_ui_gem_raise_event("segue_letterbox_end") return "off"]] }, { "On", [[gml_ui_gem_raise_event("segue_letterbox_begin") return "on"]] } }),
     gcall("Photo mode", "The game's photo mode: a free camera. Close the menu to move it; press again to leave.", "cell_photo_mode_toggle() return cell_photo_mode_is_active() and 'on' or 'off'"),
     { kind = "hud", label = "Hide HUD", help = "Experimental: hides the HUD the way the game's own option does.", options = { { "Off", false }, { "On", true } }, sel = 1, save_key = "visual.hide_hud" },
   } },
@@ -241,7 +255,7 @@ local TABS = {
 -- Left/Right applies them (after a short pause, so scrolling past options
 -- doesn't fire each one). Actions (spawn, teleport, give, unlock) still wait
 -- for Enter.
-local APPLY_ON_PICK = { ["Weather"] = true, ["Time of day"] = true, ["Screen filter"] = true, ["Shoulder camera"] = true }
+local APPLY_ON_PICK = { ["Weather"] = true, ["Time of day"] = true, ["Screen filter"] = true, ["Shoulder camera"] = true, ["Letterbox"] = true }
 for _, t in ipairs(TABS) do for _, r in ipairs(t.rows) do if APPLY_ON_PICK[r.label] then r.apply = true end end end
 
 -- Settings kept from last time (tweaks.lua).
@@ -356,7 +370,7 @@ local function names_of_objects(cls)
     if not res[1] then break end
     for j = 3, res.n, 2 do
       local p = tonumber(tostring(res[j + 1]):match("(%x+)>$") or "", 16)
-      if p then out[#out + 1] = { name = res[j]:match('"(.*)"') or res[j], hash = (wml.read_u64(p + 0x28) >> 32) & 0xFFFFFFFF } end
+      if p then out[#out + 1] = { name = res[j]:match('"(.*)"') or res[j], hash = (wml.read_u64(p + 0x28) >> 32) & 0xFFFFFFFF, class = wml.read_u64(p + 0x28) & 0xFFFFFFFF } end
     end
     first = first + N
     if res[2] < 2 * N then break end
@@ -427,51 +441,60 @@ end
 -- Unlocks, a few at a time over the next frames (M.unlock.queue):
 -- * collectibles: gml_collectibles_award(name hash, 1) for every object of
 --   the collectible classes, as the game awards a found one.
--- * stores: each store inventory's lists, read the way the game's own (left
---   over, console-only) unlock handler +A68880 reads them: the inventory's
---   info from +DA4830(&class hash, &name hash); lists of name hashes, pointer
---   and u16 count: wearables +0x40/+0x48, props +0x70/+0x78, collectibles
---   +0x88/+0x90. Each item is awarded like a collectible. (Calling that
---   handler itself crashed the game once, executing address 0: it's not used.)
---   Store weapons are left to Own every weapon.
+-- * stores: each store inventory's clothing gets m_purchased on its data record
+--   (what the wardrobe's owned list reads; the award does nothing for clothing),
+--   its emotes are awarded like a collectible. (The game's console handler for
+--   this, +A68880, crashed it.) Store weapons are left to Own every weapon.
 -- * weapons: +988830(info, 1), the owned flag buying a weapon sets.
 -- Achievements wait meanwhile: the spicy session flag is held (the game's
 -- achievement code skips while it's set).
-local STORE_LISTS = { { 0x40, 0x48 }, { 0x70, 0x78 }, { 0x88, 0x90 } }
-local function info_of(class_crc, name_crc)
-  local buf = wml.buffer(12)
-  wml.write_u32(buf, class_crc)
-  wml.write_u32(buf + 4, name_crc)
-  return wml.call(wml.base + 0xDA4830, buf, buf + 4)
-end
-local function crc_of(name)
-  local ok, v = wml.game("return string_crc(" .. string.format("%q", name) .. ")")
-  return ok and type(v) == "number" and (math.floor(v) & 0xFFFFFFFF) or 0
-end
--- (building_customization_prop_info: the HQ props the phone's Collectibles screen shows; checked live: an award unlocks one)
 local COLLECTIBLES = { "collectible_wearable_info", "collectible_emote", "collectible_weapon_info", "collectible_vehicle_info", "building_customization_prop_info" }
-local function start_unlock(row)
-  local q = {}
-  if row.key == "weapons" then
-    -- not vehicle guns, abilities or the parent templates
-    for _, o in ipairs(names_of_objects("inventory_weapon_info")) do
-      if not (o.name:find("^weapon_vehicle") or o.name:find("^weapon_ability") or o.name:find("^weapon_parent") or o.name:find("test")) then
-        q[#q + 1] = { weapon = o.hash }
-      end
-    end
-  elseif row.key == "stores" then
-    for _, o in ipairs(names_of_objects("store_inventory_info")) do
-      if not o.name:find("^test_") then q[#q + 1] = { store = o.hash } end   -- not the developers' test store
-    end
-  else
-    local batch
-    for _, cls in ipairs(COLLECTIBLES) do
-      for _, o in ipairs(names_of_objects(cls)) do
-        if not batch or #batch == 20 then batch = {}; q[#q + 1] = { award = batch } end
-        batch[#batch + 1] = "gml_collectibles_award(" .. o.hash .. ", 1)"
-      end
+local function add_awards(q, classes)
+  local batch
+  for _, cls in ipairs(classes) do
+    for _, o in ipairs(names_of_objects(cls)) do
+      if not batch or #batch == 20 then batch = {}; q[#q + 1] = { award = batch } end
+      batch[#batch + 1] = "gml_collectibles_award(" .. o.hash .. ", 1)"
     end
   end
+end
+-- What's left at 0 after the award (three emotes refuse it): m_available written
+-- to 1 directly, as many as a step's call can return.
+local REFUSED = { { "collectible_emote", "collectible_emote_state" }, { "skill_info", "skill_info_data" }, { "perk_entry", "perk_entry_state" } }
+local unlock_queue
+function unlock_queue(key, q)
+  if key == "weapons" then
+    for _, o in ipairs(names_of_objects("inventory_weapon_info")) do q[#q + 1] = { weapon = o.name } end
+  elseif key == "travel" then
+    add_awards(q, { "city_warp_point" })
+  elseif key == "icons" then
+    for _, cls in ipairs({ "discoverable_info", "diversion_info", "flashpoint_info" }) do
+      for _, o in ipairs(names_of_objects(cls)) do q[#q + 1] = { icon = o.hash } end
+    end
+  elseif key == "stores" then
+    for i, o in ipairs(names_of_objects("store_inventory_info")) do
+      q[#q + 1] = { store = o.hash, index = i, first = 0 }
+    end
+  elseif key == "skills" then
+    add_awards(q, { "skill_info" })
+    q[#q + 1] = { refused = REFUSED[2] }
+  elseif key == "perks" then
+    add_awards(q, { "perk_entry", "perk_slot" })
+    q[#q + 1] = { refused = REFUSED[3] }
+  elseif key == "gang" then
+    add_awards(q, { "gang_customization", "gang_vehicle_customization", "homie_info", "homie_outfit" })
+  elseif key == "clothing" then
+    q[#q + 1] = { clothing = true, first = 0 }
+  elseif key == "everything" then
+    for _, k in ipairs({ "travel", "weapons", "stores", "clothing", "skills", "perks", "gang", "collectibles", "icons" }) do unlock_queue(k, q) end
+  else
+    add_awards(q, COLLECTIBLES)
+    q[#q + 1] = { refused = REFUSED[1] }
+  end
+end
+local function start_unlock(row)
+  local q = {}
+  unlock_queue(row.key, q)
   if #q == 0 then say(row.label .. ": nothing found (load into the game first)", "warn"); return end
   M.unlock = { queue = q, label = row.label, done = 0, total = #q }
   say(row.label .. ": working...")
@@ -481,32 +504,94 @@ local function step_unlock()
   C.allow_spicy(); M.spicy_hold = math.max(M.spicy_hold, 300)
   local item = table.remove(u.queue, 1)
   if item and item.store then
-    u.store_crc = u.store_crc or crc_of("store_inventory_info")
-    local info = info_of(u.store_crc, item.store)
-    if info ~= 0 then
-      local awards = {}
-      for _, l in ipairs(STORE_LISTS) do
-        local list, n = wml.read_u64(info + l[1]), wml.read_u16(info + l[2])
-        if list ~= 0 and n < 2000 then
-          for i = 0, n - 1 do awards[#awards + 1] = "gml_collectibles_award(" .. wml.read_u32(list + i * 4) .. ", 1)" end
+    -- this store's clothing, 40 a step: the purchased flag on each item's data
+    local r = table.pack(wml.game([[local i = 0 for _, s in vlib_info_object:ipairs("store_inventory_info") do i = i + 1 if i == ]] .. item.index .. [[ then
+      local o, n = {}, 0
+      for _, w in s.m_wearables:ipairs() do
+        n = n + 1
+        if n > ]] .. item.first .. [[ then
+          local x = w:get_info("char_cust_wearable_info")
+          if x:exists() then
+            local d = x:get_data("char_cust_wearable_data")
+            if d:exists() then o[#o + 1] = d.m_purchased end
+          end
+          if #o == 40 then break end
         end
       end
-      -- 20 awards a game call
+      return n, unpack(o) end end]]))
+    local V = require("vdata")
+    if r[1] then
+      for j = 3, r.n do
+        local a = V.field_addr(r[j])
+        if a and wml.read_u8(a) == 0 then wml.write_u8(a, 1); u.items = (u.items or 0) + 1 end
+      end
+    end
+    if r[1] and r.n - 2 == 40 then
+      table.insert(u.queue, 1, { store = item.store, index = item.index, first = r[2] })
+    else
+      -- and its emotes, awarded like a collectible
+      r = table.pack(wml.game([[local i = 0 for _, s in vlib_info_object:ipairs("store_inventory_info") do i = i + 1 if i == ]] .. item.index .. [[ then
+        local o = {}
+        for _, w in s.m_emotes:ipairs() do o[#o + 1] = w:get_info("collectible_emote") if #o == 60 then break end end
+        return unpack(o) end end]]))
+      local awards = {}
+      if r[1] then
+        for j = 2, r.n do
+          local q = V.ptr(r[j])
+          if q then awards[#awards + 1] = "gml_collectibles_award(" .. ((wml.read_u64(q + 0x28) >> 32) & 0xFFFFFFFF) .. ", 1)" end
+        end
+      end
       for i = 1, #awards, 20 do wml.game(table.concat(awards, " ", i, math.min(i + 19, #awards))) end
       u.items = (u.items or 0) + #awards
       u.done = u.done + 1
     end
+  elseif item and item.refused then
+    local r = table.pack(wml.game([[local o = {} for _, x in vlib_info_object:ipairs("]] .. item.refused[1] .. [[") do
+      local d = x:get_data("]] .. item.refused[2] .. [[")
+      if d:exists() and d.m_available:get_number() <= 0 then o[#o + 1] = d.m_available if #o == 40 then break end end
+    end return unpack(o)]]))
+    local V = require("vdata")
+    if r[1] then
+      for j = 2, r.n do
+        local a = V.field_addr(r[j])
+        if a and wml.read_u32(a) == 0 then wml.write_u32(a, 1); u.items = (u.items or 0) + 1 end
+      end
+    end
+    u.done = u.done + 1
+  elseif item and item.clothing then
+    -- every clothing record, 40 a step, whether a store sells it or not
+    local r = table.pack(wml.game([[collectgarbage("collect") local o, n = {}, 0
+      for _, x in vlib_info_object:ipairs("char_cust_wearable_info") do
+        n = n + 1
+        if n > ]] .. item.first .. [[ then
+          local d = x:get_data("char_cust_wearable_data")
+          if d:exists() then o[#o + 1] = d.m_purchased end
+          if #o == 40 then break end
+        end
+      end
+      return n, unpack(o)]]))
+    local V = require("vdata")
+    if r[1] then
+      for j = 3, r.n do
+        local a = V.field_addr(r[j])
+        if a and wml.read_u8(a) == 0 then wml.write_u8(a, 1); u.items = (u.items or 0) + 1 end
+      end
+    end
+    if r[1] and r.n - 2 == 40 then table.insert(u.queue, 1, { clothing = true, first = r[2] })
+    else u.done = u.done + 1 end
   elseif item and item.weapon then
-    -- the weapon's info, then its owned flag (+988830(info, 1): what buying
-    -- it does, unlock event included)
-    u.class_crc = u.class_crc or crc_of("inventory_weapon_info")
-    local info = info_of(u.class_crc, item.weapon)
-    if info ~= 0 then wml.call(wml.base + 0x988830, info, 1); u.done = u.done + 1 end
+    if P.own_weapon(item.weapon) then u.done = u.done + 1 end
+  elseif item and item.icon then
+    -- gameplay_type_show_oi_node's call: +742650(&name hash, 1 show, 0 no banner)
+    local buf = wml.buffer(12)
+    wml.write_u32(buf, item.icon)
+    wml.call(wml.base + 0x742650, buf, 1, 0)
+    u.done = u.done + 1
   elseif item and item.award then
     if wml.game(table.concat(item.award, " ")) then u.done = u.done + 1 end
   end
   if #u.queue == 0 then
-    say(u.label .. ": done (" .. u.done .. " of " .. u.total .. (u.label:find("stores") and (" stores, " .. (u.items or 0) .. " items)") or u.label:find("weapon") and " weapons)" or " batches)"))
+    say(u.label .. ": done (" .. u.done .. " of " .. u.total .. (u.label:find("stores") and (" stores, " .. (u.items or 0) .. " items)") or u.label:find("clothing") and (" lists, " .. (u.items or 0) .. " items)") or u.label:find("weapon") and " weapons)" or " batches)"))
     wml.log("unlock: " .. u.label .. ", " .. u.done .. " of " .. u.total .. (u.items and (", " .. u.items .. " items") or ""))
     M.unlock = nil
   end
@@ -576,6 +661,11 @@ local function select_row(row)
   elseif row.kind == "cash_drop" then
     local o = row.options[row.sel]
     say(P.drop_cash(o[2], 0, 2, 8) and (o[1] .. " dropped ahead of you") or "Couldn't drop cash right now", "status")
+  elseif row.kind == "weapon_drop" then
+    local o = row.options[row.sel]
+    local ok, v = wml.game("return string_crc(" .. string.format("%q", o and o[2] or "") .. ")")
+    if not o then say("Nothing to pick (load into the game first)", "warn")
+    else say(ok and P.drop_pickup(math.floor(v) & 0xFFFFFFFF, 1, 0, 1, 6) and (o[1] .. " dropped ahead of you") or "Couldn't drop it right now", "status") end
   elseif row.kind == "destroy_car" then
     if M.pending_confirm ~= row then M.pending_confirm = row; say(row.label .. ": press again to confirm", "warn")
     else
@@ -589,9 +679,18 @@ local function select_row(row)
   elseif row.kind == "arms" then
     local n = P.near_arms(row.armed, 40)
     say(n == 0 and "Nobody near" or (n .. (n == 1 and " person " or " people ") .. (row.armed and "re-armed" or "disarmed")))
+  elseif row.kind == "kill_self" then
+    if P.god then say("Turn God mode off first", "warn")
+    elseif M.pending_confirm ~= row then M.pending_confirm = row; say(row.label .. ": press again to confirm", "warn")
+    else M.pending_confirm = nil; say(P.kill_self() and "Goodbye" or "Couldn't right now", "status") end
   elseif row.kind == "crowd_act" then
-    local n = P.ragdoll_near(40)
-    say(n == 0 and "Nobody near" or (n .. (n == 1 and " person" or " people") .. " ragdolled"))
+    if row.key == "cars" then
+      local n = P.destroy_near(40)
+      say(n == 0 and "No vehicles near" or (n .. (n == 1 and " vehicle" or " vehicles") .. " blown up"))
+    else
+      local n = row.key == "kill" and P.kill_near(40) or row.key == "ragdoll" and P.ragdoll_near(40)
+      say(n == 0 and "Nobody near" or (n .. (n == 1 and " person " or " people ") .. (row.key == "kill" and "killed" or "ragdolled")))
+    end
   elseif row.kind == "despawn" then
     local n = P.remove_spawned()
     say(n == 0 and "Nobody to remove" or (n .. " spawned " .. (n == 1 and "person" or "people") .. " removed"))
@@ -788,12 +887,12 @@ local function row_value(row)
     return "Enter", "off"
   elseif row.kind == "voiceline" and not row.loaded then
     return "Enter to load", "off"
-  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" or row.kind == "crowd_act" or row.kind == "arms" or row.kind == "destroy_car" then
+  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" or row.kind == "crowd_act" or row.kind == "arms" or row.kind == "destroy_car" or row.kind == "kill_self" then
     return "Enter", "off"
   elseif row.kind == "mset" then
     local o = row.options[row.sel]
     return "<  " .. o[1] .. "  >", row.sel == 1 and "off" or "on"
-  elseif row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" or row.kind == "giveweapon" or row.kind == "voiceline" or row.kind == "gchoice" or row.kind == "weathernode" or row.kind == "cash_drop" or row.kind == "reaction" then
+  elseif row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" or row.kind == "giveweapon" or row.kind == "voiceline" or row.kind == "gchoice" or row.kind == "weathernode" or row.kind == "cash_drop" or row.kind == "weapon_drop" or row.kind == "reaction" then
     local o = row.options[row.sel]
     return o and ("<  " .. o[1] .. "  >") or "none", o and "row" or "off"
   elseif row.kind == "gcall" then
@@ -1012,6 +1111,12 @@ local function ensure_ready()
     elseif r.kind == "giveweapon" and #r.options == 0 then
       for _, w in ipairs(names_of("inventory_weapon_info")) do r.options[#r.options + 1] = { pretty((w:match('"(.*)"') or w)), w } end
       table.sort(r.options, function(a, b) return a[1] < b[1] end)
+    elseif r.kind == "weapon_drop" and #r.options == 0 then
+      for _, w in ipairs(names_of("collectible_weapon_info")) do
+        local name = w:match('"(.*)"') or w
+        r.options[#r.options + 1] = { pretty(name), name }
+      end
+      table.sort(r.options, function(a, b) return a[1] < b[1] end)
     elseif r.kind == "weathernode" and #r.options == 0 then
       -- gml_weather_state_set_node takes a node's name (any case)
       -- the weathers themselves, not the overlays (critters, blowing trash) or transitions
@@ -1135,7 +1240,10 @@ function M.update()
   if C.loaded and frame % 5 == 4 and P.recoil_active() then P.update_recoil(P.no_recoil ~= M.recoil_was) M.recoil_was = P.no_recoil end
   if C.loaded and frame % 60 == 35 and P.fall_active() then P.update_fall() end
   if C.loaded and frame % 60 == 45 and P.homies_active() then P.update_homies() end
-  if C.loaded then P.update_run() end
+  -- God mode: back up within 2.5 s of a knockdown (you don't get up by yourself with it on)
+  if C.loaded and P.god and frame % 150 == 75 then local me = P.object(); if me then wml.call(wml.base + 0x5B0F60, me + 0x58, 0, 3) end end
+  if C.loaded then P.update_run(); P.update_jump() end
+  if C.loaded and P.kill_active() then P.update_kill_self() end
   if C.loaded and P.clip_active() then P.update_clip() end
   if C.loaded and frame % 30 == 12 then P.update_gravity() end
   if C.loaded and frame % 30 == 17 and (P.tires or P.tires_set) then P.update_tires() end
@@ -1144,9 +1252,7 @@ function M.update()
   if C.loaded and P.rain then P.update_rain() end
   -- Free shopping, when it changes
   if C.loaded and (P.free_shop and true or false) ~= (M.shop_was or false) then
-    local names = {}
-    if P.free_shop then for _, o in ipairs(names_of_objects("store_category_info")) do names[#names + 1] = o.hash end end
-    local n = P.update_free_shop(names)
+    local n = P.update_free_shop()
     M.shop_was = P.free_shop and true or false
     if M.shop_was then wml.log("free shopping: " .. n .. " categories") end
   end
