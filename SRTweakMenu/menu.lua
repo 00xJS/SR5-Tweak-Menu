@@ -50,6 +50,14 @@ local function difficulty(i, label)
 end
 -- A choice of game calls: Left/Right picks, Enter runs the picked code.
 local function gchoice(label, help, options) return { kind = "gchoice", label = label, help = help, options = options, sel = 1 } end
+local function voices()
+  local out = {}
+  for _, v in ipairs({ "player_f1", "player_f2", "player_f3", "player_f4", "player_m1", "player_m2", "player_m3", "player_m4" }) do
+    local label = (v:find("_f") and "Female " or "Male ") .. v:sub(-1)
+    out[#out + 1] = { label, "customization_set_avatar_persona('" .. v .. "') return '" .. label .. "'" }
+  end
+  return out
+end
 local function award(what, amounts)
   local out = {}
   for _, a in ipairs(amounts) do out[#out + 1] = { a[1], "gml_collectibles_award(string_crc('" .. what .. "'), " .. a[2] .. ") return '" .. a[1] .. " given'" } end
@@ -64,6 +72,9 @@ local TABS = {
   { name = "Player", rows = {
     pset("god", "God mode", "You can't die. Not the game's cheat: your save stays clean.", { { "Off", false }, { "On", true } }),
     pset("health_mult", "Health", "Your maximum health.", { { "Game's", 1 }, { "x2", 2 }, { "x5", 5 }, { "x10", 10 } }),
+    pset("proof_bullets", "Bulletproof", "Experimental: bullets don't hurt you, without God mode.", { { "Off", false }, { "On", true } }),
+    pset("proof_explosions", "Explosion-proof", "Experimental: explosions and fire don't hurt you.", { { "Off", false }, { "On", true } }),
+    pset("proof_crashes", "Crash-proof", "Experimental: being hit by vehicles and objects doesn't hurt you.", { { "Off", false }, { "On", true } }),
     { kind = "refill", label = "Refill health", help = "Back to full health." },
     { kind = "kill_self", label = "Kill yourself", help = "Press twice, with God mode off: you die as if shot, and respawn the way the game does." },
     pset("regen", "Health regen", "Experimental: None, Fast (five times, no wait after a hit) or Always back to full.", { { "Game's", "game" }, { "None", "none" }, { "Fast", "fast" }, { "Always full", "full" } }),
@@ -78,6 +89,14 @@ local TABS = {
     { kind = "emote", label = "Play emote", help = "Experimental: Left/Right picks one of the game's emotes, Enter plays it now.", sel = 1, options = {} },
     { kind = "mset", key = "repeat_emote", label = "Repeat emote", help = "Plays the emote picked in Play emote again and again; Stop emote ends it.", options = { { "Off", false }, { "Every 3 s", 180 }, { "Every 6 s", 360 }, { "Every 12 s", 720 } }, sel = 1 },
     { kind = "emote_stop", label = "Stop emote", help = "Stops the emote you're playing (and Repeat emote)." },
+    { kind = "gchoice", apply = true, label = "Facial expression", help = "Your face holds this expression until you pick Normal.", sel = 1, options = { { "Normal", "selfie_mode_facial_expression_clear() return 'Normal'" },
+      { "Anger", "selfie_mode_facial_expression_play(vlib_info_object:get_object('gml_gail_mood_info', 'anger')) return 'Anger'" }, { "Contempt", "selfie_mode_facial_expression_play(vlib_info_object:get_object('gml_gail_mood_info', 'contempt')) return 'Contempt'" },
+      { "Disgust", "selfie_mode_facial_expression_play(vlib_info_object:get_object('gml_gail_mood_info', 'disgust')) return 'Disgust'" }, { "Fear", "selfie_mode_facial_expression_play(vlib_info_object:get_object('gml_gail_mood_info', 'fear')) return 'Fear'" },
+      { "Happiness", "selfie_mode_facial_expression_play(vlib_info_object:get_object('gml_gail_mood_info', 'happiness')) return 'Happiness'" }, { "Pain", "selfie_mode_facial_expression_play(vlib_info_object:get_object('gml_gail_mood_info', 'pain')) return 'Pain'" },
+      { "Sadness", "selfie_mode_facial_expression_play(vlib_info_object:get_object('gml_gail_mood_info', 'sadness')) return 'Sadness'" }, { "Surprise", "selfie_mode_facial_expression_play(vlib_info_object:get_object('gml_gail_mood_info', 'surprise')) return 'Surprise'" } } },
+    { kind = "gchoice", apply = true, label = "Your voice", help = "The game's eight player voices (saved with your game; pick Say a line to hear it).", sel = 1, options = voices() },
+    opt("Voice pitch", "Lower or higher than your voice (saved with your game).", "customization_get_avatar_voice_pitch()", "customization_set_avatar_voice_pitch(%s)", { { "-1", -1 }, { "-0.5", -0.5 }, { "0", 0 }, { "+0.5", 0.5 }, { "+1", 1 } }),
+    pset("walk_style", "Walk style", "Experimental: replaces your walk, jog and sprint animations.", { { "Game's", false }, { "Forced walk", "default" }, { "Sad walk", "sad walk" } }),
     { kind = "voiceline", label = "Say a line", help = "Experimental: Left/Right picks one of the game's voice situations, Enter says it.", sel = 1, options = {} },
     gcall("Dismiss homies", "Sends away every homie who's following you.", [[
       local n = 0
@@ -99,7 +118,25 @@ local TABS = {
     gchoice("Give XP", "Experimental: adds XP the game's way (it stays in your save).", award("xp", { { "1,000 XP", 1000 }, { "10,000 XP", 10000 }, { "100,000 XP", 100000 } })),
     gchoice("Give skill points", "Experimental: adds skill points (they stay in your save).", award("skill_point", { { "1", 1 }, { "5", 5 }, { "10", 10 } })),
     gchoice("Add cash", "Experimental: adds cash directly (it stays in your save).", award("cash", { { "$10,000", 10000 }, { "$100,000", 100000 }, { "$1,000,000", 1000000 } })),
+    { kind = "play_as", back = false, label = "Play as spawned person", help = "Experimental: become the last person you spawned (World > Spawn person). Don't save while you're them." },
+    { kind = "play_as", back = true, label = "Back to yourself", help = "Back to your own character. Remove spawned people does it too." },
+    { kind = "outfit", label = "Saved look", help = "Experimental: Left/Right picks a look you saved in the game, Enter wears its outfit.", sel = 1, options = {} },
+    { kind = "look_preset", label = "Character preset", help = "Experimental, press twice: replaces your whole character with the game's preset. Save a look first: there's no undo.", sel = 1, options = {} },
     gcall("Customize character", "Opens the game's character screen anywhere (through the phone). Esc back, Esc closes the phone.", [[gml_ui_gem_raise_event("ui_cell_phone_open", 1, "requested_screen", string_crci("cell_home_open_profile")) return "open: close this menu"]]),
+    pset("flow", "Unlimited Flow", "Your ability meter stays full, as the game does in some missions.", { { "Off", false }, { "On", true } }),
+    pset("free_skills", "Free skills", "Experimental: skills cost no Flow.", { { "Off", false }, { "On", true } }),
+    pset("flow_gain", "Flow gain", "Experimental: how much faster your Flow fills.", { { "Game's", false }, { "+2", 2.0 }, { "+5", 5.0 }, { "+20", 20.0 } }),
+    pset("flow_bars", "Extra Flow bars", "Experimental: more bars on your Flow meter.", { { "Game's", false }, { "+1", 1.0 }, { "+3", 3.0 } }),
+    pset("flow_no_decay", "Flow never drains", "Experimental: your Flow stays where it is out of combat.", { { "Off", false }, { "On", 1.0 } }),
+    pset("rampage", "Rampage at full Flow", "Experimental: extra damage while your Flow is full (the perk gives 0.35).", { { "Game's", false }, { "+1", 1.0 }, { "+3", 3.0 } }),
+    pset("takedown", "Takedown cooldown", "Experimental: how soon you can do another takedown (the game's is 90 s).", { { "Game's", false }, { "10 s", 10000 }, { "1 s", 1000 } }),
+    { kind = "call_saints", label = "Call in Saints", help = "Experimental: Left/Right picks how many, Enter calls them in, free.", sel = 2, options = { { "1", 1 }, { "2", 2 }, { "4", 4 }, { "8", 8 } } },
+    { kind = "prank", label = "Prank yourself", help = "A co-op leftover: Left/Right picks, Enter puts it on you. Off first before saving: the mesh ones swap your outfit.", sel = 1, options = {
+      { "Off", false }, { "Bees", 0xD1DEBF59 }, { "Cash", 0xF8960CDB }, { "Hearts", 0x9DC3DBAC }, { "On fire", 0xD2FD511D }, { "Radioactive", 0x2FC32EBC }, { "Snow", 0xC8AC4CD1 }, { "Stink", 0xA86F8869 },
+      { "Noodle arms", 0xC150DD93 }, { "Upside down", 0x4B60380A }, { "Bow-legged", 0x462A02E2 }, { "Bounce", 0x0339330A }, { "Foam hat", 0xBEFF0993 },
+      { "Toilet", 0x70E3C60A }, { "Vending machine", 0xCBD43B2C }, { "Mailbox", 0xDA4E96A4 }, { "Cactus", 0x473E4F01 }, { "Trash can", 0xBDEDFB4D }, { "Burning barrel", 0xEAB2B9D6 } } },
+    gcall("Insurance Fraud here", "Experimental, press twice: starts the Insurance Fraud activity where you stand.", 'mission_request_start(vlib_info_object:get_object("mission_info", "insurance_fraud_anywhere")) return "Go"', true),
+    pset("free_ventures", "Free ventures", "Experimental: Criminal Ventures cost nothing to build.", { { "Off", false }, { "On", true } }),
     { kind = "unlock", key = "everything", label = "Unlock EVERYTHING", help = "Press twice: every unlock row at once, DLC and all. Takes a minute or two (saved in your game)." },
     { kind = "unlock", key = "travel", label = "Unlock fast travel points", help = "Press twice: all of them, on the map and in the menu (saved in your game)." },
     { kind = "unlock", key = "weapons", label = "Own every weapon", help = "Press twice: every weapon entry in the game is yours, DLC and internal ones too (saved in your game)." },
@@ -117,6 +154,8 @@ local TABS = {
   { name = "Weapons", rows = {
     wset("magazine", "Magazine", "No reload: your magazine is kept full, so it never goes down or reloads (launchers too).", {
       { "Game's", 1 }, { "x2", 2 }, { "x5", 5 }, { "No reload", "no_reload" } }),
+    pset("money_gun", "Money gun", "Experimental: every shot throws $50 out ahead of you (it stays in your save).", { { "Off", false }, { "On", true } }),
+    gcall("Remove this weapon", "Press twice: takes the gun in your hands out of your inventory.", "weapon_clear_inventory_slot(player_local_inventory_get_active_slot()) return 'Removed'", true),
     { kind = "giveweapon", label = "Give weapon", help = "Experimental: Left/Right picks one of the game's weapons, Enter puts it in your inventory.", sel = 1, options = {} },
     { kind = "refill_ammo", label = "Refill all ammo", help = "Every weapon's magazine and reserve full, free (the game's infinite-ammo refill)." },
     toggle("infinite_ammo", "Infinite ammo", "Your reserve ammo never runs out (the game's cheat; your save stays clean)."),
@@ -154,6 +193,24 @@ local TABS = {
     { kind = "carset", key = "top", label = "Vehicle top speed", help = "Experimental: the top speed of the vehicle you're in.", options = { { "Game's", 1 }, { "x1.5", 1.5 }, { "x2", 2 }, { "x3", 3 } }, sel = 1, save_key = "car.top" },
     action("vehicle_health", "Repair vehicle", "Fixes the vehicle you're in."),
     pset("vgod", "Vehicle god mode", "Experimental: the vehicle you're in can't be damaged (the game's own indestructible flags).", { { "Off", false }, { "On", true } }),
+    pset("car_no_crash", "No collision damage", "Experimental: crashing doesn't hurt the vehicle you're in.", { { "Off", false }, { "On", true } }),
+    pset("car_heavy", "Heavy vehicle", "Experimental: the vehicle you're in pushes through traffic, as Infinite mass but only this one.", { { "Off", false }, { "On", true } }),
+    pset("car_gravity", "Vehicle gravity", "Experimental: how hard the vehicle you're in is pulled down.", { { "Game's", 1 }, { "x0.5", 0.5 }, { "x0.25", 0.25 }, { "x2", 2 } }),
+    { kind = "car_act", key = "boost", label = "Boost now", help = "Experimental: three seconds of boost (some vehicles refuse)." },
+    { kind = "car_act", key = "jump", label = "Jump this vehicle", help = "Experimental: throws the vehicle you're in upward." },
+    { kind = "car_act", key = "paint", label = "Next paint", help = "Experimental: each press changes the vehicle you're in to the next paint." },
+    gcall("Deliver to garage", "Experimental, press twice: saves the vehicle you're in to your garage (saved in your game).", "return vehicle_save_vehicle_to_garage(enemy_get_occupied_vehicle(gml_get_local_player()))", true),
+    { kind = "car_act", key = "remove", label = "Remove spawned vehicles", help = "Experimental: removes vehicles the menu spawned, except the one you're in." },
+    pset("cam_delay", "Car camera resets after", "Experimental: how long the camera waits before swinging back behind the vehicle.", { { "Game's", false }, { "2 s", 2 }, { "10 s", 10 }, { "Never", 9999 } }),
+    opt("Free camera in cars", "Experimental: the camera stays where you put it instead of following the vehicle.", "option_get_camera_vehicle_follow()", "option_set_camera_vehicle_follow(%s)", { { "Game's", 1 }, { "Free", 2 } }),
+    { kind = "car_ability", label = "Vehicle ability", help = "Experimental: Left/Right picks, Enter gives it to the vehicle you're in. Some need parts the vehicle lacks.", sel = 1, options = {
+      { "Jump", 0xC243039A }, { "Air boost", 0x5C782702 }, { "Ball and chain", 0x585D60F8 }, { "Crab steering", 0x9027B56C }, { "Ejector seats", 0x8C3A98AD }, { "Front loader flip", 0xC8A6C120 },
+      { "Honk blast", 0x80D9EC2B }, { "Infinite boost", 0x3BF698E8 }, { "Kneecappers", 0xEE7A9FAD }, { "Super air control", 0x4CDDA777 }, { "Cowcatcher and blast", 0xEABCC755 } } },
+    { kind = "car_act", key = "tow", label = "Tow hook", help = "Experimental: puts a tow hook on the vehicle you're in." },
+    pset("car_jump_power", "Vehicle jump power", "Experimental: how high the Jump ability throws you.", { { "Game's", false }, { "x2", 2 }, { "x3", 3 }, { "x5", 5 } }),
+    pset("car_ability_cd", "No ability cooldowns", "Experimental: vehicle abilities are ready at once.", { { "Off", false }, { "On", true } }),
+    pset("car_takedowns", "Takedowns at any speed", "Experimental: spinouts, T-bones and flips happen from 5 mph, not 40 to 50.", { { "Off", false }, { "On", true } }),
+    pset("car_ram", "Ram power", "Experimental: how hard hitting things throws them.", { { "Game's", false }, { "x2", 2 }, { "x3", 3 }, { "x10", 10 } }),
     pset("tires", "Bulletproof tires", "Experimental: the tires of the vehicle you're in can't be shot out.", { { "Off", false }, { "On", true } }),
     pset("spring", "Suspension", "Experimental: softer or stiffer springs on the vehicle you're in.", { { "Game's", 1 }, { "Bouncy", 0.25 }, { "Soft", 0.5 }, { "Stiff", 2 }, { "Rock hard", 4 } }),
     { kind = "destroy_car", label = "Destroy this vehicle", help = "Press twice. It blows up, and it can take you with it." },
@@ -168,6 +225,9 @@ local TABS = {
   } },
   { name = "Teleport", rows = {
     { kind = "waypoint", label = "Go to waypoint", help = "Experimental: takes you to the waypoint you set on the map (or the mission marker)." },
+    pset("auto_waypoint", "Auto-teleport to waypoint", "Experimental: place a waypoint on the map and you're there.", { { "Off", false }, { "On", true } }),
+    { kind = "map_place", stores = true, label = "Store", help = "Experimental: Left/Right picks a store the map knows, Enter takes you there.", sel = 1, options = {} },
+    { kind = "map_place", stores = false, label = "Map place", help = "Experimental: Left/Right picks an activity or place the map knows, Enter takes you there.", sel = 1, options = {} },
     { kind = "warp", label = "Fast travel point", help = "Left/Right picks one of the game's 44 travel points, Enter takes you there.", sel = 1, options = {} },
     { kind = "place_save", label = "Save this spot", help = "Saves where you stand to your places (TweakMenu, saved_places.txt)." },
     { kind = "places", label = "Go to", help = "Left/Right picks one of your places, Enter takes you there.", sel = 1 },
@@ -205,6 +265,17 @@ local TABS = {
     { kind = "crowd_act", key = "stun", label = "Stun everyone near", help = "Experimental: everyone within 40 m is stunned where they stand." },
     { kind = "crowd_act", key = "hostile", label = "Make everyone near hostile", help = "Experimental: everyone within 40 m turns on you for an hour." },
     { kind = "crowd_act", key = "friendly", label = "Make everyone near friendly", help = "Experimental: everyone within 40 m joins the Saints' side." },
+    { kind = "crowd_act", key = "dance", label = "Everyone near dance", help = "Experimental: everyone within 40 m starts dancing." },
+    pset("no_guns", "Gangs and police without guns", "Experimental: everyone near you keeps being disarmed, new arrivals too.", { { "Off", false }, { "On", true } }),
+    pset("side_gang", "Gang on your side", "Experimental: this gang counts as your ally. Use Never wanted too, as notoriety still sends them after you.", { { "None", false }, { "Idols", "idol" }, { "Panteros", "panteros" }, { "Marshal", "marshal" }, { "Police", "police" }, { "All", "all" } }),
+    pset("saints_enemies", "Saints are enemies", "Experimental: Saints in the world count you as hostile.", { { "Off", false }, { "On", true } }),
+    pset("forget_fast", "Notoriety forgets fast", "Experimental: out of sight, notoriety clears in a second instead of the game's seven.", { { "Off", false }, { "On", true } }),
+    { kind = "crowd_act", key = "float", label = "Float everyone near", help = "Experimental: everyone within 40 m floats up for a few seconds." },
+    { kind = "crowd_act", key = "dissolve", label = "Dissolve everyone near", help = "Experimental: everyone within 40 m gets the disintegrate effect." },
+    { kind = "crowd_act", key = "toxic", label = "Poison everyone near", help = "Experimental: everyone within 40 m gets the toxic effect." },
+    pset("no_call_ins", "No reinforcements", "Experimental: wanted factions don't call in more people.", { { "Off", false }, { "On", true } }),
+    pset("no_roadblocks", "No roadblocks", "Experimental: no roadblocks when you're wanted.", { { "Off", false }, { "On", true } }),
+    pset("no_escape", "Can't lose them", "Experimental: you can't evade a pursuit by getting away.", { { "Off", false }, { "On", true } }),
     { kind = "crowd_act", key = "cars", label = "Blow up cars near", help = "Every vehicle within 40 m explodes, except the one you're in." },
     { kind = "wdset", key = "empty_streets", label = "Empty streets", help = "Experimental: no more people or traffic appear; the ones out there go as you leave them.", options = { { "Off", false }, { "On", true } }, sel = 1, save_key = "world.empty_streets" },
     toggle("low_gravity", "Low gravity", "Everything floats a little."),
@@ -234,6 +305,10 @@ local TABS = {
       { "Left shoulder", "gml_set_camera_ndc_offset(-0.45, 0) return 'left'" } }),
     { kind = "camset", key = "turn", label = "Turn speed", help = "Experimental: how fast the camera turns, mouse and controller, past the options' top.", options = { { "Game's", 1 }, { "x1.5", 1.5 }, { "x2", 2 }, { "x3", 3 } }, sel = 1, save_key = "camera.turn" },
     { kind = "camset", key = "bright", label = "Brightness", help = "Experimental: while it's on, the game stops adjusting brightness by itself (indoors, night).", options = { { "Game's", 0 }, { "Brighter", -1 }, { "Much brighter", -2 }, { "Darker", 1 }, { "Much darker", 2 } }, sel = 1 },
+    pset("render_hide", "Hide from view", "Experimental: stops drawing the sky, particles, shadows or tree billboards.", { { "Nothing", false }, { "Sky", 0x8000 }, { "Particles", 0x4000 }, { "Shadows", 0x1000 }, { "Far trees", 0x20000 } }),
+    gchoice("Low health screen", "Experimental: the red screen effects when you're hurt.", { { "On", [[gml_ui_gem_raise_event("ui_enable_hud_full_screen_effects", 1, "enable", true) return "on"]] }, { "Off", [[gml_ui_gem_raise_event("ui_enable_hud_full_screen_effects", 1, "enable", false) return "off"]] } }),
+    gchoice("Show only people", "Experimental: hides the world's background, as the game's demo mode does.", { { "Off", [[demo_hide_background(false) return "off"]] }, { "On", [[demo_hide_background(true) return "on"]] } }),
+    pset("cam_distance", "Camera distance", "Experimental: how far behind you the camera sits. First person is from inside your head; aiming stays as it was.", { { "Game's", false }, { "First person", 0.01 }, { "Close", 1.5 }, { "Far", 6 }, { "Very far", 14 } }),
     gchoice("Letterbox", "Black bars, as in the game's cutscenes.", { { "Off", [[gml_ui_gem_raise_event("segue_letterbox_end") return "off"]] }, { "On", [[gml_ui_gem_raise_event("segue_letterbox_begin") return "on"]] } }),
     gcall("Photo mode", "The game's photo mode: a free camera. Close the menu to move it; press again to leave.", "cell_photo_mode_toggle() return cell_photo_mode_is_active() and 'on' or 'off'"),
     { kind = "hud", label = "Hide HUD", help = "Experimental: hides the HUD the way the game's own option does.", options = { { "Off", false }, { "On", true } }, sel = 1, save_key = "visual.hide_hud" },
@@ -260,7 +335,7 @@ local TABS = {
 -- Left/Right applies them (after a short pause, so scrolling past options
 -- doesn't fire each one). Actions (spawn, teleport, give, unlock) still wait
 -- for Enter.
-local APPLY_ON_PICK = { ["Weather"] = true, ["Time of day"] = true, ["Screen filter"] = true, ["Shoulder camera"] = true, ["Letterbox"] = true }
+local APPLY_ON_PICK = { ["Weather"] = true, ["Time of day"] = true, ["Screen filter"] = true, ["Shoulder camera"] = true, ["Letterbox"] = true, ["Low health screen"] = true, ["Show only people"] = true }
 for _, t in ipairs(TABS) do for _, r in ipairs(t.rows) do if APPLY_ON_PICK[r.label] then r.apply = true end end end
 
 -- Settings kept from last time (tweaks.lua).
@@ -603,7 +678,7 @@ local function step_unlock()
 end
 
 local CROWD = { ragdoll = { "ragdoll_near", "ragdolled" }, kill = { "kill_near", "killed" }, fire = { "fire_near", "set on fire" },
-  stun = { "stun_near", "stunned" }, hostile = { "hostile_near", "turned on you" }, friendly = { "friendly_near", "on your side" } }
+  stun = { "stun_near", "stunned" }, float = { "float_near", "floating" }, dissolve = { "dissolve_near", "dissolving" }, toxic = { "toxic_near", "poisoned" }, dance = { "dance_near", "dancing" }, hostile = { "hostile_near", "turned on you" }, friendly = { "friendly_near", "on your side" } }
 local function select_row(row)
   if M.stash then M.stash[row] = nil end   -- changed while All tweaks is off: keep the new choice
   if row.kind == "toggle" or row.kind == "action" then
@@ -686,6 +761,52 @@ local function select_row(row)
   elseif row.kind == "arms" then
     local n = P.near_arms(row.armed, 40)
     say(n == 0 and "Nobody near" or (n .. (n == 1 and " person " or " people ") .. (row.armed and "re-armed" or "disarmed")))
+  elseif row.kind == "play_as" then
+    if row.back then say(P.back_to_self() and "You again" or "You're already you", "status")
+    else say(P.play_as_spawned() and "You're them now: Back to yourself returns" or "Spawn someone first (World > Spawn person)", "status") end
+  elseif row.kind == "outfit" then
+    local o = row.options[row.sel]
+    if not o then say("No saved looks", "warn") else
+      local ok, err = wml.game([[local n, c = 0, gml_get_local_player():get_component_by_type("gml_component_character_customization")
+        for _, p in vlib_info_data_object:ipairs("char_cust_player_saved_preset_data") do n = n + 1
+          if n == ]] .. o[2] .. [[ then gml_customization_apply_player_preset(c, p, false, true) return end end]])
+      say(ok and ("Wearing " .. o[1]) or tostring(err), ok and "status" or "warn")
+    end
+  elseif row.kind == "look_preset" then
+    local o = row.options[row.sel]
+    if not o then say("No presets", "warn")
+    elseif M.pending_confirm ~= row then M.pending_confirm = row; say(row.label .. ": " .. o[1] .. ": press again to replace your character", "warn")
+    else
+      M.pending_confirm = nil
+      local ok, err = wml.game([[gml_customization_apply_preset(gml_get_local_player():get_component_by_type("gml_component_character_customization"), vlib_info_object:get_object("char_cust_preset", ]] .. string.format("%q", o[2]) .. [[))]])
+      say(ok and ("Now " .. o[1]) or tostring(err), ok and "status" or "warn")
+    end
+  elseif row.kind == "call_saints" then
+    local o = row.options[row.sel]
+    say(P.call_saints(o[2]) and (o[1] .. " called in") or "Couldn't right now", "status")
+  elseif row.kind == "prank" then
+    local o = row.options[row.sel]
+    say(P.set_prank(o[2]) and ("Prank: " .. o[1]) or "That prank isn't available", "status")
+  elseif row.kind == "car_ability" then
+    local o = row.options[row.sel]
+    say(P.car_equip_ability(o[2]) and (o[1] .. " on this vehicle") or "Get in a vehicle first", "status")
+  elseif row.kind == "map_place" then
+    local o = row.options[row.sel]
+    if not o then say("Nothing on the map yet: open the menu again near some", "warn")
+    else say(P.go_to_object(o[2]) and ("Off to " .. o[1]) or "That place isn't loaded right now", "status") end
+  elseif row.kind == "car_act" then
+    if row.key == "tow" then
+      say(P.car_tow_hook() and "Tow hook on" or "Get in a vehicle first", "status")
+    elseif row.key == "remove" then
+      local n = P.remove_spawned_cars()
+      say(n == 0 and "No spawned vehicles to remove" or (n .. " spawned " .. (n == 1 and "vehicle" or "vehicles") .. " removed"))
+    elseif not P.vehicle_object() then say("Get in a vehicle first", "warn")
+    elseif row.key == "boost" then P.car_boost(); say("Boost")
+    elseif row.key == "jump" then P.car_jump(); say("Up you go")
+    else
+      local i, n = P.car_next_paint()
+      say(i and i ~= 0 and ("Paint " .. i .. " of " .. tostring(n)) or "No paints for this vehicle", i and i ~= 0 and "status" or "warn")
+    end
   elseif row.kind == "kill_self" then
     if P.god then say("Turn God mode off first", "warn")
     elseif M.pending_confirm ~= row then M.pending_confirm = row; say(row.label .. ": press again to confirm", "warn")
@@ -779,6 +900,7 @@ local function select_row(row)
     if not o or not C.by_name.drop_car then say("No vehicles (load into the game first)", "warn") else
       wml.write_u32(wml.base + 0x3110E08, o[2])
       C.allow_spicy(); M.spicy_hold = 120
+      P.watch_spawned_car()
       local ok = C.activate("drop_car")
       say(ok and (o[1] .. " spawned") or (o[1] .. ": the game refused right now"), ok and "status" or "warn")
     end
@@ -895,12 +1017,12 @@ local function row_value(row)
     return "Enter", "off"
   elseif row.kind == "voiceline" and not row.loaded then
     return "Enter to load", "off"
-  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" or row.kind == "crowd_act" or row.kind == "arms" or row.kind == "destroy_car" or row.kind == "kill_self" then
+  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" or row.kind == "crowd_act" or row.kind == "arms" or row.kind == "destroy_car" or row.kind == "kill_self" or row.kind == "car_act" or row.kind == "play_as" then
     return "Enter", "off"
   elseif row.kind == "mset" then
     local o = row.options[row.sel]
     return "<  " .. o[1] .. "  >", row.sel == 1 and "off" or "on"
-  elseif row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" or row.kind == "giveweapon" or row.kind == "voiceline" or row.kind == "gchoice" or row.kind == "weathernode" or row.kind == "cash_drop" or row.kind == "weapon_drop" or row.kind == "reaction" then
+  elseif row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" or row.kind == "giveweapon" or row.kind == "voiceline" or row.kind == "gchoice" or row.kind == "weathernode" or row.kind == "cash_drop" or row.kind == "weapon_drop" or row.kind == "reaction" or row.kind == "map_place" or row.kind == "outfit" or row.kind == "look_preset" or row.kind == "call_saints" or row.kind == "prank" or row.kind == "car_ability" then
     local o = row.options[row.sel]
     return o and ("<  " .. o[1] .. "  >") or "none", o and "row" or "off"
   elseif row.kind == "gcall" then
@@ -1152,6 +1274,29 @@ local function ensure_ready()
   end
   -- the game's fast travel points (city_warp_point), once
   for _, r in ipairs(all_rows()) do
+    if r.kind == "outfit" then
+      r.options = {}
+      local res = table.pack(wml.game([[local o, n = {}, 0 for _, p in vlib_info_data_object:ipairs("char_cust_player_saved_preset_data") do n = n + 1 o[n] = p.title:get_string() if n == 20 then break end end return unpack(o)]]))
+      if res[1] then for j = 2, res.n do r.options[#r.options + 1] = { tostring(res[j]), j - 1 } end end
+      if r.sel > #r.options then r.sel = 1 end
+    elseif r.kind == "look_preset" and #r.options == 0 then
+      for _, w in ipairs(names_of("char_cust_preset")) do
+        local name = w:match('"(.*)"') or w
+        r.options[#r.options + 1] = { pretty(name), name }
+      end
+      table.sort(r.options, function(a, b) return a[1] < b[1] end)
+    end
+    if r.kind == "map_place" then
+      -- again on every open: the map publishes more as you travel
+      r.options = P.map_places(r.stores)
+      local seen = {}
+      for _, o in ipairs(r.options) do
+        local label = pretty((o[1]:gsub("^store_", ""):gsub("^building_gp_", ""):gsub("^building_", ""):gsub("^popup_", "")))
+        seen[label] = (seen[label] or 0) + 1
+        o[1] = seen[label] > 1 and (label .. " " .. seen[label]) or label
+      end
+      if r.sel > #r.options then r.sel = 1 end
+    end
     if r.kind == "warp" and #r.options == 0 then
       local first = 1
       while true do
@@ -1252,6 +1397,30 @@ function M.update()
   if C.loaded and P.god and frame % 150 == 75 then local me = P.object(); if me then wml.call(wml.base + 0x5B0F60, me + 0x58, 0, 3) end end
   if C.loaded then P.update_run(); P.update_jump() end
   if C.loaded and P.kill_active() then P.update_kill_self() end
+  if C.loaded then P.update_refire(W.set.fire_rate); P.update_car_watch() end
+  if C.loaded and P.money_gun then P.update_money_gun() end
+  if C.loaded and frame % 60 == 31 then P.update_sides() end
+  if C.loaded and frame % 60 == 37 then P.update_perks(); P.update_notoriety_nodes(); P.update_ventures() end
+  if C.loaded and P.flow ~= (M.flow_was or false) then P.update_flow(); M.flow_was = P.flow end
+  if C.loaded and P.takedown ~= (M.takedown_was or false) then P.update_takedown(); M.takedown_was = P.takedown end
+  if C.loaded and P.free_skills ~= (M.free_skills_was or false) then P.update_free_skills(); M.free_skills_was = P.free_skills end
+  if C.loaded then
+    local cfg = tostring(P.car_takedowns) .. tostring(P.car_ram) .. tostring(P.car_jump_power) .. tostring(P.car_ability_cd)
+    if cfg ~= M.car_cfg_was then
+      if M.car_cfg_was or cfg ~= "falsefalsefalsefalse" then P.update_car_cfg() end
+      M.car_cfg_was = cfg
+    end
+  end
+  if C.loaded and frame % 30 == 9 and P.playing_as() then P.check_body() end
+  if C.loaded and frame % 300 == 41 and P.proof_active() then P.update_proof() end
+  if C.loaded and frame % 120 == 51 and P.no_guns then P.update_no_guns() end
+  if C.loaded and P.forget_fast ~= (M.forget_was or false) then P.update_forget(); M.forget_was = P.forget_fast end
+  if C.loaded and P.render_hide ~= (M.render_was or false) then P.update_render(); M.render_was = P.render_hide end
+  if C.loaded and (P.cam_distance or M.cam_dist_was) then P.update_cam_distance(); M.cam_dist_was = P.cam_distance end
+  if C.loaded and P.auto_waypoint and frame % 20 == 3 then P.update_auto_waypoint() end
+  if C.loaded and frame % 30 == 7 and P.car_active() then P.update_car_extras() end
+  if C.loaded and P.cam_delay ~= (M.cam_delay_was or false) then P.update_cam_delay(); M.cam_delay_was = P.cam_delay end
+  if C.loaded and P.walk_style ~= (M.walk_was or false) then P.update_walk(); M.walk_was = P.walk_style end
   if C.loaded and P.clip_active() then P.update_clip() end
   if C.loaded and frame % 30 == 12 then P.update_gravity() end
   if C.loaded and frame % 30 == 17 and (P.tires or P.tires_set) then P.update_tires() end

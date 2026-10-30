@@ -200,7 +200,8 @@ local function wanted(e)
     -- Rockets: at most 4 a second. Near 12 a second the game shut itself down
     -- with no error (likely out of room for projectiles or explosions).
     if s.rockets then return math.max(v / s.fire_rate, 0.25) end
-    return v / s.fire_rate
+    -- No faster than 20 shots a second, as player.lua's cached copy: faster crashed.
+    return math.min(v, math.max(v / s.fire_rate, 0.05))
   elseif w == "damage_player" then return s.damage == "kill" and 100000 or v * s.damage
   elseif w == "range" then return v * s.range
   elseif w == "impulse" then return v * s.knockback
