@@ -120,7 +120,7 @@ end
 
 -- An object table entry from an object id (nil if it's gone).
 function P.entry_of(id)
-  if not id or id == 0 then return nil end
+  if not id or id == 0 or id >= 0x100000 then return nil end   -- (a bad id would read outside the table)
   local idx = wml.read_u32(wml.read_u64(wml.base + 0x5CB5440) + id * 4) & 0x3FFFFFFF
   if idx == 0x3FFFFFFF then return nil end
   return wml.read_u64(wml.base + 0x45E8458) + idx * 0x90
@@ -329,6 +329,97 @@ function P.update_free_shop(names)
   return 0
 end
 
+-- Your gravity: the locomotion component's +0x2A8 (read every frame into the
+-- physics request's gravity factor; default 1). Run speed's component too.
+P.no_clip = false
+local grav_written
+function P.update_gravity()
+  local want = P.no_clip and 0 or P.move.gravity
+  if want == 1 and not grav_written then return end
+  local c = P.component(0x10)
+  if c then wml.write_f32(c + 0x2A8, want) end
+  grav_written = want ~= 1
+end
+
+-- No clip: collision off (component message: +486CE0(entry, 0, 0x10, 0, &byte),
+-- as physics_enable_collision_node does), no gravity, the mode that takes the
+-- requested velocity as it is (+0x4B2 = 1), and the extra velocity moved by
+-- keys along where you face: W A S D, Space up, Ctrl down, Shift fast.
+local clip_on
+function P.update_clip()
+  local e = P.object()
+  local c = e and P.component(0x10)
+  if not c then return end
+  if P.no_clip ~= (clip_on or false) then
+    local buf = wml.buffer(4)
+    wml.write_u8(buf, P.no_clip and 0 or 1)
+    wml.call(wml.base + 0x486CE0, e, 0, 0x10, 0, buf)
+    wml.write_u8(c + 0x4B2, P.no_clip and 1 or 0)
+    clip_on = P.no_clip
+    P.update_gravity()
+  end
+  if not P.no_clip then return end
+  wml.write_f32(c + 0x2A8, 0)
+  local fx, fz, rx, rz = wml.read_f32(e + 0x20), wml.read_f32(e + 0x28), wml.read_f32(e + 0x00), wml.read_f32(e + 0x08)
+  local speed = wml.key_down("SHIFT") and 40 or 12
+  local f = (wml.key_down("W") and 1 or 0) - (wml.key_down("S") and 1 or 0)
+  local r = (wml.key_down("D") and 1 or 0) - (wml.key_down("A") and 1 or 0)
+  local u = (wml.key_down("SPACE") and 1 or 0) - (wml.key_down("CTRL") and 1 or 0)
+  wml.write_f32(c + 0x3A0, (fx * f + rx * r) * speed)
+  wml.write_f32(c + 0x3A4, u * speed)
+  wml.write_f32(c + 0x3A8, (fz * f + rz * r) * speed)
+end
+function P.clip_active() return P.no_clip or clip_on end
+
+-- The vehicle you're in. Destroy: +1BA6F00(health 0x44, 0.0 hit points, &no
+-- object, -1, &none, 0), what vehicle_health_set_hit_points_node calls, with
+-- its "indestructible" flags cleared first. Bulletproof tires: +1B91B60(
+-- component 0x6A, 1), vehicle_invulnerable_wheels_node. Suspension: the
+-- physics vehicle's records, *(*(0x12 + 0x1CC0) + 0x438), 12 bytes a wheel
+-- {strength, compression, expansion}; wheels = bytes 0x12 +0x1B8 + +0x378.
+function P.destroy_car()
+  local v = P.vehicle_object()
+  local h = v and P.component(0x44, v)
+  if not h then return false end
+  wml.write_u8(h + 0x56, wml.read_u8(h + 0x56) & ~0x05 & 0xFF)
+  wml.callf(wml.base + 0x1BA6F00, h, 0.0, wml.base + 0x48E778C, 0xFFFFFFFF, wml.base + 0x3C44910, 0)
+  return true
+end
+P.tires = false
+P.spring = 1
+local tires_car, spring_orig = nil, {}
+function P.update_tires()
+  local v = P.vehicle_object()
+  local c = v and P.component(0x6A, v)
+  if not c then tires_car = nil; return end
+  if c ~= tires_car or P.tires ~= P.tires_set then
+    wml.call(wml.base + 0x1B91B60, c, P.tires and 1 or 0)
+    tires_car, P.tires_set = c, P.tires
+  end
+end
+function P.update_spring()
+  local v = P.vehicle_object()
+  local c = v and P.component(0x12, v)
+  if not c then return end
+  local hv = wml.read_u64(c + 0x1CC0)
+  local arr = hv ~= 0 and wml.read_u64(hv + 0x438) or 0
+  local n = wml.read_u8(c + 0x1B8) + wml.read_u8(c + 0x378)
+  if arr == 0 or n == 0 or n > 12 then return end
+  local o = spring_orig[c]
+  if not o then
+    if P.spring == 1 then return end
+    o = {}
+    for i = 0, n * 3 - 1 do o[i] = wml.read_f32(arr + i * 4) end
+    spring_orig[c] = o
+  end
+  local changed = false
+  for i = 0, n * 3 - 1 do
+    local want = o[i] * P.spring
+    if wml.read_f32(arr + i * 4) ~= want then wml.write_f32(arr + i * 4, want); changed = true end
+  end
+  if changed then wml.write_u8(c + 0x232B, wml.read_u8(c + 0x232B) | 0x40) end
+end
+
 -- Ragdoll: the game's start-ragdoll (+18A5860(entry, 2 owner, 200 ms blend,
 -- the zero vector +3C44930, no impulse, 0)), for people with a ragdoll
 -- (component type 2); confirmed in play. Kill, in two steps: health at 0
@@ -347,37 +438,7 @@ function P.ragdoll_near(radius)
   end
   return n
 end
--- Step 1: returns the people to kill ({ id, entry }), "down but not out" off.
-function P.kill_prepare(radius)
-  local out = {}
-  local refs = wml.read_u64(wml.base + 0x2EB2330)
-  local buf = wml.buffer(13)
-  for _, p in ipairs(P.people_near(radius)) do
-    local h = p.health
-    if wml.read_f32(h + 0xE8) <= 0 and wml.read_f32(h + 0xF0) > 0 then
-      local id = wml.read_u32(p.entry + 0x58)
-      wml.write_u32(refs + id * 4, wml.read_u32(refs + id * 4) + 1)
-      wml.write_u32(buf, id)
-      wml.call(wml.base + 0x3EEFD0, buf, 0)
-      out[#out + 1] = { id = id }
-    end
-  end
-  return out
-end
--- Step 2: the deaths, for those still there.
-function P.kill_finish(list)
-  local n = 0
-  for _, k in ipairs(list) do
-    local e = P.entry_of(k.id)
-    local h = e and wml.read_u32(e + 0x58) == k.id and P.component(0x8D, e)
-    if h and wml.read_f32(h + 0xF0) > 0 then
-      wml.write_f32(h + 0xE8, 0); wml.write_f32(h + 0xEC, 0)
-      wml.call(wml.base + 0x3E58F0, h, 0, wml.base + 0x3C1F3F8)
-      n = n + 1
-    end
-  end
-  return n
-end
+
 
 -- Special ammo on the gun in your hands: the per-gun property override
 -- (+1BFF510(weapon component, &key, 0, &value, name), as the game's set-
@@ -438,9 +499,19 @@ local function prefab_id(path)
   end
   return prefab_ids[path]
 end
+-- Firing a model that hasn't finished loading shuts the game down with no error
+-- (three times live, each within seconds of the first request; firing later
+-- was fine). So: request the models, and only touch a gun some time later.
+local rocket_wait, rocket_for = 0, nil
+function P.rockets_waiting() return rocket_wait > 0 end
 function P.update_rockets()
   local r = P.rockets
-  if not r then rocket_gun = nil; return end
+  if not r then rocket_gun, rocket_for = nil, nil; return end
+  if rocket_for ~= r then
+    rocket_for, rocket_wait = r, 120   -- called every 5 frames: 10 s
+    prefab_id(r[1] .. ".cprefab_pc"); prefab_id(r[2] .. ".cprefab_pc")
+  end
+  if rocket_wait > 0 then rocket_wait = rocket_wait - 1; return end
   local ok, s = wml.game("return tostring(gml_get_local_player_weapon())")
   local id = ok and tonumber((s or ""):match("object (%x+)") or "", 16)
   if not id or id == 0 or (id == rocket_gun and P.rockets_set == r) then return end
@@ -596,8 +667,23 @@ end
 -- is at +0x58; ids are reused, so an id is only removed while its entry still
 -- carries it.
 P.spawned = {}
-function P.remember(entry) if entry then P.spawned[#P.spawned + 1] = wml.read_u32(entry + 0x58) end end
+local spawn_pending = {}
+function P.remember(obj) if obj then spawn_pending[#spawn_pending + 1] = obj end end
+-- The spawner returns a spawn record: the person's id is at +0x70 (read live),
+-- filled in once they exist.
+local function spawn_settle()
+  local left = {}
+  for _, o in ipairs(spawn_pending) do
+    local id = wml.read_u32(o + 0x70)
+    if id ~= 0 and P.entry_of(id) then P.spawned[#P.spawned + 1] = id else left[#left + 1] = o end
+  end
+  spawn_pending = left
+end
+function P.spawned_pending() return #spawn_pending > 0 end
+P.spawn_settle = spawn_settle
 function P.remove_spawned()
+  spawn_settle()
+  spawn_pending = {}
   local n = 0
   for _, id in ipairs(P.spawned) do
     local e = P.entry_of(id)
@@ -657,7 +743,7 @@ function P.spawn_npc(id, side, ahead)
   wml.write_u32(misc + 0x108, wml.read_u32(B + 0x3C3CC38))
   wml.call(B + 0xB39E90, ctx, misc + 0x100, 0, misc, misc + 0x108)
   local obj = wml.call(B + 0xB3B580, 0, ctx, 0, 0, wml.buffer(7, "sr5_tweak_menu"), 1)
-  -- it gives back the new person's entry (callers read its id at +0x58)
+  -- it gives back their spawn record (see P.remember)
   if obj ~= 0 then P.remember(obj) end
   return obj ~= 0 and obj or nil
 end
@@ -726,7 +812,7 @@ P.move = { run = 1, air = 1, swim = 1, gravity = 1 }
 -- (Run speed is the sprint speed stat, above: +D4 / +D8 changed nothing in
 -- play.) Originals are kept in a global: a reload of this file must not take
 -- changed values for the game's (it did, and they compounded).
-local MOVE = { air = { 0xE0, 0xE4 }, swim = { 0xE8, 0xEC }, gravity = { 0xD0 } }
+local MOVE = { air = { 0xE0, 0xE4 }, swim = { 0xE8, 0xEC } }
 SR5TM_MOVE_ORIG = SR5TM_MOVE_ORIG or {}
 function P.update_move()
   local c = P.component(0x1F)
@@ -746,7 +832,7 @@ function P.update_move()
 end
 function P.move_on()
   local m = P.move
-  return m.air ~= 1 or m.swim ~= 1 or m.gravity ~= 1
+  return m.air ~= 1 or m.swim ~= 1
 end
 
 -- ------------------------------------------------------------------ saved places

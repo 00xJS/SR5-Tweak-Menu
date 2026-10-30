@@ -83,6 +83,7 @@ local TABS = {
       return n .. " dismissed"
     ]]),
     pset("homies", "Homie limit", "Experimental: how many homies can follow you at once (if you don't own the extra-homies perk).", { { "Game's", 1 }, { "2", 2 }, { "3", 3 }, { "4", 4 } }),
+    pset("no_clip", "No clip", "Experimental: fly through anything. W A S D move, Space up, Ctrl down, Shift fast.", { { "Off", false }, { "On", true } }),
     pset("no_ragdoll", "No ragdoll", "Experimental: whenever you're knocked over, you're straight back up.", { { "Off", false }, { "On", true } }),
     { kind = "homie", label = "Summon homie", help = "Experimental: Left/Right picks a homie, Enter calls them in (if the game lets you).", sel = 1, options = {} },
     wsset("cooldown", "Wingsuit boosts", "How soon you can boost again (the game's: 15 s).", { { "Game's", 1 }, { "Every 2 s", "short" }, { "Unlimited", "none" } }),
@@ -114,14 +115,6 @@ local TABS = {
     pset("ammo", "Special ammo", "Experimental: what the gun in your hands does to people it hits; new guns get it too.", {
       { "Normal", false }, { "Fire", { "on_fire", "fire" } }, { "Shock", { "electrified", "electricity" } }, { "Chill", { "chill", "water" } },
       { "Stun", { "stun", "electricity" } }, { "Bleed", { "bleed", "dot_bleeding" } }, { "Disintegrate", { "disintegrate", "insta_kill" } } }),
-    pset("rockets", "Rocket ammo", "Your guns fire rockets (others experimental). Off: your next weapon switch is back to bullets.", {
-      { "Off", false }, { "Rockets", { "weapon_launcher_shoulder_box_missile_projectile", "weapon_launcher_missile_explosion" } },
-      { "Burst rockets", { "weapon_launcher_marshall_burst_rocket_projectile", "weapon_launcher_missile_explosion" } },
-      { "Micro missiles", { "weapon_pistol_marshall_micromissile_projectile", "weapon_launcher_missile_explosion" } },
-      { "Guitars", { "weapon_launcher_guitar_projectile", "weapon_launcher_guitar_explosion" } },
-      { "Potatoes", { "weapon_launcher_potato_projectile", "weapon_launcher_potato_explosion" } },
-      { "Beer cans", { "weapon_launcher_beer_can_projectile", "weapon_launcher_beer_can_explosion" } },
-      { "Crossbow bolts", { "weapon_launcher_wastelanders_crossbow_projectile", "weapon_launcher_missile_explosion" } } }),
     pset("full_auto", "Full auto", "Single-shot guns keep firing while you hold the trigger (mouse or RT).", { { "Off", false }, { "On", 70 }, { "Fast", 40 } }),
     wset("damage", "Damage", "x2 to x10: your guns only. One-hit kill: every gun, enemies' too (pair it with God mode).", { { "Game's", 1 }, { "x2", 2 }, { "x5", 5 }, { "x10", 10 }, { "One-hit kill", "kill" } }),
     wset("reload", "Reload speed", "How fast reloads go.", { { "Game's", 1 }, { "x2", 2 }, { "x4", 4 }, { "Instant", 20 } }),
@@ -152,6 +145,9 @@ local TABS = {
     { kind = "carset", key = "top", label = "Vehicle top speed", help = "Experimental: the top speed of the vehicle you're in.", options = { { "Game's", 1 }, { "x1.5", 1.5 }, { "x2", 2 }, { "x3", 3 } }, sel = 1, save_key = "car.top" },
     action("vehicle_health", "Repair vehicle", "Fixes the vehicle you're in."),
     pset("vgod", "Vehicle god mode", "Experimental: the vehicle you're in can't be damaged (the game's own indestructible flags).", { { "Off", false }, { "On", true } }),
+    pset("tires", "Bulletproof tires", "Experimental: the tires of the vehicle you're in can't be shot out.", { { "Off", false }, { "On", true } }),
+    pset("spring", "Suspension", "Experimental: softer or stiffer springs on the vehicle you're in.", { { "Game's", 1 }, { "Bouncy", 0.25 }, { "Soft", 0.5 }, { "Stiff", 2 }, { "Rock hard", 4 } }),
+    { kind = "destroy_car", label = "Destroy this vehicle", help = "Press twice. It blows up, and it can take you with it." },
     pset("keep_repaired", "Keep vehicle repaired", "Repairs the vehicle you're in every second (the game's repair cheat): near god mode.", { { "Off", false }, { "On", true } }),
     action("drop_car", "Drop a car", "Drops a car from the sky."),
     toggle("infinite_boost", "Infinite boost", "Vehicle boost never runs out."),
@@ -192,7 +188,6 @@ local TABS = {
     { kind = "arms", armed = false, label = "Disarm everyone near", help = "Experimental: people within 40 m can't use their guns (new arrivals still can)." },
     { kind = "arms", armed = true, label = "Re-arm everyone near", help = "Gives people within 40 m their guns back." },
     { kind = "crowd_act", key = "ragdoll", label = "Ragdoll everyone near", help = "Everyone within 40 m falls over." },
-    { kind = "crowd_act", key = "kill", label = "Kill everyone near", help = "Everyone within 40 m drops dead (not mission characters)." },
     { kind = "wdset", key = "empty_streets", label = "Empty streets", help = "Experimental: no more people or traffic appear; the ones out there go as you leave them.", options = { { "Off", false }, { "On", true } }, sel = 1, save_key = "world.empty_streets" },
     toggle("low_gravity", "Low gravity", "Everything floats a little."),
     toggle("ped_agro", "Angry pedestrians", "People on the street turn on you."),
@@ -581,6 +576,12 @@ local function select_row(row)
   elseif row.kind == "cash_drop" then
     local o = row.options[row.sel]
     say(P.drop_cash(o[2], 0, 2, 8) and (o[1] .. " dropped ahead of you") or "Couldn't drop cash right now", "status")
+  elseif row.kind == "destroy_car" then
+    if M.pending_confirm ~= row then M.pending_confirm = row; say(row.label .. ": press again to confirm", "warn")
+    else
+      M.pending_confirm = nil
+      say(P.destroy_car() and "Boom" or "You're not in a vehicle", "status")
+    end
   elseif row.kind == "reaction" then
     local o = row.options[row.sel]
     local n = P.near_reaction(o[2], 40)
@@ -589,14 +590,8 @@ local function select_row(row)
     local n = P.near_arms(row.armed, 40)
     say(n == 0 and "Nobody near" or (n .. (n == 1 and " person " or " people ") .. (row.armed and "re-armed" or "disarmed")))
   elseif row.kind == "crowd_act" then
-    if row.key == "kill" then
-      -- two steps: "down but not out" off now, the deaths 10 frames on
-      local list = P.kill_prepare(40)
-      if #list == 0 then say("Nobody near") else M.kill = { list = list, wait = 10 } end
-    else
-      local n = P.ragdoll_near(40)
-      say(n == 0 and "Nobody near" or (n .. (n == 1 and " person" or " people") .. " ragdolled"))
-    end
+    local n = P.ragdoll_near(40)
+    say(n == 0 and "Nobody near" or (n .. (n == 1 and " person" or " people") .. " ragdolled"))
   elseif row.kind == "despawn" then
     local n = P.remove_spawned()
     say(n == 0 and "Nobody to remove" or (n .. " spawned " .. (n == 1 and "person" or "people") .. " removed"))
@@ -793,7 +788,7 @@ local function row_value(row)
     return "Enter", "off"
   elseif row.kind == "voiceline" and not row.loaded then
     return "Enter to load", "off"
-  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" or row.kind == "crowd_act" or row.kind == "arms" then
+  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" or row.kind == "crowd_act" or row.kind == "arms" or row.kind == "destroy_car" then
     return "Enter", "off"
   elseif row.kind == "mset" then
     local o = row.options[row.sel]
@@ -1130,6 +1125,8 @@ function M.update()
   -- No recoil: the gun in hand's own recoil too (it keeps its own copy)
   P.no_recoil = W.set.no_recoil
   if C.loaded and frame % 5 == 3 and P.rockets then P.update_rockets() end
+  local rk = P.rockets and true or false
+  if W.set.rockets ~= rk then W.set.rockets = rk; M.gun_dirty = true end
   -- Full auto also clears the guns' "one shot a trigger pull"
   local auto = P.full_auto and true or false
   if W.set.full_auto ~= auto then W.set.full_auto = auto; M.gun_dirty = true; if C.loaded then W.apply() end end
@@ -1139,6 +1136,11 @@ function M.update()
   if C.loaded and frame % 60 == 35 and P.fall_active() then P.update_fall() end
   if C.loaded and frame % 60 == 45 and P.homies_active() then P.update_homies() end
   if C.loaded then P.update_run() end
+  if C.loaded and P.clip_active() then P.update_clip() end
+  if C.loaded and frame % 30 == 12 then P.update_gravity() end
+  if C.loaded and frame % 30 == 17 and (P.tires or P.tires_set) then P.update_tires() end
+  if C.loaded and frame % 30 == 22 and (P.spring ~= 1 or M.spring_was) then P.update_spring(); M.spring_was = P.spring ~= 1 end
+  if frame % 30 == 27 and P.spawned_pending() then P.spawn_settle() end
   if C.loaded and P.rain then P.update_rain() end
   -- Free shopping, when it changes
   if C.loaded and (P.free_shop and true or false) ~= (M.shop_was or false) then
@@ -1192,14 +1194,6 @@ function M.update()
       select_row(r)
     end
   end
-  if M.kill then
-    M.kill.wait = M.kill.wait - 1
-    if M.kill.wait <= 0 then
-      local n = P.kill_finish(M.kill.list)
-      M.kill = nil
-      say(n == 0 and "Nobody left to kill" or (n .. (n == 1 and " person" or " people") .. " killed"))
-    end
-  end
   -- Max notoriety: one raise every 45 frames
   if M.raise and C.loaded then
     M.raise.wait = M.raise.wait - 1
@@ -1223,9 +1217,12 @@ function M.update()
   else
     M.back_frames = 0
   end
-  if wml.auto_fire and P.full_auto ~= M.auto_fire_was then
-    wml.auto_fire(P.full_auto and true or false, P.full_auto or 70)
-    M.auto_fire_was = P.full_auto
+  -- Full auto's simulated clicks only on a gun that's single-shot by nature:
+  -- on an automatic one they just interrupt its own firing.
+  local pulse = P.full_auto and W.gun_single and P.full_auto or false
+  if wml.auto_fire and pulse ~= M.auto_fire_was then
+    wml.auto_fire(pulse and true or false, pulse or 70)
+    M.auto_fire_was = pulse
   end
   if P.god or P.health_mult ~= 1 or M.player_was_on then
     P.update()

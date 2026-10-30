@@ -30,6 +30,7 @@ local FLOAT_KEYS = {
   [3092279371] = "spread",        -- deviation_angle_start
   [3039539812] = "spread",        -- deviation_angle_end
   [3278015433] = "spread",        -- hip_fire_deviation_scalar
+  [1296480626] = "feather",       -- refire_delay_feathering (0.1 s by default)
   [184102078] = "damage_player",  -- damage_avatar (a gun's own damage when you fire it)
   [1436921172] = "range",         -- range
   [2003839093] = "impulse",       -- impulse
@@ -53,7 +54,7 @@ local FIELDS = {
 
 -- Settings (1 = the game's own).
 W.set = { magazine = 1, fire_rate = 1, damage = 1, perfect_aim = false, range = 1, knockback = 1,
-          reload = 1, no_warmup = false, no_overheat = false, no_recoil = false, full_auto = false }
+          reload = 1, no_warmup = false, no_overheat = false, no_recoil = false, full_auto = false, rockets = false }
 W.NO_RELOAD = 999
 
 local entries = {}   -- { addr =, t = "f"/"i", what =, orig = }
@@ -185,6 +186,7 @@ local function wanted(e)
   -- the shared damage values (so it can't be missed; enemies' guns too).
   if s.damage == "kill" and (w == "damage_player" or w == "damage_all") then return 100000 end
   if w == "damage_all" then return v end
+  if w == "feather" then return s.fire_rate ~= 1 and 0 or v end
   -- Full auto: no gun fires just once a trigger pull
   if w == "single_shot" then return s.full_auto and 0 or v end
   -- No recoil: kick, its limits and the camera shake from firing, all 0
@@ -194,7 +196,11 @@ local function wanted(e)
   if w == "magazine" then
     if s.magazine == "no_reload" then return W.NO_RELOAD end
     return math.max(1, math.floor(v * s.magazine + 0.5))
-  elseif w == "refire" then return v / s.fire_rate
+  elseif w == "refire" then
+    -- Rockets: at most 4 a second. Near 12 a second the game shut itself down
+    -- with no error (likely out of room for projectiles or explosions).
+    if s.rockets then return math.max(v / s.fire_rate, 0.25) end
+    return v / s.fire_rate
   elseif w == "damage_player" then return s.damage == "kill" and 100000 or v * s.damage
   elseif w == "range" then return v * s.range
   elseif w == "impulse" then return v * s.knockback
@@ -210,7 +216,9 @@ function W.apply()
   if not W.loaded and not W.load() then return false end
   local n = 0
   for _, e in ipairs(entries) do
-    local want = wanted(e)
+    -- A new gun copies the shared data, so tuning both stacked (x8 became x64):
+    -- only what a gun may not list is tuned here, the rest on the gun in hand.
+    local want = (e.what == "recoil" or e.what == "feather") and wanted(e) or e.orig
     if want ~= (e.written or e.orig) then write(e.addr, e.t, want); n = n + 1 end
     e.written = want
   end
@@ -224,45 +232,50 @@ end
 -- +0, value +8, type +0x10: 1 float, 0 int). What the menu tunes is written
 -- straight into them, with each entry's original kept for this gun; a new gun
 -- starts over. (Recoil has its own code, in player.lua.)
-local gun_id, gun_entries
+-- Entries are found by key on every pass: the per-gun setter (special ammo,
+-- rockets, recoil) adds properties to these lists, which can move them, so a
+-- remembered address could end up writing over something else.
+local gun_id, gun_orig   -- gun_orig: [section * 2^32 + key] = original value
 function W.update_gun(force)
   if not W.loaded then return end
   local ok, str = wml.game("return tostring(gml_get_local_player_weapon())")
   local id = ok and tonumber((str or ""):match("object (%x+)") or "", 16)
   if not id or id == 0 then return end
   if id ~= gun_id then
-    gun_id, gun_entries, force = id, nil, true
+    gun_id, gun_orig, force = id, {}, true
+    W.gun_single = false
   end
   if not force then return end
-  if not gun_entries then
-    local buf = wml.buffer(15)
-    wml.write_u32(buf, id)
-    local entry = wml.call(wml.base + 0x1C1F420, buf)
-    local comp = entry ~= 0 and wml.call(wml.base + 0x49F8A0, entry) or 0
-    if comp == 0 then gun_id = nil; return end
-    gun_entries = {}
-    for section = 0, 1 do
-      local list = wml.read_u64(comp + section * 0x6A0 + 0x138)
-      local n = wml.read_u16(comp + section * 0x6A0 + 0x140)
-      if list ~= 0 and n <= 200 then
-        for i = 0, n - 1 do
-          local p = list + i * 24
-          local key, kind = wml.read_u32(p), wml.read_u32(p + 0x10)
-          local what = (kind == 1 and FLOAT_KEYS or kind == 0 and INT_KEYS or {})[key]
-          if what and what ~= "recoil" then
-            local t = kind == 1 and "f" or "i"
-            gun_entries[#gun_entries + 1] = { addr = p + 8, t = t, what = what, orig = read(p + 8, t) }
+  local buf = wml.buffer(15)
+  wml.write_u32(buf, id)
+  local entry = wml.call(wml.base + 0x1C1F420, buf)
+  local comp = entry ~= 0 and wml.call(wml.base + 0x49F8A0, entry) or 0
+  if comp == 0 then gun_id = nil; return end
+  for section = 0, 1 do
+    local list = wml.read_u64(comp + section * 0x6A0 + 0x138)
+    local n = wml.read_u16(comp + section * 0x6A0 + 0x140)
+    if list ~= 0 and n <= 200 then
+      for i = 0, n - 1 do
+        local p = list + i * 24
+        local key, kind = wml.read_u32(p), wml.read_u32(p + 0x10)
+        local what = (kind == 1 and FLOAT_KEYS or kind ~= 3 and INT_KEYS or {})[key]
+        if what and what ~= "recoil" then
+          local t = kind == 1 and "f" or "i"
+          local slot = section * 0x100000000 + key
+          local orig = gun_orig[slot]
+          if orig == nil then
+            orig = read(p + 8, t)
+            gun_orig[slot] = orig
+            if what == "single_shot" and section == 0 and orig ~= 0 then W.gun_single = true end
           end
+          local want = wanted({ t = t, what = what, orig = orig })
+          if read(p + 8, t) ~= want then write(p + 8, t, want) end
         end
       end
     end
   end
-  for _, e in ipairs(gun_entries) do
-    local want = wanted(e)
-    if read(e.addr, e.t) ~= want then write(e.addr, e.t, want) end
-  end
 end
-function W.gun_active() return W.any_on() or gun_entries ~= nil end
+function W.gun_active() return W.any_on() or gun_orig ~= nil end
 
 -- Puts every weapon back as the game had it.
 function W.restore()
