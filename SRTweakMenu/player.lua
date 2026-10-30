@@ -246,6 +246,89 @@ function P.people_near(radius)
   return out
 end
 
+-- Cash on the ground: the game's pickup spawner, +689830(0, 2, &source (none,
+-- +3C44910), &{ collectible, amount }, &transform, 0, 0), as its loot code
+-- calls it; the collectible from +13E2780(&cash hash, at +3C1A45C), the
+-- transform the player's with the position moved. Confirmed in play: within a
+-- few metres it's collected at once, further away it lies there until you
+-- come close. It's real money: it stays in your save.
+function P.drop_cash(amount, side, up, ahead)
+  local B, e = wml.base, P.object()
+  if not e then return false end
+  local fx, fz = wml.read_f32(e + 0x20), wml.read_f32(e + 0x28)
+  local buf = wml.buffer(4)
+  for i = 0, 0x78, 8 do wml.write_u64(buf + i, 0) end
+  wml.write_u32(buf, wml.read_u32(B + 0x3C1A45C))
+  local obj = wml.call(B + 0x13E2780, buf)
+  if obj == 0 then return false end
+  wml.write_u32(buf + 0x08, wml.read_u32(B + 0x3C44910))
+  wml.write_u64(buf + 0x10, obj)
+  wml.write_u32(buf + 0x18, amount)
+  for i = 0, 0x38, 4 do wml.write_u32(buf + 0x20 + i, wml.read_u32(e + i)) end
+  local function add(off, m) wml.write_u32(buf + 0x20 + off, (s32(wml.read_u32(buf + 0x20 + off)) + math.floor(m * 10000)) & 0xFFFFFFFF) end
+  add(0x30, fx * ahead + fz * side); add(0x34, up); add(0x38, fz * ahead - fx * side)
+  return wml.call(B + 0x689830, 0, 2, buf + 8, buf + 0x10, buf + 0x20, 0, 0) & 0xFF ~= 0
+end
+-- Money rain: every `rain` frames a small pile, somewhere around you, falling.
+P.rain = false
+local rain_wait = 0
+function P.update_rain()
+  rain_wait = rain_wait - 1
+  if rain_wait > 0 then return end
+  rain_wait = P.rain
+  local a, r = math.random() * 2 * math.pi, 8 + math.random() * 14
+  P.drop_cash(250, math.cos(a) * r, 10 + math.random() * 10, math.sin(a) * r)
+end
+
+-- Everyone near: an AI reaction (+3603F0(ai, &name hash, 0, 0, 1), the AI's own
+-- emote call; names from the class ai_emote_table), disarm (+35A110(ai)) and
+-- re-arm (+35A370(ai)). The AI from +48A760(entry). (+A928B0, the avatar emote
+-- call, plays on the player whatever id it's given.)
+function P.near_reaction(name, radius)
+  local _, v = wml.game("return string_crc(" .. string.format("%q", name) .. ")")
+  local buf = wml.buffer(4)
+  wml.write_u32(buf, math.floor(v) & 0xFFFFFFFF)
+  local n = 0
+  for _, q in ipairs(P.people_near(radius)) do
+    local ai = wml.call(wml.base + 0x48A760, q.entry)
+    if ai ~= 0 then wml.call(wml.base + 0x3603F0, ai, buf, 0, 0, 1); n = n + 1 end
+  end
+  return n
+end
+function P.near_arms(armed, radius)
+  local n = 0
+  for _, q in ipairs(P.people_near(radius)) do
+    local ai = wml.call(wml.base + 0x48A760, q.entry)
+    if ai ~= 0 then wml.call(wml.base + (armed and 0x35A370 or 0x35A110), ai); n = n + 1 end
+  end
+  return n
+end
+
+-- Free shopping: every store price is a store_category_info's cost (+0x38,
+-- int) times a per-item float, and a total of 0 skips the payment. The costs
+-- go to 0 while it's on and back when it's off; they're the game's data, not
+-- your save. Info: +DA4830(&class hash, &name hash).
+P.free_shop = false
+local shop_orig
+function P.update_free_shop(names)
+  if P.free_shop and not shop_orig then
+    shop_orig = {}
+    local _, v = wml.game('return string_crc("store_category_info")')
+    local cls, buf = math.floor(v) & 0xFFFFFFFF, wml.buffer(4)
+    for _, hash in ipairs(names) do
+      wml.write_u32(buf, cls); wml.write_u32(buf + 4, hash)
+      local info = wml.call(wml.base + 0xDA4830, buf, buf + 4)
+      if info ~= 0 then shop_orig[#shop_orig + 1] = { info + 0x38, wml.read_u32(info + 0x38) } end
+    end
+    for _, o in ipairs(shop_orig) do wml.write_u32(o[1], 0) end
+    return #shop_orig
+  elseif not P.free_shop and shop_orig then
+    for _, o in ipairs(shop_orig) do wml.write_u32(o[1], o[2]) end
+    shop_orig = nil
+  end
+  return 0
+end
+
 -- Ragdoll: the game's start-ragdoll (+18A5860(entry, 2 owner, 200 ms blend,
 -- the zero vector +3C44930, no impulse, 0)), for people with a ragdoll
 -- (component type 2); confirmed in play. Kill, in two steps: health at 0
@@ -487,17 +570,26 @@ function P.update_homies()
 end
 function P.homies_active() return P.homies ~= 1 or P.homies_written end
 
--- Sprint speed: the sprint speed stat, the game's default times the setting
--- (the menu's Run speed row; the locomotion component's walk / run values
--- changed nothing in play).
-function P.update_sprint()
-  local d = SR5TM_STAT_DEFAULTS[STATS.sprint]
-  if not d then local a = stat_addr(STATS.sprint); d = a and wml.read_f32(a); SR5TM_STAT_DEFAULTS[STATS.sprint] = d end
-  if not d then return end
-  set_stat(STATS.sprint, P.move.run ~= 1 and d * P.move.run or nil)
-  P.sprint_written = P.move.run ~= 1
+-- Run speed: on foot you move by the animation's root motion. The locomotion
+-- component (type 0x10): +0x270 last frame's root motion velocity (x, y, z,
+-- m/s), +0x3A0 extra velocity for this frame, added to it and cleared after
+-- physics. So every frame the extra is (N - 1) x the horizontal root motion:
+-- same direction, N times the speed. Only while +0x340, the desired speed, is
+-- above 0: stopping animations keep some root motion, and boosting those left
+-- you sliding after letting go. (The animation speed parameters, Lateral and
+-- Horizontal Move Speed Scalar, changed punch lunges but not running.)
+local run_comp, run_frames = nil, 0
+function P.update_run()
+  local x = P.move.run
+  if x == 1 then return end
+  run_frames = run_frames - 1
+  if run_frames <= 0 or not run_comp then run_comp = P.component(0x10); run_frames = 60 end
+  local c = run_comp
+  if not c then return end
+  if wml.read_f32(c + 0x340) <= 0.01 then return end
+  wml.write_f32(c + 0x3A0, wml.read_f32(c + 0x270) * (x - 1))
+  wml.write_f32(c + 0x3A8, wml.read_f32(c + 0x278) * (x - 1))
 end
-function P.sprint_active() return P.move.run ~= 1 or P.sprint_written end
 
 -- People the menu spawned (their object ids), and removing them: +1E6920(&id)
 -- destroys an object (the game's "gameplay util destroy"). An entry's own id
