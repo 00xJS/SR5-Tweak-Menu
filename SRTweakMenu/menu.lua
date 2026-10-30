@@ -64,7 +64,8 @@ local TABS = {
     { kind = "emote_slot", slot = "primary", label = "D-pad emote 1", help = "Left/Right picks an emote, Enter puts it on your first D-pad emote; then use the D-pad as usual.", sel = 1, options = {} },
     { kind = "emote_slot", slot = "secondary", label = "D-pad emote 2", help = "Left/Right picks an emote, Enter puts it on your second D-pad emote; then use the D-pad as usual.", sel = 1, options = {} },
     { kind = "emote", label = "Play emote", help = "Experimental: Left/Right picks one of the game's emotes, Enter plays it now.", sel = 1, options = {} },
-    gcall("Stop emote", "Stops the emote you're playing.", "emote_attempt_stop() return 'stopped'"),
+    { kind = "mset", key = "repeat_emote", label = "Repeat emote", help = "Plays the emote picked in Play emote again and again; Stop emote ends it.", options = { { "Off", false }, { "Every 3 s", 180 }, { "Every 6 s", 360 }, { "Every 12 s", 720 } }, sel = 1 },
+    { kind = "emote_stop", label = "Stop emote", help = "Stops the emote you're playing (and Repeat emote)." },
     { kind = "homie", label = "Summon homie", help = "Experimental: Left/Right picks a homie, Enter calls them in (if the game lets you).", sel = 1, options = {} },
     wsset("cooldown", "Wingsuit boosts", "How soon you can boost again (the game's: 15 s).", { { "Game's", 1 }, { "Every 2 s", "short" }, { "Unlimited", "none" } }),
     wsset("boost", "Wingsuit boost power", "Boost speed, acceleration and length.", { { "Game's", 1 }, { "x1.5", 1.5 }, { "x2", 2 }, { "x3", 3 } }),
@@ -138,13 +139,15 @@ local TABS = {
     { kind = "wdset", key = "pause", label = "Pause world", help = "Everything stops, you too (the game's own pause); the menu still works.", options = { { "Off", false }, { "On", true } }, sel = 1 },
     { kind = "person", label = "Spawn person", help = "Left/Right picks one of the game's characters, Enter spawns them beside you.", sel = 1, options = {} },
     { kind = "crowd", label = "Spawn a crowd", help = "Ten of the character picked above, in a ring around you." },
+    { kind = "random_people", label = "Spawn 10 random people", help = "Ten of the game's characters, picked at random, around you." },
     toggle("low_gravity", "Low gravity", "Everything floats a little."),
     toggle("ped_agro", "Angry pedestrians", "People on the street turn on you."),
-    { kind = "wdset", key = "never_wanted", label = "Never wanted", help = "Any notoriety you pick up is cleared at once (the game's clear cheats).", options = { { "Off", false }, { "On", true } }, sel = 1, save_key = "world.never_wanted" },
-    choice("Police", "Raise or clear your notoriety with them.", { { "Raise", "increase_police" }, { "Clear", "clear_police" } }),
-    choice("Idols", "Raise or clear your notoriety with them.", { { "Raise", "increase_idols" }, { "Clear", "clear_idols" } }),
-    choice("Marshal", "Raise or clear your notoriety with them.", { { "Raise", "increase_marshal" }, { "Clear", "clear_marshal" } }),
-    choice("Los Panteros", "Raise or clear your notoriety with them.", { { "Raise", "increase_panteros" }, { "Clear", "clear_panteros" } }),
+    { kind = "wdset", key = "never_wanted", label = "Never wanted", help = "Notoriety is cleared as soon as you get it: from anyone, only the police and Marshal (no cops), or only gangs.",
+      options = { { "Off", false }, { "By anyone", "all" }, { "By police", "police" }, { "By gangs", "gangs" } }, sel = 1, save_key = "world.never_wanted" },
+    choice("Police", "Raise or clear your notoriety with them; Max raises it to the top.", { { "Raise", "increase_police" }, { "Clear", "clear_police" }, { "Max", "increase_police", max = true } }),
+    choice("Idols", "Raise or clear your notoriety with them; Max raises it to the top.", { { "Raise", "increase_idols" }, { "Clear", "clear_idols" }, { "Max", "increase_idols", max = true } }),
+    choice("Marshal", "Raise or clear your notoriety with them; Max raises it to the top.", { { "Raise", "increase_marshal" }, { "Clear", "clear_marshal" }, { "Max", "increase_marshal", max = true } }),
+    choice("Los Panteros", "Raise or clear your notoriety with them; Max raises it to the top.", { { "Raise", "increase_panteros" }, { "Clear", "clear_panteros" }, { "Max", "increase_panteros", max = true } }),
     difficulty(0, "player health"), difficulty(1, "player damage"), difficulty(2, "enemies"), difficulty(3, "vehicles"),
     difficulty(4, "notoriety"), difficulty(5, "ammo reserve"), difficulty(6, "timer speed"),
   } },
@@ -167,6 +170,8 @@ local TABS = {
     gcall("Pause / resume cutscene", "Pauses the cutscene that's playing, or resumes it.", "if rawget(_G, 'SR5TM_CINE_PAUSED') then cinematic_resume() rawset(_G, 'SR5TM_CINE_PAUSED', nil) return 'resumed' else cinematic_pause() rawset(_G, 'SR5TM_CINE_PAUSED', true) return 'paused' end"),
     gcall("Load last save", "Loads your newest save (press twice). Unsaved progress is lost.", "gml_ui_save_game_request_load_newest() return 'loading'", true),
     opt("Tutorial popups", "The game's tutorial popups option (0 = none).", "options_get_tutorial_frequency()", "options_set_tutorial_frequency(%s)", { { "Off", 0 }, { "1", 1 }, { "2", 2 }, { "3", 3 } }),
+    { kind = "mset", key = "tweaks_paused", label = "All tweaks", help = "Off puts every menu tweak back to the game's for now; On brings them all back. Cheats stay as they are.", options = { { "On", false }, { "Off", true } }, sel = 1 },
+    { kind = "mset", key = "hold_back", label = "Hold Back opens the menu", help = "Experimental: hold the controller's Back (View) button for a second to open or close the menu. The game sees the press too.", options = { { "Off", false }, { "On", true } }, sel = 1, save_key = "menu.hold_back" },
     { kind = "clean", label = "Keep my save clean", help = "Spicy cheats don't mark your save; achievements pause only while one is on." },
     { kind = "opacity", label = "Menu opacity", help = "How dark the panel behind the menu is. Left/Right." },
     { kind = "active", label = "What's on", help = "Lists every tweak and cheat that's on right now." },
@@ -183,17 +188,25 @@ local function all_rows()
   for _, t in ipairs(TABS) do for _, r in ipairs(t.rows) do rows[#rows + 1] = r end end
   return rows
 end
+-- Puts a row's value where its module reads it.
+local function set_value(r, v)
+  if r.kind == "wset" then W.set[r.key] = v elseif r.kind == "pset" then P[r.key] = v
+  elseif r.kind == "wdset" then Wd[r.key] = v
+  elseif r.kind == "wsset" then WS.set[r.key] = v
+  elseif r.kind == "mvset" then P.move[r.key] = v
+  elseif r.kind == "carset" then P.car[r.key] = v
+  elseif r.kind == "mset" then M[r.key] = v end
+end
+-- A menu tweak (not a game option, the HUD or the menu's own settings).
+local function tweak_row(r)
+  return (r.save_key or r.kind == "wdset") and r.options and r.kind ~= "opt" and r.kind ~= "hud" and r.kind ~= "mset"
+end
 local function apply_saved()
   for _, row in ipairs(all_rows()) do
     local i = T.pick(row)
     if i then
       row.sel = i
-      local v = row.options[i][2]
-      if row.kind == "wset" then W.set[row.key] = v elseif row.kind == "pset" then P[row.key] = v
-      elseif row.kind == "wdset" then Wd[row.key] = v
-      elseif row.kind == "wsset" then WS.set[row.key] = v
-      elseif row.kind == "mvset" then P.move[row.key] = v
-      elseif row.kind == "carset" then P.car[row.key] = v end
+      set_value(row, row.options[i][2])
     end
   end
   if T.saved.clean then M.clean = T.saved.clean == "on" end
@@ -203,7 +216,29 @@ function M.save_tweaks()
   local rows = all_rows()
   rows[#rows + 1] = { save_key = "clean", options = { { M.clean and "on" or "off" } }, sel = 1 }
   rows[#rows + 1] = { save_key = "opacity", options = { { tostring(U.opacity) } }, sel = 1 }
+  -- with All tweaks off, the tweaks put aside are what's kept
+  local function swap() for r, sel in pairs(M.stash or {}) do r.sel, M.stash[r] = sel, r.sel end end
+  swap()
   T.save(rows)
+  swap()
+end
+
+-- All tweaks off: every menu tweak to the game's, the choices put aside;
+-- on: they come back.
+function M.pause_tweaks(off)
+  if off and not M.stash then
+    M.stash = {}
+    for _, r in ipairs(all_rows()) do
+      if tweak_row(r) and r.sel ~= 1 then M.stash[r] = r.sel; r.sel = 1; set_value(r, r.options[1][2]) end
+    end
+    W.restore(); WS.restore()
+  elseif not off and M.stash then
+    for r, sel in pairs(M.stash) do r.sel = sel; set_value(r, r.options[sel][2]) end
+    M.stash = nil
+    if W.any_on() then W.apply() end
+    if WS.any_on() then WS.apply() end
+  end
+  M.tweaks_paused = off
 end
 apply_saved()
 
@@ -225,6 +260,58 @@ local function prune()
     end
     tab.rows = kept
   end
+end
+
+-- The names of every object of a class (the game's tostring of each).
+local function names_of(cls)
+  local out, first = {}, 1
+  while true do
+    local res = table.pack(wml.game([[local i, o = 0, {} for _, x in vlib_info_object:ipairs("]] .. cls .. [[") do
+      i = i + 1 if i >= ]] .. first .. [[ and i < ]] .. (first + 25) .. [[ then o[#o + 1] = tostring(x) end end return i, unpack(o)]]))
+    if not res[1] then break end
+    for j = 3, res.n do out[#out + 1] = res[j] end
+    first = first + 25
+    if first > res[2] then break end
+  end
+  return out
+end
+-- every object of a class: { name, hash (the name's hash, from its id) }
+local function names_of_objects(cls)
+  local out, first = {}, 1
+  while true do
+    local res = table.pack(wml.game([[local i, o = 0, {} for _, x in vlib_info_object:ipairs("]] .. cls .. [[") do
+      i = i + 1 if i >= ]] .. first .. [[ and i < ]] .. (first + 20) .. [[ then o[#o + 1] = tostring(x) o[#o + 1] = x end end return i, unpack(o)]]))
+    if not res[1] then break end
+    for j = 3, res.n, 2 do
+      local p = tonumber(tostring(res[j + 1]):match("(%x+)>$") or "", 16)
+      if p then out[#out + 1] = { name = res[j]:match('"(.*)"') or res[j], hash = (wml.read_u64(p + 0x28) >> 32) & 0xFFFFFFFF } end
+    end
+    first = first + 20
+    if first > res[2] then break end
+  end
+  return out
+end
+local function pretty(name) return (name:gsub("_", " "):gsub("(%a)(%w*)", function(a, b) return a:upper() .. b end)) end
+
+-- The game's factions (gml_faction), by name hash: which clear cheat is
+-- theirs and whether they're police (police, Marshal) or a gang.
+local function load_factions()
+  M.factions = {}
+  local names = {}
+  for _, f in ipairs(names_of_objects("gml_faction")) do
+    local n = f.name:lower()
+    names[#names + 1] = f.name
+    if n:find("marshal") then M.factions[f.hash] = { cheat = "clear_marshal", group = "police" }
+    elseif n:find("police") or n:find("cop") then M.factions[f.hash] = { cheat = "clear_police", group = "police" }
+    elseif n:find("idol") then M.factions[f.hash] = { cheat = "clear_idols", group = "gangs" }
+    elseif n:find("pantero") then M.factions[f.hash] = { cheat = "clear_panteros", group = "gangs" } end
+  end
+  wml.log("factions: " .. table.concat(names, ", "))
+end
+
+local function play_emote(id)
+  return wml.game([[for _, e in vlib_info_object:ipairs("collectible_emote") do if tostring(e) == ]] .. string.format("%q", id) .. [[ then
+    emote_play_in_world(e) return end end]])
 end
 
 local function say(text, kind) M.status, M.status_kind, M.status_frames = text, kind or "status", 240 end
@@ -251,11 +338,37 @@ local function fire(name, row, label)
 end
 
 local function select_row(row)
+  if M.stash then M.stash[row] = nil end   -- changed while All tweaks is off: keep the new choice
   if row.kind == "toggle" or row.kind == "action" then
     fire(row.cheat, row, row.label)
   elseif row.kind == "choice" then
     local o = row.options[row.sel]
-    fire(o[2], row, row.label .. " " .. o[1])
+    if o.max then
+      -- raise it once every 3/4 s, enough times to reach the top
+      M.raise = { name = o[2], label = row.label, left = 6, wait = 0 }
+      say(row.label .. ": raising to the top")
+    else
+      fire(o[2], row, row.label .. " " .. o[1])
+    end
+  elseif row.kind == "mset" then
+    M.adjust_mset(row, 1)
+  elseif row.kind == "random_people" then
+    local pick
+    for _, r in ipairs(all_rows()) do if r.kind == "person" then pick = r end end
+    if not pick or #pick.options == 0 then say("No characters (load into the game first)", "warn") else
+      local n = 0
+      for i = 1, 10 do
+        local o = pick.options[math.random(#pick.options)]
+        local a = i / 10 * 2 * math.pi
+        if P.spawn_npc(o[2], math.cos(a) * 5, math.sin(a) * 5) then n = n + 1 end
+      end
+      say(n .. " random people spawned")
+    end
+  elseif row.kind == "emote_stop" then
+    for _, r in ipairs(all_rows()) do if r.key == "repeat_emote" then r.sel = 1 end end
+    M.repeat_emote = false
+    local ok, err = wml.game("emote_attempt_stop()")
+    say(ok and "Emote stopped" or ("Stop emote: " .. tostring(err)), ok and "status" or "warn")
   elseif row.kind == "filter" then
     local o = row.options[row.sel]
     for _, other in ipairs(row.options) do
@@ -362,8 +475,8 @@ local function select_row(row)
   elseif row.kind == "emote" then
     local o = row.options[row.sel]
     if not o then say("No emotes (load into the game first)", "warn") else
-      local ok, err = wml.game([[for _, e in vlib_info_object:ipairs("collectible_emote") do if tostring(e) == ]] .. string.format("%q", o[2]) .. [[ then
-        emote_play_in_world(e) return end end]])
+      M.emote_pick, M.emote_frames = o[2], 0
+      local ok, err = play_emote(o[2])
       say(ok and ("Emote: " .. o[1]) or ("Emote: " .. tostring(err)), ok and "status" or "warn")
     end
   elseif row.kind == "emote_slot" then
@@ -378,7 +491,7 @@ local function select_row(row)
   elseif row.kind == "active" then
     local on = {}
     for _, r in ipairs(all_rows()) do
-      if (r.save_key or r.kind == "wdset") and r.options and r.sel ~= 1 and r.kind ~= "opt" then on[#on + 1] = r.label .. " " .. r.options[r.sel][1] end
+      if (tweak_row(r) or r.kind == "mset" or r.kind == "hud") and r.sel ~= 1 then on[#on + 1] = r.label .. " " .. r.options[r.sel][1] end
     end
     for _, c in ipairs(C.list) do if c.toggle and c.active then on[#on + 1] = c.name end end
     local text = #on == 0 and "Nothing's on: the game as it comes" or (#on .. " on: " .. table.concat(on, ", "))
@@ -390,16 +503,10 @@ local function select_row(row)
       say(row.label .. ": press again to confirm", "warn")
     else
       M.pending_confirm = nil
+      M.stash = nil
       for _, r in ipairs(all_rows()) do
-        if (r.save_key or r.kind == "wdset") and r.options and r.sel ~= 1 and r.kind ~= "opt" and r.kind ~= "hud" then
-          r.sel = 1
-          local v = r.options[1][2]
-          if r.kind == "wset" then W.set[r.key] = v elseif r.kind == "pset" then P[r.key] = v
-          elseif r.kind == "wdset" then Wd[r.key] = v
-          elseif r.kind == "wsset" then WS.set[r.key] = v
-          elseif r.kind == "mvset" then P.move[r.key] = v
-          elseif r.kind == "carset" then P.car[r.key] = v end
-        end
+        if tweak_row(r) and r.sel ~= 1 then r.sel = 1; set_value(r, r.options[1][2]) end
+        if r.key == "tweaks_paused" then r.sel = 1; M.tweaks_paused = false end
       end
       W.restore(); WS.restore()
       M.save_tweaks()
@@ -446,8 +553,11 @@ local function row_value(row)
     return o and ("<  " .. o[1] .. "  >") or "none", o and "row" or "off"
   elseif row.kind == "crowd" then
     return "Enter", "off"
-  elseif row.kind == "active" or row.kind == "normal" then
+  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" then
     return "Enter", "off"
+  elseif row.kind == "mset" then
+    local o = row.options[row.sel]
+    return "<  " .. o[1] .. "  >", row.sel == 1 and "off" or "on"
   elseif row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" then
     local o = row.options[row.sel]
     return o and ("<  " .. o[1] .. "  >") or "none", o and "row" or "off"
@@ -488,7 +598,7 @@ local function render()
 end
 
 -- ------------------------------------------------------------------ input
-local PAD = { UP = 0x1, DOWN = 0x2, LEFT = 0x4, RIGHT = 0x8, LB = 0x100, RB = 0x200, A = 0x1000, B = 0x2000 }
+local PAD = { UP = 0x1, DOWN = 0x2, LEFT = 0x4, RIGHT = 0x8, BACK = 0x20, LB = 0x100, RB = 0x200, A = 0x1000, B = 0x2000 }
 local pad_prev, rb_used = 0, false
 local held, held_frames = nil, 0
 
@@ -512,6 +622,15 @@ function M.adjust_pset(row, delta)
   row.sel = (row.sel - 1 + delta) % #row.options + 1
   P[row.key] = row.options[row.sel][2]
   M.save_tweaks()
+  say(row.label .. ": " .. row.options[row.sel][1])
+end
+
+function M.adjust_mset(row, delta)
+  row.sel = (row.sel - 1 + delta) % #row.options + 1
+  local v = row.options[row.sel][2]
+  if row.key == "tweaks_paused" then M.pause_tweaks(v) else M[row.key] = v end
+  if row.key == "repeat_emote" then M.emote_frames = 0 end
+  if row.save_key then M.save_tweaks() end
   say(row.label .. ": " .. row.options[row.sel][1])
 end
 
@@ -572,7 +691,9 @@ end
 local function change_tab(delta) M.tab = (M.tab - 1 + delta) % #TABS + 1 end
 local function adjust(delta)
   local row = TABS[M.tab].rows[M.cursor[M.tab] or 1]
-  if row and row.kind == "wset" then M.adjust_wset(row, delta)
+  if row and M.stash then M.stash[row] = nil end
+  if row and row.kind == "mset" then M.adjust_mset(row, delta)
+  elseif row and row.kind == "wset" then M.adjust_wset(row, delta)
   elseif row and row.kind == "pset" then M.adjust_pset(row, delta)
   elseif row and row.kind == "hud" then M.adjust_hud(row, delta)
   elseif row and row.kind == "opt" then M.adjust_opt(row, delta)
@@ -601,36 +722,7 @@ local function ensure_ready()
   end
   C.refresh()
   M.cash = C.cash()
-  -- vehicles (with their best variant) and homies, once
-  local function names_of(cls)
-    local out, first = {}, 1
-    while true do
-      local res = table.pack(wml.game([[local i, o = 0, {} for _, x in vlib_info_object:ipairs("]] .. cls .. [[") do
-        i = i + 1 if i >= ]] .. first .. [[ and i < ]] .. (first + 25) .. [[ then o[#o + 1] = tostring(x) end end return i, unpack(o)]]))
-      if not res[1] then break end
-      for j = 3, res.n do out[#out + 1] = res[j] end
-      first = first + 25
-      if first > res[2] then break end
-    end
-    return out
-  end
-  -- every object of a class: { name, hash (the name's hash, from its id) }
-  local function names_of_objects(cls)
-    local out, first = {}, 1
-    while true do
-      local res = table.pack(wml.game([[local i, o = 0, {} for _, x in vlib_info_object:ipairs("]] .. cls .. [[") do
-        i = i + 1 if i >= ]] .. first .. [[ and i < ]] .. (first + 20) .. [[ then o[#o + 1] = tostring(x) o[#o + 1] = x end end return i, unpack(o)]]))
-      if not res[1] then break end
-      for j = 3, res.n, 2 do
-        local p = tonumber(tostring(res[j + 1]):match("(%x+)>$") or "", 16)
-        if p then out[#out + 1] = { name = res[j]:match('"(.*)"') or res[j], hash = (wml.read_u64(p + 0x28) >> 32) & 0xFFFFFFFF } end
-      end
-      first = first + 20
-      if first > res[2] then break end
-    end
-    return out
-  end
-  local function pretty(name) return (name:gsub("_", " "):gsub("(%a)(%w*)", function(a, b) return a:upper() .. b end)) end
+  -- vehicles, people, homies and emotes, once
   for _, r in ipairs(all_rows()) do
     if r.kind == "deliver" and #r.options == 0 then
       -- the drop-car cheat's table (*(+2F371F0), 0x3B38 an entry, count u16
@@ -761,15 +853,48 @@ function M.update()
   if Wd.any_on() then Wd.update(frame) end
   -- Never wanted: the game's clear cheats as soon as there's notoriety
   if (M.wanted_wait or 0) > 0 then M.wanted_wait = M.wanted_wait - 1 end
-  if Wd.never_wanted and C.loaded and frame % 30 == 5 and (M.wanted_wait or 0) == 0 and Wd.wanted() then
-    for _, name in ipairs({ "clear_police", "clear_idols", "clear_marshal", "clear_panteros" }) do
+  local wanted = Wd.never_wanted and C.loaded and frame % 30 == 5 and (M.wanted_wait or 0) == 0 and Wd.wanted()
+  if wanted then
+    if not M.factions then load_factions() end
+    local clear = {}
+    for _, hash in ipairs(wanted) do
+      local f = M.factions[hash]
+      if f and (Wd.never_wanted == "all" or Wd.never_wanted == f.group) then clear[f.cheat] = true
+      elseif not f and Wd.never_wanted == "all" then
+        for _, n in ipairs({ "clear_police", "clear_idols", "clear_marshal", "clear_panteros" }) do clear[n] = true end
+      end
+    end
+    for name in pairs(clear) do
       local c = C.by_name[name]
       if c then
         if c.spicy then C.allow_spicy(); M.spicy_hold = 120 end
         C.activate(name)
+        M.wanted_wait = 120
       end
     end
-    M.wanted_wait = 120
+  end
+  -- Max notoriety: one raise every 45 frames
+  if M.raise and C.loaded then
+    M.raise.wait = M.raise.wait - 1
+    if M.raise.wait <= 0 then
+      fire(M.raise.name, nil, M.raise.label .. " raised")
+      M.raise.left, M.raise.wait = M.raise.left - 1, 45
+      if M.raise.left <= 0 then M.raise = nil end
+    end
+  end
+  -- Repeat emote
+  if M.repeat_emote and M.emote_pick and C.loaded then
+    M.emote_frames = (M.emote_frames or 0) + 1
+    if M.emote_frames >= M.repeat_emote then M.emote_frames = 0; play_emote(M.emote_pick) end
+  end
+  -- Hold Back opens the menu: held for 45 frames
+  if M.hold_back and (buttons & PAD.BACK ~= 0) then
+    M.back_frames = (M.back_frames or 0) + 1
+    if M.back_frames == 45 then
+      if M.open then M.open = false elseif ensure_ready() then M.open = true; frame = 0 end
+    end
+  else
+    M.back_frames = 0
   end
   if wml.auto_fire and P.full_auto ~= M.auto_fire_was then
     wml.auto_fire(P.full_auto and true or false, P.full_auto or 70)

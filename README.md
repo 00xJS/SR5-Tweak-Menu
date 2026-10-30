@@ -48,7 +48,7 @@ rows; every row has a help line in the menu.
   (x2 to x10), Refill health
 - **Movement:** Run speed, Air control, Swim speed, Your gravity
 - **Emotes:** D-pad emote 1 and D-pad emote 2 (swap the emotes on your
-  D-pad, then use it as usual), Play emote, Stop emote
+  D-pad, then use it as usual), Play emote, Repeat emote, Stop emote
 - Summon homie
 - **Wingsuit:** Wingsuit boosts (every 2 s or unlimited), Wingsuit boost
   power, Wingsuit top speed, Wingsuit glide (floaty, level, climb)
@@ -77,10 +77,10 @@ rows; every row has a help line in the menu.
 ### World
 - Weather, Time of day, Freeze clock, Clock speed, Pause world
 - **People:** Spawn person (any of the game's 834 characters), Spawn a
-  crowd (ten around you), Angry pedestrians
+  crowd (ten around you), Spawn 10 random people, Angry pedestrians
 - Low gravity
-- **Notoriety:** Never wanted, and raise or clear it with the Police, Idols,
-  Marshal and Los Panteros
+- **Notoriety:** Never wanted (by anyone, by police: no cops, or by gangs),
+  and raise, clear or max it with the Police, Idols, Marshal and Los Panteros
 - **Difficulty:** the custom difficulty sliders (player health, player
   damage, enemies, vehicles, notoriety, ammo reserve, timer speed)
 
@@ -94,7 +94,8 @@ rows; every row has a help line in the menu.
 ### Settings
 - **Game:** Skip cutscene, Pause / resume cutscene, Load last save, Tutorial
   popups
-- Keep my save clean, Menu opacity
+- All tweaks (the master switch), Hold Back opens the menu, Keep my save
+  clean, Menu opacity
 - What's on (every tweak and cheat that's on), Turn every cheat off,
   Everything back to normal, Forget saved tweaks, Close menu
 
