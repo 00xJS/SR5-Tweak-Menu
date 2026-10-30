@@ -1,0 +1,5 @@
+pid 4520 base 7FF65F3C0000
+console ready byte 5BEB094 = 0  verbose 5BEA940 = 0
+commands: 2
+Rl_drop_shadow_enabled                           type=0 disabled=1 fn=1236D70 
+Rl_shadow_map_stabilize                          type=0 disabled=1 fn=1236DA0 

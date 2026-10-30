@@ -1,0 +1,8 @@
+build/
+tools/*.img
+SRTweakMenu/saved_tweaks.txt
+__pycache__/
+
+# Notes stay local: only the README is published.
+*.md
+!README.md
