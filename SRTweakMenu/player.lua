@@ -192,6 +192,174 @@ function P.waypoint()
   return nil
 end
 
+-- No fall damage: the game's human_collision_system_config ("default"),
+-- m_fall_config: falling faster than instant_death_velocity (22 m/s in play)
+-- kills, faster than minimum_damage_velocity (12) hurts; the same for the
+-- wingsuit, surfing and motorcycles. All raised to 1000 m/s while it's on.
+local FALL = {}
+for _, f in ipairs({ "instant_death_velocity", "minimum_damage_velocity", "instant_death_velocity_wingsuit", "minimum_damage_velocity_wingsuit",
+                     "instant_death_velocity_surfing", "minimum_damage_velocity_surfing", "instant_death_velocity_moto", "minimum_damage_velocity_moto" }) do
+  FALL[#FALL + 1] = { path = "m_fall_config." .. f, what = f }
+end
+P.no_fall = false
+local fall_entries, fall_written
+function P.update_fall()
+  if not fall_entries then
+    fall_entries = require("vdata").collect("human_collision_system_config", FALL)
+    if #fall_entries == 0 then fall_entries = nil; return end
+  end
+  local V = require("vdata")
+  for _, e in ipairs(fall_entries) do
+    local want = P.no_fall and 1000 or e.orig
+    if V.read(e.addr, e.t) ~= want then V.write(e.addr, e.t, want) end
+  end
+  fall_written = P.no_fall
+end
+function P.fall_active() return P.no_fall or fall_written end
+
+-- Everyone near you: the object table (0x90-byte entries at *(+45E8458)),
+-- entry i live when bit i of *(+4757300) is clear and (below *(+4724650))
+-- bit i of *(+4724648) is set, count *(+4757308); people are the live
+-- entries with a human health component (0x8D), you left out.
+function P.people_near(radius)
+  local B = wml.base
+  local base, n = wml.read_u64(B + 0x45E8458), wml.read_u32(B + 0x4757308)
+  local free_bits, live_bits, live_n = wml.read_u64(B + 0x4757300), wml.read_u64(B + 0x4724648), wml.read_u32(B + 0x4724650)
+  local px, py, pz = P.position()
+  local me = P.object()
+  local out = {}
+  if not px or base == 0 then return out end
+  local r2 = radius * radius
+  for i = 0, n - 1 do
+    if ((wml.read_u8(free_bits + (i >> 3)) >> (i & 7)) & 1) == 0 and (i >= live_n or ((wml.read_u8(live_bits + (i >> 3)) >> (i & 7)) & 1) == 1) then
+      local e = base + i * 0x90
+      local dx, dz = s32(wml.read_u32(e + 0x30)) / 10000 - px, s32(wml.read_u32(e + 0x38)) / 10000 - pz
+      if dx * dx + dz * dz < r2 and e ~= me then
+        local dy = s32(wml.read_u32(e + 0x34)) / 10000 - py
+        if dx * dx + dy * dy + dz * dz < r2 then
+          local h = P.component(0x8D, e)
+          if h then out[#out + 1] = { entry = e, health = h } end
+        end
+      end
+    end
+  end
+  return out
+end
+
+-- Ragdoll: the game's start-ragdoll (+18A5860(entry, 2 owner, 200 ms blend,
+-- the zero vector +3C44930, no impulse, 0)), for people with a ragdoll
+-- (component type 2); confirmed in play. Kill, in two steps: health at 0
+-- alone leaves people "down but not out" (seen in play), so first that's
+-- switched off for each of them, as the game's
+-- human_health_disable_dbno_on_death_node does: a reference on their handle
+-- (the count at *(+2EB2330) + id * 4), then +3EEFD0(&id, 0), which releases
+-- it and sends the change on (it may land a frame later). Then, some frames
+-- on, the health range is pinned to 0 and the game's health setter (+3E58F0,
+-- the source the script node passes, +3C1F3F8) runs the death. People with a
+-- minimum health (mission characters) are left alone.
+function P.ragdoll_near(radius)
+  local n = 0
+  for _, p in ipairs(P.people_near(radius)) do
+    if P.component(2, p.entry) then wml.call(wml.base + 0x18A5860, p.entry, 2, 200, wml.base + 0x3C44930, 1, 0); n = n + 1 end
+  end
+  return n
+end
+-- Step 1: returns the people to kill ({ id, entry }), "down but not out" off.
+function P.kill_prepare(radius)
+  local out = {}
+  local refs = wml.read_u64(wml.base + 0x2EB2330)
+  local buf = wml.buffer(13)
+  for _, p in ipairs(P.people_near(radius)) do
+    local h = p.health
+    if wml.read_f32(h + 0xE8) <= 0 and wml.read_f32(h + 0xF0) > 0 then
+      local id = wml.read_u32(p.entry + 0x58)
+      wml.write_u32(refs + id * 4, wml.read_u32(refs + id * 4) + 1)
+      wml.write_u32(buf, id)
+      wml.call(wml.base + 0x3EEFD0, buf, 0)
+      out[#out + 1] = { id = id }
+    end
+  end
+  return out
+end
+-- Step 2: the deaths, for those still there.
+function P.kill_finish(list)
+  local n = 0
+  for _, k in ipairs(list) do
+    local e = P.entry_of(k.id)
+    local h = e and wml.read_u32(e + 0x58) == k.id and P.component(0x8D, e)
+    if h and wml.read_f32(h + 0xF0) > 0 then
+      wml.write_f32(h + 0xE8, 0); wml.write_f32(h + 0xEC, 0)
+      wml.call(wml.base + 0x3E58F0, h, 0, wml.base + 0x3C1F3F8)
+      n = n + 1
+    end
+  end
+  return n
+end
+
+-- Special ammo on the gun in your hands: the per-gun property override
+-- (+1BFF510(weapon component, &key, 0, &value, name), as the game's set-
+-- status-effect node does; component from +49F8A0(+1C1F420(&gun id))).
+-- value: 16 bytes, the value at +0 and its type at +8 (1 float, 3 enum).
+-- Keys: status_effect, its magnitude, duration, damage and damage type.
+-- Only that gun changes; a new gun in your hands gets it too.
+P.ammo = false   -- false or { effect name, damage type name }
+local ammo_gun
+local function crc(name)
+  local ok, v = wml.game("return string_crc(" .. string.format("%q", name) .. ")")
+  return ok and type(v) == "number" and (math.floor(v) & 0xFFFFFFFF) or 0
+end
+function P.update_ammo(force)
+  local ok, s = wml.game("return tostring(gml_get_local_player_weapon())")
+  local id = ok and tonumber((s or ""):match("object (%x+)") or "", 16)
+  if not id or id == 0 then return end
+  if id == ammo_gun and not force then return end
+  local buf = wml.buffer(10)
+  wml.write_u32(buf, id)
+  local entry = wml.call(wml.base + 0x1C1F420, buf)
+  local comp = entry ~= 0 and wml.call(wml.base + 0x49F8A0, entry) or 0
+  if comp == 0 then return end
+  local name = wml.buffer(11, "sr5_tweak_menu")
+  local function set(key, value, kind)
+    wml.write_u32(buf + 0x10, key)
+    for i = 0, 15, 4 do wml.write_u32(buf + 0x20 + i, 0) end
+    if kind == "f" then wml.write_f32(buf + 0x20, value); wml.write_u32(buf + 0x28, 1)
+    else wml.write_u32(buf + 0x20, value); wml.write_u32(buf + 0x28, 3) end
+    wml.call(wml.base + 0x1BFF510, comp, buf + 0x10, 0, buf + 0x20, name)
+  end
+  local a = P.ammo
+  set(73301821, a and crc(a[1]) or 0, "e")                -- status_effect
+  set(2640671745, 1.0, "f")                               -- status_effect_magnitude
+  set(216245579, a and 4.0 or 1.0, "f")                   -- status_effect_duration
+  set(1310126570, a and 20.0 or 0.0, "f")                 -- status_effect_damage
+  set(1026999258, crc(a and a[2] or "physical"), "e")     -- status_effect_damage_type
+  ammo_gun = id
+end
+
+-- Homie limit: how many homies can follow you is 1 + the stat
+-- passive_mod_class_extra_homies; without the perk that owns it, the stat is
+-- the class default, a float at +3C0DC10 + index * 0x10 + 8 (table of 0x10-
+-- byte entries, the class's name crc at +0, count u32 at +5BE5DA0; read live:
+-- index 141, default 0). With the perk owned, the perk decides.
+P.homies = 1
+local homie_default
+local function homie_stat()
+  local n = wml.read_u32(wml.base + 0x5BE5DA0)
+  for i = 0, math.min(n, 1000) - 1 do
+    local e = wml.base + 0x3C0DC10 + i * 0x10
+    if wml.read_u32(e) == 0xF448041B then return e + 8 end
+  end
+  return nil
+end
+function P.update_homies()
+  local a = homie_stat()
+  if not a then return end
+  if not homie_default then homie_default = wml.read_f32(a) end
+  local want = P.homies == 1 and homie_default or (P.homies - 1)
+  if wml.read_f32(a) ~= want then wml.write_f32(a, want) end
+  if P.homies == 1 then homie_default = nil end
+end
+function P.homies_active() return P.homies ~= 1 or homie_default ~= nil end
+
 -- People the menu spawned (their object ids), and removing them: +1E6920(&id)
 -- destroys an object (the game's "gameplay util destroy"). An entry's own id
 -- is at +0x58; ids are reused, so an id is only removed while its entry still
@@ -269,32 +437,36 @@ end
 -- friction and max friction multipliers (flag byte +0x10), +0x2C steering
 -- max angle (radians) and +0x30 the speed it's allowed up to (flag +0x48),
 -- +0x5C max torque (flag +0x60), +0x74 top speed, m/s (flag +0x78). The
--- block in use is the pointer at +0x1DE8 (normally this one; missions can
--- swap in their own, and then it's left alone). +1B67C30(component, block,
--- 1) pushes a block into the live physics, for the categories whose flag is
--- set: it's called after each change.
+-- block in use is the pointer at +0x1DE8: the vehicle's own, or (seen live
+-- while the player drives) the player's handling block at +0x1DD8, or a
+-- mission's at +0x1DE0, which is left alone. The menu changes the block in
+-- use; originals are kept per block. +1B67C30(component, block, 1) pushes a
+-- block into the live physics, for the categories whose flag is set: it's
+-- called after each change.
 P.car = { power = 1, top = 1, grip = 1, steer = 1 }
-local BLOCK, IN_USE, APPLY = 0x8BC, 0x1DE8, 0x1B67C30
+local BLOCK, PLAYER_BLOCK, IN_USE, APPLY = 0x8BC, 0x1DD8, 0x1DE8, 0x1B67C30
 local CAR = {
   power = { offs = { 0x5C }, flag = 0x60 }, top = { offs = { 0x74 }, flag = 0x78 },
   grip = { offs = { 0x04, 0x0C }, flag = 0x10 }, steer = { offs = { 0x2C, 0x30 }, flag = 0x48 },
 }
-local car_orig = {}   -- [component address] = { [block offset] = original value or flag }
+local car_orig = {}   -- [block address] = { [block offset] = original value or flag }
 function P.update_car()
   local v = P.vehicle_object()
   local c = v and P.component(0x12, v)
   if not c then return end
-  local b = c + BLOCK
   local used = wml.read_u64(c + IN_USE)
-  if used ~= 0 and used ~= b then return end   -- a mission's own handling
-  local o = car_orig[c]
+  local b
+  if used == 0 or used == c + BLOCK then b = c + BLOCK
+  elseif used == wml.read_u64(c + PLAYER_BLOCK) then b = used
+  else return end   -- a mission's own handling
+  local o = car_orig[b]
   if not o then
     o = {}
     for _, cat in pairs(CAR) do
       for _, off in ipairs(cat.offs) do o[off] = wml.read_f32(b + off) end
       o[cat.flag] = wml.read_u8(b + cat.flag)
     end
-    car_orig[c] = o
+    car_orig[b] = o
   end
   local changed, restored = false, {}
   for key, cat in pairs(CAR) do

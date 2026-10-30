@@ -66,12 +66,13 @@ local TABS = {
     pset("health_mult", "Health", "Your maximum health.", { { "Game's", 1 }, { "x2", 2 }, { "x5", 5 }, { "x10", 10 } }),
     { kind = "refill", label = "Refill health", help = "Back to full health." },
     pset("regen", "Health regen", "Experimental: None, Fast (five times, no wait after a hit) or Always back to full.", { { "Game's", "game" }, { "None", "none" }, { "Fast", "fast" }, { "Always full", "full" } }),
+    pset("no_fall", "No fall damage", "Falls from any height don't hurt (the game's own fall limits raised).", { { "Off", false }, { "On", true } }),
     { kind = "mvset", key = "run", label = "Run speed", help = "Experimental: walking and running speed.", options = { { "Game's", 1 }, { "x1.5", 1.5 }, { "x2", 2 }, { "x3", 3 } }, sel = 1, save_key = "move.run" },
     { kind = "mvset", key = "air", label = "Air control", help = "Experimental: how much you steer in the air.", options = { { "Game's", 1 }, { "x2", 2 }, { "x4", 4 } }, sel = 1, save_key = "move.air" },
     { kind = "mvset", key = "swim", label = "Swim speed", help = "Experimental: how fast you swim.", options = { { "Game's", 1 }, { "x2", 2 }, { "x3", 3 } }, sel = 1, save_key = "move.swim" },
     { kind = "mvset", key = "gravity", label = "Your gravity", help = "Experimental: lower is floatier jumps and falls.", options = { { "Game's", 1 }, { "x0.5", 0.5 }, { "x0.25", 0.25 }, { "x2", 2 } }, sel = 1, save_key = "move.gravity" },
-    { kind = "emote_slot", slot = "primary", label = "D-pad emote 1", help = "Left/Right picks, Enter puts it on your first D-pad emote; then use the D-pad as usual.", sel = 1, options = {} },
-    { kind = "emote_slot", slot = "secondary", label = "D-pad emote 2", help = "Left/Right picks, Enter puts it on your second D-pad emote; then use the D-pad as usual.", sel = 1, options = {} },
+    { kind = "emote_slot", slot = "primary", label = "D-pad emote 1", help = "Left/Right picks the emote on your first D-pad emote; then use the D-pad as usual.", sel = 1, options = {}, apply = true },
+    { kind = "emote_slot", slot = "secondary", label = "D-pad emote 2", help = "Left/Right picks the emote on your second D-pad emote; then use the D-pad as usual.", sel = 1, options = {}, apply = true },
     { kind = "emote", label = "Play emote", help = "Experimental: Left/Right picks one of the game's emotes, Enter plays it now.", sel = 1, options = {} },
     { kind = "mset", key = "repeat_emote", label = "Repeat emote", help = "Plays the emote picked in Play emote again and again; Stop emote ends it.", options = { { "Off", false }, { "Every 3 s", 180 }, { "Every 6 s", 360 }, { "Every 12 s", 720 } }, sel = 1 },
     { kind = "emote_stop", label = "Stop emote", help = "Stops the emote you're playing (and Repeat emote)." },
@@ -81,6 +82,7 @@ local TABS = {
       for _, h in vlib_info_object:ipairs("homie_info") do if homie_is_following(h) then homie_dismiss(h) n = n + 1 end end
       return n .. " dismissed"
     ]]),
+    pset("homies", "Homie limit", "Experimental: how many homies can follow you at once (if you don't own the extra-homies perk).", { { "Game's", 1 }, { "2", 2 }, { "3", 3 }, { "4", 4 } }),
     pset("no_ragdoll", "No ragdoll", "Experimental: whenever you're knocked over, you're straight back up.", { { "Off", false }, { "On", true } }),
     { kind = "homie", label = "Summon homie", help = "Experimental: Left/Right picks a homie, Enter calls them in (if the game lets you).", sel = 1, options = {} },
     wsset("cooldown", "Wingsuit boosts", "How soon you can boost again (the game's: 15 s).", { { "Game's", 1 }, { "Every 2 s", "short" }, { "Unlimited", "none" } }),
@@ -93,6 +95,7 @@ local TABS = {
     gchoice("Give XP", "Experimental: adds XP the game's way (it stays in your save).", award("xp", { { "1,000 XP", 1000 }, { "10,000 XP", 10000 }, { "100,000 XP", 100000 } })),
     gchoice("Give skill points", "Experimental: adds skill points (they stay in your save).", award("skill_point", { { "1", 1 }, { "5", 5 }, { "10", 10 } })),
     gchoice("Add cash", "Experimental: adds cash directly (it stays in your save).", award("cash", { { "$10,000", 10000 }, { "$100,000", 100000 }, { "$1,000,000", 1000000 } })),
+    { kind = "unlock", key = "weapons", label = "Own every weapon", help = "Press twice: every weapon is yours, as if bought (saved in your game)." },
     { kind = "unlock", key = "stores", label = "Unlock everything in the stores", help = "Press twice: every store's clothing, weapons and props are yours (saved in your game)." },
     { kind = "unlock", key = "collectibles", label = "Unlock all collectibles", help = "Press twice: every collectible outfit, emote, weapon and vehicle (saved in your game)." },
     toggle("super_saints", "Super Saints", "The game's Super Saints cheat."),
@@ -107,6 +110,9 @@ local TABS = {
     { kind = "refill_ammo", label = "Refill all ammo", help = "Every weapon's magazine and reserve full, free (the game's infinite-ammo refill)." },
     toggle("infinite_ammo", "Infinite ammo", "Your reserve ammo never runs out (the game's cheat; your save stays clean)."),
     wset("fire_rate", "Fire rate", "How fast every weapon fires.", { { "Game's", 1 }, { "x1.5", 1.5 }, { "x2", 2 }, { "x4", 4 }, { "x8", 8 } }),
+    pset("ammo", "Special ammo", "Experimental: what the gun in your hands does to people it hits; new guns get it too.", {
+      { "Normal", false }, { "Fire", { "on_fire", "fire" } }, { "Shock", { "electrified", "electricity" } }, { "Chill", { "chill", "water" } },
+      { "Stun", { "stun", "electricity" } }, { "Bleed", { "bleed", "dot_bleeding" } }, { "Disintegrate", { "disintegrate", "insta_kill" } } }),
     pset("full_auto", "Full auto", "Single-shot guns keep firing while you hold the trigger (mouse or RT).", { { "Off", false }, { "On", 70 }, { "Fast", 40 } }),
     wset("damage", "Damage", "x2 to x10: your guns only. One-hit kill: every gun, enemies' too (pair it with God mode).", { { "Game's", 1 }, { "x2", 2 }, { "x5", 5 }, { "x10", 10 }, { "One-hit kill", "kill" } }),
     wset("reload", "Reload speed", "How fast reloads go.", { { "Game's", 1 }, { "x2", 2 }, { "x4", 4 }, { "Instant", 20 } }),
@@ -156,10 +162,10 @@ local TABS = {
     { kind = "where", label = "Where am I", help = "Shows your position." },
   } },
   { name = "World", rows = {
-    choice("Weather", "Left/Right picks, Enter sets it.", {
+    choice("Weather", "Left/Right sets it.", {
       { "Clear", "weather_clear" }, { "Dust", "weather_dust" }, { "Fog", "weather_fog" } }),
-    { kind = "weathernode", label = "Weather (all)", help = "Experimental: Left/Right picks any of the game's weathers, Enter blends to it.", sel = 1, options = {} },
-    choice("Time of day", "Left/Right picks, Enter sets it.", {
+    { kind = "weathernode", label = "Weather (all)", help = "Experimental: Left/Right blends to any of the game's weathers.", sel = 1, options = {}, apply = true },
+    choice("Time of day", "Left/Right sets it.", {
       { "Morning", "tod_morning" }, { "Noon", "tod_noon" }, { "Afternoon", "tod_afternoon" },
       { "Evening", "tod_evening" }, { "Midnight", "tod_midnight" } }),
     { kind = "wdset", key = "freeze_clock", label = "Freeze clock", help = "Stops the time of day where it is.", options = { { "Off", false }, { "On", true } }, sel = 1, save_key = "world.freeze_clock" },
@@ -169,6 +175,8 @@ local TABS = {
     { kind = "crowd", label = "Spawn a crowd", help = "Ten of the character picked above, in a ring around you." },
     { kind = "random_people", label = "Spawn 10 random people", help = "Ten of the game's characters, picked at random, around you." },
     { kind = "despawn", label = "Remove spawned people", help = "Experimental: removes everyone the menu spawned." },
+    { kind = "crowd_act", key = "ragdoll", label = "Ragdoll everyone near", help = "Everyone within 40 m falls over." },
+    { kind = "crowd_act", key = "kill", label = "Kill everyone near", help = "Everyone within 40 m drops dead (not mission characters)." },
     { kind = "wdset", key = "empty_streets", label = "Empty streets", help = "Experimental: no more people or traffic appear; the ones out there go as you leave them.", options = { { "Off", false }, { "On", true } }, sel = 1, save_key = "world.empty_streets" },
     toggle("low_gravity", "Low gravity", "Everything floats a little."),
     toggle("ped_agro", "Angry pedestrians", "People on the street turn on you."),
@@ -182,7 +190,7 @@ local TABS = {
     difficulty(4, "notoriety"), difficulty(5, "ammo reserve"), difficulty(6, "timer speed"),
   } },
   { name = "Visual", rows = {
-    choice("Screen filter", "Left/Right picks, Enter applies it.", {
+    choice("Screen filter", "Left/Right applies it.", {
       { "Off", false }, { "Black & white", "screen_effect_black_white" }, { "Retro", "screen_effect_retro" },
       { "Night vision", "screen_effect_night_vision" }, { "Old-timey", "screen_effect_old_timey" },
       { "Vapor", "screen_effect_vapor" }, { "Western", "screen_effect_western" }, { "Steamboat", "screen_effect_steamboat" } }, "filter"),
@@ -192,10 +200,11 @@ local TABS = {
     opt("Camera shake", "The game's camera shake option.", "option_get_camera_shake_enabled()", "option_set_camera_shake_enabled(%s)", { { "On", 1 }, { "Off", 2 } }),
     opt("Looping camera shake", "The game's looping camera shake option (engines, idle sway).", "option_get_looping_camera_shake_enabled()", "option_set_looping_camera_shake_enabled(%s)", { { "On", 1 }, { "Off", 2 } }),
     opt("Camera bobbing", "The game's camera bobbing option.", "option_get_camera_bobbing_enabled()", "option_set_camera_bobbing_enabled(%s)", { { "On", 1 }, { "Off", 2 } }),
-    gchoice("Shoulder camera", "Experimental: Enter moves the camera over a shoulder, or back to the middle.", {
+    gchoice("Shoulder camera", "Experimental: Left/Right moves the camera over a shoulder, or back to the middle.", {
       { "Centred", "gml_set_camera_ndc_offset(0, 0) return 'centred'" }, { "Right shoulder", "gml_set_camera_ndc_offset(0.45, 0) return 'right'" },
       { "Left shoulder", "gml_set_camera_ndc_offset(-0.45, 0) return 'left'" } }),
     { kind = "camset", key = "turn", label = "Turn speed", help = "Experimental: how fast the camera turns, mouse and controller, past the options' top.", options = { { "Game's", 1 }, { "x1.5", 1.5 }, { "x2", 2 }, { "x3", 3 } }, sel = 1, save_key = "camera.turn" },
+    { kind = "camset", key = "bright", label = "Brightness", help = "Experimental: while it's on, the game stops adjusting brightness by itself (indoors, night).", options = { { "Game's", 0 }, { "Brighter", -1 }, { "Much brighter", -2 }, { "Darker", 1 }, { "Much darker", 2 } }, sel = 1 },
     gcall("Photo mode", "The game's photo mode: a free camera. Close the menu to move it; press again to leave.", "cell_photo_mode_toggle() return cell_photo_mode_is_active() and 'on' or 'off'"),
     { kind = "hud", label = "Hide HUD", help = "Experimental: hides the HUD the way the game's own option does.", options = { { "Off", false }, { "On", true } }, sel = 1, save_key = "visual.hide_hud" },
   } },
@@ -216,6 +225,13 @@ local TABS = {
     { kind = "close", label = "Close menu", help = "F5, or hold RB and press D-pad Down, opens it again." },
   } },
 }
+
+-- Rows that are settings rather than one-off actions: picking with
+-- Left/Right applies them (after a short pause, so scrolling past options
+-- doesn't fire each one). Actions (spawn, teleport, give, unlock) still wait
+-- for Enter.
+local APPLY_ON_PICK = { ["Weather"] = true, ["Time of day"] = true, ["Screen filter"] = true, ["Shoulder camera"] = true }
+for _, t in ipairs(TABS) do for _, r in ipairs(t.rows) do if APPLY_ON_PICK[r.label] then r.apply = true end end end
 
 -- Settings kept from last time (tweaks.lua).
 local function all_rows()
@@ -298,36 +314,58 @@ local function prune()
   end
 end
 
--- The names of every object of a class (the game's tostring of each).
-local function names_of(cls)
-  local out, first = {}, 1
+-- A game name for the menu: underscores to spaces, each word capitalised.
+local function pretty(name) return (name:gsub("_", " "):gsub("(%a)(%w*)", function(a, b) return a:upper() .. b end)) end
+
+-- The names of every object of a class (the game's tostring of each), a
+-- batch a call. Each call stops walking once its batch is full: walking a
+-- class makes a userdata per object, and the game's Lua has a small pool
+-- (the 14,000 voice line situations ran it out when walked whole each time).
+-- `collect`: a full collection first, for very long classes.
+local function names_of(cls, collect, n)
+  local out, first, N = {}, 1, n or 25
   while true do
-    local res = table.pack(wml.game([[local i, o = 0, {} for _, x in vlib_info_object:ipairs("]] .. cls .. [[") do
-      i = i + 1 if i >= ]] .. first .. [[ and i < ]] .. (first + 25) .. [[ then o[#o + 1] = tostring(x) end end return i, unpack(o)]]))
+    local res = table.pack(wml.game((collect and 'collectgarbage("collect") ' or "") .. [[local i, o = 0, {} for _, x in vlib_info_object:ipairs("]] .. cls .. [[") do
+      i = i + 1 if i >= ]] .. first .. [[ then o[#o + 1] = tostring(x) if #o == ]] .. N .. [[ then break end end end return #o, unpack(o)]]))
     if not res[1] then break end
     for j = 3, res.n do out[#out + 1] = res[j] end
-    first = first + 25
-    if first > res[2] then break end
+    first = first + N
+    if res[2] < N then break end
   end
   return out
 end
 -- every object of a class: { name, hash (the name's hash, from its id) }
 local function names_of_objects(cls)
-  local out, first = {}, 1
+  local out, first, N = {}, 1, 20
   while true do
     local res = table.pack(wml.game([[local i, o = 0, {} for _, x in vlib_info_object:ipairs("]] .. cls .. [[") do
-      i = i + 1 if i >= ]] .. first .. [[ and i < ]] .. (first + 20) .. [[ then o[#o + 1] = tostring(x) o[#o + 1] = x end end return i, unpack(o)]]))
+      i = i + 1 if i >= ]] .. first .. [[ then o[#o + 1] = tostring(x) o[#o + 1] = x if #o == ]] .. (2 * N) .. [[ then break end end end return #o, unpack(o)]]))
     if not res[1] then break end
     for j = 3, res.n, 2 do
       local p = tonumber(tostring(res[j + 1]):match("(%x+)>$") or "", 16)
       if p then out[#out + 1] = { name = res[j]:match('"(.*)"') or res[j], hash = (wml.read_u64(p + 0x28) >> 32) & 0xFFFFFFFF } end
     end
-    first = first + 20
-    if first > res[2] then break end
+    first = first + N
+    if res[2] < 2 * N then break end
   end
   return out
 end
-local function pretty(name) return (name:gsub("_", " "):gsub("(%a)(%w*)", function(a, b) return a:upper() .. b end)) end
+
+-- The player's voice lines: of the game's ~14,000 line situations (nearly
+-- all mission dialogue), the generic ones a character says anywhere. Loaded
+-- the first time the row is used (about a second), with a collection each
+-- call, then the game's Lua collected again.
+local VOICE = { combat = true, voice = true, special = true, misc = true, observe = true, threat = true, cower = true, flee = true, drunk = true }
+local function load_voice_lines(row)
+  for _, l in ipairs(names_of("gml_line_situation", true, 200)) do
+    local name = l:match('"(.*)"') or l
+    local pre = name:match("^(%a+)_")
+    if pre and VOICE[pre] and not name:find("%d%d") then row.options[#row.options + 1] = { pretty(name), l, name } end
+  end
+  wml.game('collectgarbage("collect")')
+  table.sort(row.options, function(a, b) return a[1] < b[1] end)
+  row.loaded = true
+end
 
 -- The game's factions (gml_faction), by name hash: which clear cheat is
 -- theirs and whether they're police (police, Marshal) or a gang.
@@ -374,20 +412,43 @@ local function fire(name, row, label)
 end
 
 -- Unlocks, a few at a time over the next frames (M.unlock.queue):
--- * stores: the game's own "unlock a store inventory" console handler
---   (+A68880, its console registration compiled out). It reads the argument
---   count at +381AC6C and the store inventory's name as text at +381AC70,
---   then unlocks that inventory's wearables, weapons, props and collectibles.
 -- * collectibles: gml_collectibles_award(name hash, 1) for every object of
 --   the collectible classes, as the game awards a found one.
+-- * stores: each store inventory's lists, read the way the game's own (left
+--   over, console-only) unlock handler +A68880 reads them: the inventory's
+--   info from +DA4830(&class hash, &name hash); lists of name hashes, pointer
+--   and u16 count: wearables +0x40/+0x48, props +0x70/+0x78, collectibles
+--   +0x88/+0x90. Each item is awarded like a collectible. (Calling that
+--   handler itself crashed the game once, executing address 0: it's not used.)
+--   Store weapons are left to Own every weapon.
+-- * weapons: +988830(info, 1), the owned flag buying a weapon sets.
 -- Achievements wait meanwhile: the spicy session flag is held (the game's
 -- achievement code skips while it's set).
-local CON_ARGC, CON_ARG = 0x381AC6C, 0x381AC70
+local STORE_LISTS = { { 0x40, 0x48 }, { 0x70, 0x78 }, { 0x88, 0x90 } }
+local function info_of(class_crc, name_crc)
+  local buf = wml.buffer(12)
+  wml.write_u32(buf, class_crc)
+  wml.write_u32(buf + 4, name_crc)
+  return wml.call(wml.base + 0xDA4830, buf, buf + 4)
+end
+local function crc_of(name)
+  local ok, v = wml.game("return string_crc(" .. string.format("%q", name) .. ")")
+  return ok and type(v) == "number" and (math.floor(v) & 0xFFFFFFFF) or 0
+end
 local COLLECTIBLES = { "collectible_wearable_info", "collectible_emote", "collectible_weapon_info", "collectible_vehicle_info" }
 local function start_unlock(row)
   local q = {}
-  if row.key == "stores" then
-    for _, n in ipairs(names_of("store_inventory_info")) do q[#q + 1] = { store = n:match('"(.*)"') or n } end
+  if row.key == "weapons" then
+    -- not vehicle guns, abilities or the parent templates
+    for _, o in ipairs(names_of_objects("inventory_weapon_info")) do
+      if not (o.name:find("^weapon_vehicle") or o.name:find("^weapon_ability") or o.name:find("^weapon_parent") or o.name:find("test")) then
+        q[#q + 1] = { weapon = o.hash }
+      end
+    end
+  elseif row.key == "stores" then
+    for _, o in ipairs(names_of_objects("store_inventory_info")) do
+      if not o.name:find("^test_") then q[#q + 1] = { store = o.hash } end   -- not the developers' test store
+    end
   else
     local batch
     for _, cls in ipairs(COLLECTIBLES) do
@@ -405,20 +466,34 @@ local function step_unlock()
   local u = M.unlock
   C.allow_spicy(); M.spicy_hold = math.max(M.spicy_hold, 300)
   local item = table.remove(u.queue, 1)
-  if item and item.store and #item.store < 120 then
-    local a = wml.base + CON_ARG
-    for i = 1, #item.store do wml.write_u8(a + i - 1, item.store:byte(i)) end
-    wml.write_u8(a + #item.store, 0)
-    wml.write_u32(wml.base + CON_ARGC, 1)
-    wml.call(wml.base + 0xA68880)
-    wml.write_u32(wml.base + CON_ARGC, 0)
-    u.done = u.done + 1
+  if item and item.store then
+    u.store_crc = u.store_crc or crc_of("store_inventory_info")
+    local info = info_of(u.store_crc, item.store)
+    if info ~= 0 then
+      local awards = {}
+      for _, l in ipairs(STORE_LISTS) do
+        local list, n = wml.read_u64(info + l[1]), wml.read_u16(info + l[2])
+        if list ~= 0 and n < 2000 then
+          for i = 0, n - 1 do awards[#awards + 1] = "gml_collectibles_award(" .. wml.read_u32(list + i * 4) .. ", 1)" end
+        end
+      end
+      -- 20 awards a game call
+      for i = 1, #awards, 20 do wml.game(table.concat(awards, " ", i, math.min(i + 19, #awards))) end
+      u.items = (u.items or 0) + #awards
+      u.done = u.done + 1
+    end
+  elseif item and item.weapon then
+    -- the weapon's info, then its owned flag (+988830(info, 1): what buying
+    -- it does, unlock event included)
+    u.class_crc = u.class_crc or crc_of("inventory_weapon_info")
+    local info = info_of(u.class_crc, item.weapon)
+    if info ~= 0 then wml.call(wml.base + 0x988830, info, 1); u.done = u.done + 1 end
   elseif item and item.award then
     if wml.game(table.concat(item.award, " ")) then u.done = u.done + 1 end
   end
   if #u.queue == 0 then
-    say(u.label .. ": done (" .. u.done .. " of " .. u.total .. (u.label:find("stores") and " stores)" or " batches)"))
-    wml.log("unlock: " .. u.label .. ", " .. u.done .. " of " .. u.total)
+    say(u.label .. ": done (" .. u.done .. " of " .. u.total .. (u.label:find("stores") and (" stores, " .. (u.items or 0) .. " items)") or u.label:find("weapon") and " weapons)" or " batches)"))
+    wml.log("unlock: " .. u.label .. ", " .. u.done .. " of " .. u.total .. (u.items and (", " .. u.items .. " items") or ""))
     M.unlock = nil
   end
 end
@@ -470,6 +545,7 @@ local function select_row(row)
       say(ok and ("Weather: " .. o[1]) or ("Weather: " .. tostring(err)), ok and "status" or "warn")
     end
   elseif row.kind == "giveweapon" or row.kind == "voiceline" then
+    if row.kind == "voiceline" and not row.loaded then load_voice_lines(row); say(#row.options .. " voice lines: Left/Right picks, Enter says it"); return end
     local o = row.options[row.sel]
     if not o then say("Nothing to pick (load into the game first)", "warn") else
       local code = row.kind == "giveweapon"
@@ -483,6 +559,15 @@ local function select_row(row)
     if not x then say("No waypoint set: put one on the map first", "warn")
     elseif P.teleport(x, y + 1, z) then say(slot == 0 and "Off to your waypoint" or "Off to the mission marker")
     else say("The game refused the teleport", "warn") end
+  elseif row.kind == "crowd_act" then
+    if row.key == "kill" then
+      -- two steps: "down but not out" off now, the deaths 10 frames on
+      local list = P.kill_prepare(40)
+      if #list == 0 then say("Nobody near") else M.kill = { list = list, wait = 10 } end
+    else
+      local n = P.ragdoll_near(40)
+      say(n == 0 and "Nobody near" or (n .. (n == 1 and " person" or " people") .. " ragdolled"))
+    end
   elseif row.kind == "despawn" then
     local n = P.remove_spawned()
     say(n == 0 and "Nobody to remove" or (n .. " spawned " .. (n == 1 and "person" or "people") .. " removed"))
@@ -675,7 +760,9 @@ local function row_value(row)
     return o and ("<  " .. o[1] .. "  >") or "none", o and "row" or "off"
   elseif row.kind == "crowd" then
     return "Enter", "off"
-  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" then
+  elseif row.kind == "voiceline" and not row.loaded then
+    return "Enter to load", "off"
+  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" or row.kind == "crowd_act" then
     return "Enter", "off"
   elseif row.kind == "mset" then
     local o = row.options[row.sel]
@@ -827,6 +914,7 @@ local function change_tab(delta) M.tab = (M.tab - 1 + delta) % #TABS + 1 end
 local function adjust(delta)
   local row = TABS[M.tab].rows[M.cursor[M.tab] or 1]
   if row and M.stash then M.stash[row] = nil end
+  if row and row.kind == "voiceline" and not row.loaded then load_voice_lines(row) end
   if row and row.kind == "mset" then M.adjust_mset(row, delta)
   elseif row and row.kind == "wset" then M.adjust_wset(row, delta)
   elseif row and row.kind == "pset" then M.adjust_pset(row, delta)
@@ -839,7 +927,9 @@ local function adjust(delta)
   elseif row and row.kind == "camset" then M.adjust_camset(row, delta)
   elseif row and row.kind == "places" then
     if #P.places > 0 then row.sel = (row.sel - 1 + delta) % #P.places + 1 end
-  elseif row and row.options then row.sel = (row.sel - 1 + delta) % #row.options + 1
+  elseif row and row.options then
+    row.sel = (row.sel - 1 + delta) % #row.options + 1
+    if row.apply then M.apply_row, M.apply_wait = row, 20 end
   elseif row and row.kind == "opacity" then U.opacity = math.max(0, math.min(100, U.opacity + delta * 10)); M.save_tweaks() end
 end
 
@@ -897,15 +987,12 @@ local function ensure_ready()
       table.sort(r.options, function(a, b) return a[1] < b[1] end)
     elseif r.kind == "weathernode" and #r.options == 0 then
       -- gml_weather_state_set_node takes a node's name (any case)
+      -- the weathers themselves, not the overlays (critters, blowing trash) or transitions
       for _, w in ipairs(names_of("gml_weather_state_node_settings")) do
         local name = w:match('"(.*)"') or w
-        r.options[#r.options + 1] = { pretty(name), name }
-      end
-      table.sort(r.options, function(a, b) return a[1] < b[1] end)
-    elseif r.kind == "voiceline" and #r.options == 0 then
-      for _, l in ipairs(names_of("gml_line_situation")) do
-        local name = l:match('"(.*)"') or l
-        r.options[#r.options + 1] = { pretty(name), l, name }
+        if not (name:find("critters") or name:find("trash") or name:find("transition") or name:find("cinematic")) then
+          r.options[#r.options + 1] = { pretty((name:gsub("^wsn_", ""))), name }
+        end
       end
       table.sort(r.options, function(a, b) return a[1] < b[1] end)
     elseif (r.kind == "emote" or r.kind == "emote_slot") and #r.options == 0 then
@@ -1005,6 +1092,13 @@ function M.update()
   if C.loaded and frame % 15 == 10 and P.vgod_active() then P.update_vehicle() end
   if C.loaded and frame % 30 == 25 and P.regen_active() then P.update_regen() end
   if Cam.any_on() then Cam.update(frame) end
+  if C.loaded and frame % 60 == 35 and P.fall_active() then P.update_fall() end
+  if C.loaded and frame % 60 == 45 and P.homies_active() then P.update_homies() end
+  -- special ammo: on a change, the gun in your hands; then any new gun
+  if C.loaded and frame % 30 == 15 and (P.ammo or M.ammo_was) then
+    P.update_ammo(P.ammo ~= M.ammo_was)
+    M.ammo_was = P.ammo
+  end
   if M.unlock and C.loaded and frame % 6 == 0 then step_unlock() end
   -- No ragdoll: the game's stop-ragdoll (+5B0F60(&id, 0, 3), what the
   -- Pratfall controls call to get up), the player's id at entry +0x58
@@ -1033,6 +1127,23 @@ function M.update()
         C.activate(name)
         M.wanted_wait = 120
       end
+    end
+  end
+  -- a setting picked with Left/Right: applied once the pick settles
+  if M.apply_wait then
+    M.apply_wait = M.apply_wait - 1
+    if M.apply_wait <= 0 then
+      local r = M.apply_row
+      M.apply_row, M.apply_wait = nil, nil
+      select_row(r)
+    end
+  end
+  if M.kill then
+    M.kill.wait = M.kill.wait - 1
+    if M.kill.wait <= 0 then
+      local n = P.kill_finish(M.kill.list)
+      M.kill = nil
+      say(n == 0 and "Nobody left to kill" or (n .. (n == 1 and " person" or " people") .. " killed"))
     end
   end
   -- Max notoriety: one raise every 45 frames
