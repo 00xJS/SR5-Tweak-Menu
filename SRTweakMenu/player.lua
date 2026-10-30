@@ -476,15 +476,62 @@ function P.damage(entry, amount)
   return true
 end
 -- Mission characters (a minimum health) and the dead are left alone.
-function P.kill_near(radius)
+local function each_near(radius, fn)
   local n = 0
   for _, p in ipairs(P.people_near(radius)) do
     if wml.read_f32(p.health + MIN) == 0 and wml.read_u8(p.health + 0x104) == 0 then
-      P.damage(p.entry, 1000000)
+      fn(p)
       n = n + 1
     end
   end
   return n
+end
+function P.kill_near(radius)
+  return each_near(radius, function(p) P.damage(p.entry, 1000000) end)
+end
+
+-- Any script node can be run without its graph: a stand-in node with its vtable,
+-- each input at +0x18 on a pointer to its value, and the outs left zero (+19413F0
+-- does nothing with an empty one). Exec is the vtable's third slot. Inputs: { u = }
+-- a u32 (object id, hash), { f = } a float.
+function P.node(exec, vtable, inputs)
+  local buf = wml.buffer(0)
+  for i = 0, 0x100, 8 do wml.write_u64(buf + i, 0) end
+  wml.write_u64(buf, wml.base + vtable)
+  for i, v in ipairs(inputs) do
+    local slot = buf + 0x400 + (i - 1) * 0x20
+    wml.write_u64(buf + 0x18 + (i - 1) * 8, slot)
+    wml.write_u64(slot, 0)
+    if v.f then wml.write_f32(slot, v.f) else wml.write_u32(slot, v.u) end
+  end
+  return wml.call(wml.base + exec, buf)
+end
+local function faction(name)
+  local _, v = wml.game("return string_crc(" .. string.format("%q", name) .. ")")
+  return math.floor(v) & 0xFFFFFFFF
+end
+local function id_of(p) return wml.read_u32(p.entry + 0x58) end
+-- flammable_ignite_node (target, cause), ai_stun_node (ai, reason), and two that
+-- change sides. ai_make_temporarily_hostile_to_faction_node (ai, faction, seconds)
+-- changed how a wandering spawned person moved (running, then losing health).
+-- ai_set_faction_node (ai, faction). Some spawned people come out inert, with or
+-- without these: they never move and don't catch fire. Cause not known yet.
+function P.fire_near(radius)
+  local me = id_of({ entry = P.object() })
+  return each_near(radius, function(p) P.node(0x6AC130, 0x2994870, { { u = id_of(p) }, { u = me } }) end)
+end
+function P.stun_near(radius)
+  return each_near(radius, function(p) P.node(0xAE02E0, 0x29DB1B8, { { u = id_of(p) }, { u = 0 } }) end)
+end
+function P.make_hostile(id)
+  P.node(0xADF210, 0x29D9488, { { u = id }, { u = faction("saints") }, { f = 3600 } })
+end
+function P.hostile_near(radius)
+  return each_near(radius, function(p) P.make_hostile(id_of(p)) end)
+end
+function P.friendly_near(radius)
+  local f = faction("saints friendly")
+  return each_near(radius, function(p) P.node(0xADEB50, 0x29E6A58, { { u = id_of(p) }, { u = f } }) end)
 end
 -- You: one hit only takes you to 1 health ("down but not out"). That's switched
 -- off first, as human_health_disable_dbno_on_death_node does it: a reference on
@@ -646,7 +693,20 @@ local RECOIL = {   -- key hash = default
 }
 P.no_recoil = false
 local recoil_orig, recoil_gun = {}, nil   -- [gun id] = { [key] = value }
+-- Firing animations also trigger the shakes in gml_animation_camera_shake (five
+-- of them, camera_shake_pistol_fire at 3 and _strong among them), whatever the
+-- gun's own recoil is: their intensity goes to 0 too. Globals, so a reload of
+-- this file doesn't take a 0 for the game's value.
+local function update_shakes()
+  local want = P.no_recoil and true or false
+  if want == (SR5TM_SHAKE_ZERO or false) then return end
+  local V = require("vdata")
+  SR5TM_SHAKES = SR5TM_SHAKES or V.collect("gml_animation_camera_shake", { { path = "m_shake_intensity", what = "shake" } })
+  for _, e in ipairs(SR5TM_SHAKES) do V.write(e.addr, e.t, want and 0 or e.orig) end
+  SR5TM_SHAKE_ZERO = want
+end
 function P.update_recoil(force)
+  update_shakes()
   local ok, s = wml.game("return tostring(gml_get_local_player_weapon())")
   local id = ok and tonumber((s or ""):match("object (%x+)") or "", 16)
   if not id or id == 0 or (id == recoil_gun and not force) then return end
@@ -681,7 +741,7 @@ function P.update_recoil(force)
   end
   recoil_gun = id
 end
-function P.recoil_active() return P.no_recoil or next(recoil_orig) ~= nil end
+function P.recoil_active() return P.no_recoil or next(recoil_orig) ~= nil or SR5TM_SHAKE_ZERO end
 
 -- No reload: the gun in hand's magazine kept full. The game's inventory
 -- (+4BB340(player)): +98F500(inventory, &magazine, &reserve, &magazine size,
@@ -791,6 +851,19 @@ end
 -- carries it.
 P.spawned = {}
 local spawn_pending = {}
+-- Spawned people: left wandering, or (a moment after they appear) set on you.
+P.spawn_hostile = false
+local hostile_wait = {}
+function P.hostile_pending() return #hostile_wait > 0 end
+function P.update_hostile()
+  local left = {}
+  for _, h in ipairs(hostile_wait) do
+    h.ticks = h.ticks - 1
+    if h.ticks > 0 then left[#left + 1] = h
+    elseif P.entry_of(h.id) then P.make_hostile(h.id) end
+  end
+  hostile_wait = left
+end
 function P.remember(obj) if obj then spawn_pending[#spawn_pending + 1] = obj end end
 -- The spawner returns a spawn record: the person's id is at +0x70 (read live),
 -- filled in once they exist.
@@ -798,7 +871,10 @@ local function spawn_settle()
   local left = {}
   for _, o in ipairs(spawn_pending) do
     local id = wml.read_u32(o + 0x70)
-    if id ~= 0 and P.entry_of(id) then P.spawned[#P.spawned + 1] = id else left[#left + 1] = o end
+    if id ~= 0 and P.entry_of(id) then
+      P.spawned[#P.spawned + 1] = id
+      if P.spawn_hostile then hostile_wait[#hostile_wait + 1] = { id = id, ticks = 3 } end
+    else left[#left + 1] = o end
   end
   spawn_pending = left
 end
