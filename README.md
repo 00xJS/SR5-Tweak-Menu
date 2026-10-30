@@ -4,6 +4,8 @@ An in-game cheat menu for **Saints Row (2022)** on PC (Epic build, DirectX
 12): the [SR Tweak Menu](https://github.com/00xJS/SR-Tweak-Menu) idea from
 Saints Row 1, brought to the reboot. Work in progress.
 
+![The menu in game: the Player tab](docs/menu.webp)
+
 ## Install
 
 1. Download this repository (**Code > Download ZIP**) and unzip it.
@@ -45,22 +47,24 @@ rows; every row has a help line in the menu.
 
 ### Player
 - **Health:** God mode (the game's own health floor, not its cheat), Health
-  (x2 to x10), Refill health, Health regen (none, fast, always full), No ragdoll
+  (x2 to x10), Refill health, Health regen (none, fast, always full), No fall
+  damage, No ragdoll
 - **Movement:** Run speed, Air control, Swim speed, Your gravity
 - **Emotes:** D-pad emote 1 and D-pad emote 2 (swap the emotes on your
   D-pad, then use it as usual), Play emote, Repeat emote, Stop emote, Say a line (the game's
   voice lines)
-- Summon homie, Dismiss homies
+- Summon homie, Dismiss homies, Homie limit (up to 4)
 - **Wingsuit:** Wingsuit boosts (every 2 s or unlimited), Wingsuit boost
   power, Wingsuit top speed, Wingsuit glide (floaty, level, climb)
-- **Progress:** Give XP, Give skill points, Add cash, Unlock everything in the
-  stores, Unlock all collectibles (these stay in your save)
+- **Progress:** Give XP, Give skill points, Add cash, Own every weapon,
+  Unlock everything in the stores, Unlock all collectibles (these stay in your save)
 - **The game's cheats:** Invincibility, Give cash, Max level, Super Saints,
   Milk Bones, Pratfall, Heaven Bound
 
 ### Weapons
 - Magazine (x2, x5, No reload: 999 a magazine, launchers too), Infinite ammo,
-  Fire rate (up to x8), Full auto (single-shot guns keep firing while you
+  Fire rate (up to x8), Special ammo (fire, shock, chill, stun, bleed,
+  disintegrate: the gun in your hands), Full auto (single-shot guns keep firing while you
   hold the trigger, mouse or RT), Damage (x2 to x10, or One-hit kill),
   Reload speed (up to instant), Perfect aim, No warm-up, No overheat, Range,
   Knockback
@@ -81,8 +85,8 @@ rows; every row has a help line in the menu.
 ### World
 - Weather, Weather (all: every weather the game has), Time of day, Freeze clock, Clock speed, Pause world
 - **People:** Spawn person (any of the game's 834 characters), Spawn a
-  crowd (ten around you), Spawn 10 random people, Remove spawned people, Angry
-  pedestrians
+  crowd (ten around you), Spawn 10 random people, Remove spawned people, Ragdoll
+  everyone near, Kill everyone near, Angry pedestrians
 - Empty streets (no people or traffic), Low gravity
 - **Notoriety:** Never wanted (by anyone, by police: no cops, or by gangs),
   and raise, clear or max it with the Police, Idols, Marshal and Los Panteros
@@ -93,7 +97,7 @@ rows; every row has a help line in the menu.
 - Screen filter (black & white, retro, night vision, old-timey, vapor,
   western, steamboat), Hide HUD
 - **Camera:** Field of view, Shoulder camera (centred, right, left), Turn
-  speed (past the options' top), Camera shake, Looping camera shake, Camera
+  speed (past the options' top), Brightness, Camera shake, Looping camera shake, Camera
   bobbing
 - **Free camera:** Photo mode (the game's own free camera)
 
