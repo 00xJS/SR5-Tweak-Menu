@@ -40,16 +40,22 @@ end
 -- Notoriety: the game's table, as notoriety_get_highest_non_zero_faction
 -- (+A0E690) reads it: *(+2F23FF0), count u16 at +2F23FF8, 0x178 an entry;
 -- +E8 the faction, +EC its level, +F0 non-zero while you have notoriety,
--- byte +15B set for a faction that's switched off.
+-- byte +15B set for a faction that's switched off. +E8 is the faction's name
+-- hash (the binding pairs it with gml_faction's class hash as an info id).
 local NOTO, NOTO_COUNT = 0x2F23FF0, 0x2F23FF8
+-- The name hashes of the factions you have notoriety with (nil: none).
 function Wd.wanted()
   local tbl, n = wml.read_u64(wml.base + NOTO), wml.read_u16(wml.base + NOTO_COUNT)
-  if tbl == 0 or n == 0 or n > 64 then return false end
+  if tbl == 0 or n == 0 or n > 64 then return nil end
+  local out
   for i = 0, n - 1 do
     local e = tbl + i * 0x178
-    if wml.read_u32(e + 0xF0) ~= 0 and wml.read_u8(e + 0x15B) == 0 then return true end
+    if wml.read_u32(e + 0xF0) ~= 0 and wml.read_u8(e + 0x15B) == 0 then
+      out = out or {}
+      out[#out + 1] = wml.read_u32(e + 0xE8)
+    end
   end
-  return false
+  return out
 end
 
 function Wd.any_on() return Wd.freeze_clock or Wd.clock_speed ~= 1 or Wd.pause or Wd.locked or written_rate ~= nil or paused end
