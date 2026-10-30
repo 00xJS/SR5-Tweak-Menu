@@ -31,6 +31,13 @@ local FLOAT_KEYS = {
   [3039539812] = "spread",        -- deviation_angle_end
   [1436921172] = "range",         -- range
   [2003839093] = "impulse",       -- impulse
+  [3476011760] = "recoil",        -- recoil_pitch
+  [4628092] = "recoil",           -- recoil_heading
+  [635825236] = "recoil",         -- recoil_max_pitch
+  [1210448282] = "recoil",        -- recoil_max_heading
+  [562308622] = "recoil",         -- hip_fire_recoil_scalar
+  [665612735] = "recoil",         -- camera shake intensity
+  [1177745254] = "recoil",        -- hip_fire_camera_shake_scalar
 }
 local INT_KEYS = {
   [2201942346] = "magazine",      -- magazine size
@@ -43,7 +50,7 @@ local FIELDS = {
 
 -- Settings (1 = the game's own).
 W.set = { magazine = 1, fire_rate = 1, damage = 1, perfect_aim = false, range = 1, knockback = 1,
-          reload = 1, no_warmup = false, no_overheat = false }
+          reload = 1, no_warmup = false, no_overheat = false, no_recoil = false }
 W.NO_RELOAD = 999
 
 local entries = {}   -- { addr =, t = "f"/"i", what =, orig = }
@@ -175,6 +182,8 @@ local function wanted(e)
   -- the shared damage values (so it can't be missed; enemies' guns too).
   if s.damage == "kill" and (w == "damage_player" or w == "damage_all") then return 100000 end
   if w == "damage_all" then return v end
+  -- No recoil: kick, its limits and the camera shake from firing, all 0
+  if w == "recoil" then return s.no_recoil and 0 or v end
   if w == "spread" then return (s.perfect_aim and v == v and v > 0 and v < 1e30) and 0 or v end
   if not is_set(e.t, v) then return v end
   if w == "magazine" then
@@ -224,7 +233,7 @@ end
 function W.any_on()
   local s = W.set
   return s.magazine ~= 1 or s.fire_rate ~= 1 or s.damage ~= 1 or s.perfect_aim or s.range ~= 1 or s.knockback ~= 1
-      or s.reload ~= 1 or s.no_warmup or s.no_overheat
+      or s.reload ~= 1 or s.no_warmup or s.no_overheat or s.no_recoil
 end
 
 return W
