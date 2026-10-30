@@ -178,6 +178,58 @@ static int l_call(lua_State *s)
     return 1;
 }
 
+// wml.callf(addr, ...): as wml.call, and a Lua float (a number with a decimal
+// point) is passed as a C float: in the Windows x64 convention each of the
+// first four arguments goes in its integer or its float register by position,
+// so there's one prototype per mix; later arguments are stack slots, the
+// float's bits in the low half.
+typedef uint64_t U64;
+#define CALLF4(T0, A0, T1, A1, T2, A2, T3, A3) \
+    (((U64 (*)(T0, T1, T2, T3, U64, U64, U64, U64))(uintptr_t)fn)(A0, A1, A2, A3, a[4], a[5], a[6], a[7]))
+static int callf_guarded(uint64_t fn, const uint64_t *a, const float *f, int mask, uint64_t *out)
+{
+    int ok = 1;
+    g_guarded++;
+    __try {
+        switch (mask) {
+        case 0:  *out = CALLF4(U64, a[0],  U64, a[1],  U64, a[2],  U64, a[3]);  break;
+        case 1:  *out = CALLF4(float, f[0], U64, a[1],  U64, a[2],  U64, a[3]);  break;
+        case 2:  *out = CALLF4(U64, a[0],  float, f[1], U64, a[2],  U64, a[3]);  break;
+        case 3:  *out = CALLF4(float, f[0], float, f[1], U64, a[2],  U64, a[3]);  break;
+        case 4:  *out = CALLF4(U64, a[0],  U64, a[1],  float, f[2], U64, a[3]);  break;
+        case 5:  *out = CALLF4(float, f[0], U64, a[1],  float, f[2], U64, a[3]);  break;
+        case 6:  *out = CALLF4(U64, a[0],  float, f[1], float, f[2], U64, a[3]);  break;
+        case 7:  *out = CALLF4(float, f[0], float, f[1], float, f[2], U64, a[3]);  break;
+        case 8:  *out = CALLF4(U64, a[0],  U64, a[1],  U64, a[2],  float, f[3]); break;
+        case 9:  *out = CALLF4(float, f[0], U64, a[1],  U64, a[2],  float, f[3]); break;
+        case 10: *out = CALLF4(U64, a[0],  float, f[1], U64, a[2],  float, f[3]); break;
+        case 11: *out = CALLF4(float, f[0], float, f[1], U64, a[2],  float, f[3]); break;
+        case 12: *out = CALLF4(U64, a[0],  U64, a[1],  float, f[2], float, f[3]); break;
+        case 13: *out = CALLF4(float, f[0], U64, a[1],  float, f[2], float, f[3]); break;
+        case 14: *out = CALLF4(U64, a[0],  float, f[1], float, f[2], float, f[3]); break;
+        default: *out = CALLF4(float, f[0], float, f[1], float, f[2], float, f[3]); break;
+        }
+    } __except (EXCEPTION_EXECUTE_HANDLER) { ok = 0; }
+    g_guarded--;
+    return ok;
+}
+static int l_callf(lua_State *s)
+{
+    uint64_t fn = check_addr(s, 1), a[8] = { 0 }, r;
+    float f[4] = { 0 };
+    int n = lua_gettop(s) - 1, mask = 0;
+    if (n > 8) return luaL_error(s, "callf: at most 8 arguments");
+    for (int i = 0; i < n; i++) {
+        if (lua_isinteger(s, i + 2)) { a[i] = (uint64_t)lua_tointeger(s, i + 2); continue; }
+        float v = (float)luaL_checknumber(s, i + 2);
+        if (i < 4) { f[i] = v; mask |= 1 << i; }
+        else memcpy(&a[i], &v, sizeof v);
+    }
+    if (!callf_guarded(fn, a, f, mask, &r)) return luaL_error(s, "callf %p crashed", (void *)fn);
+    lua_pushinteger(s, (lua_Integer)r);
+    return 1;
+}
+
 // ------------------------------------------------------------------ the game's Lua
 typedef int (*lua_load_t)(void *L, const char *(*reader)(void *, void *, size_t *), void *data, const char *chunk);
 typedef int (*lua_pcall_t)(void *L, int nargs, int nresults, int errfunc);
@@ -518,7 +570,7 @@ static void start_lua(void)
         { "key_down", l_key_down }, { "key_pressed", l_key_pressed },
         { "take_key", l_noop }, { "force_key", l_noop }, { "mouse_look", l_noop }, { "set_look", l_noop },
         { "block_input", l_block_input }, { "auto_fire", l_auto_fire },
-        { "on_frame", l_on_frame }, { "game", l_game }, { "call", l_call },
+        { "on_frame", l_on_frame }, { "game", l_game }, { "call", l_call }, { "callf", l_callf },
         { "buffer", l_buffer }, { "read_string", l_read_string },
         { "pad", l_pad }, { "f2u", l_f2u }, { "u2f", l_u2f },
         { NULL, NULL }

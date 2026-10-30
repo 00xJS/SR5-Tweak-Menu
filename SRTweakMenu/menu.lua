@@ -67,6 +67,7 @@ local TABS = {
     { kind = "refill", label = "Refill health", help = "Back to full health." },
     pset("regen", "Health regen", "Experimental: None, Fast (five times, no wait after a hit) or Always back to full.", { { "Game's", "game" }, { "None", "none" }, { "Fast", "fast" }, { "Always full", "full" } }),
     pset("no_fall", "No fall damage", "Falls from any height don't hurt (the game's own fall limits raised).", { { "Off", false }, { "On", true } }),
+    { kind = "mvset", key = "run", label = "Run speed", help = "How fast you walk, jog and sprint.", options = { { "Game's", 1 }, { "x1.5", 1.5 }, { "x2", 2 }, { "x3", 3 }, { "x5", 5 } }, sel = 1, save_key = "move.run" },
     { kind = "mvset", key = "air", label = "Air control", help = "Experimental: how much you steer in the air.", options = { { "Game's", 1 }, { "x2", 2 }, { "x4", 4 } }, sel = 1, save_key = "move.air" },
     { kind = "mvset", key = "swim", label = "Swim speed", help = "Experimental: how fast you swim.", options = { { "Game's", 1 }, { "x2", 2 }, { "x3", 3 } }, sel = 1, save_key = "move.swim" },
     { kind = "mvset", key = "gravity", label = "Your gravity", help = "Experimental: lower is floatier jumps and falls.", options = { { "Game's", 1 }, { "x0.5", 0.5 }, { "x0.25", 0.25 }, { "x2", 2 } }, sel = 1, save_key = "move.gravity" },
@@ -91,6 +92,7 @@ local TABS = {
     toggle("invincibility", "Invincibility (game's)", "The game's Invincibility cheat."),
     action("cash", "Give cash", "The game's cash cheat."),
     action("max level", "Max level", "Jumps you to the top level."),
+    pset("free_shop", "Free shopping", "Experimental: everything in the stores costs nothing while it's on (not saved).", { { "Off", false }, { "On", true } }),
     gchoice("Give XP", "Experimental: adds XP the game's way (it stays in your save).", award("xp", { { "1,000 XP", 1000 }, { "10,000 XP", 10000 }, { "100,000 XP", 100000 } })),
     gchoice("Give skill points", "Experimental: adds skill points (they stay in your save).", award("skill_point", { { "1", 1 }, { "5", 5 }, { "10", 10 } })),
     gchoice("Add cash", "Experimental: adds cash directly (it stays in your save).", award("cash", { { "$10,000", 10000 }, { "$100,000", 100000 }, { "$1,000,000", 1000000 } })),
@@ -183,6 +185,12 @@ local TABS = {
     { kind = "crowd", label = "Spawn a crowd", help = "Ten of the character picked above, in a ring around you." },
     { kind = "random_people", label = "Spawn 10 random people", help = "Ten of the game's characters, picked at random, around you." },
     { kind = "despawn", label = "Remove spawned people", help = "Experimental: removes everyone the menu spawned." },
+    { kind = "cash_drop", label = "Drop cash", help = "Left/Right picks how much, Enter drops it 8 m ahead of you. It's real money: it stays in your save.", sel = 1, options = { { "$1,000", 1000 }, { "$10,000", 10000 }, { "$100,000", 100000 } } },
+    pset("rain", "Money rain", "Cash falls all around you ($250 a pile; what you pick up stays in your save).", { { "Off", false }, { "Light", 30 }, { "Heavy", 8 } }),
+    { kind = "reaction", label = "Everyone near", help = "Left/Right picks a reaction, Enter: everyone within 40 m does it.", sel = 1,
+      options = { { "Cheer", "cheer" }, { "Laugh", "laugh" }, { "Taunt", "taunt" }, { "Take pics", "take pics" }, { "Wave", "wave" }, { "Hype", "hype emote" }, { "Angry", "angry" }, { "Disgusted", "disgusted" } } },
+    { kind = "arms", armed = false, label = "Disarm everyone near", help = "Experimental: people within 40 m can't use their guns (new arrivals still can)." },
+    { kind = "arms", armed = true, label = "Re-arm everyone near", help = "Gives people within 40 m their guns back." },
     { kind = "crowd_act", key = "ragdoll", label = "Ragdoll everyone near", help = "Everyone within 40 m falls over." },
     { kind = "crowd_act", key = "kill", label = "Kill everyone near", help = "Everyone within 40 m drops dead (not mission characters)." },
     { kind = "wdset", key = "empty_streets", label = "Empty streets", help = "Experimental: no more people or traffic appear; the ones out there go as you leave them.", options = { { "Off", false }, { "On", true } }, sel = 1, save_key = "world.empty_streets" },
@@ -292,11 +300,13 @@ function M.pause_tweaks(off)
       if tweak_row(r) and r.sel ~= 1 then M.stash[r] = r.sel; r.sel = 1; set_value(r, r.options[1][2]) end
     end
     W.restore(); WS.restore()
+    M.gun_dirty = true
   elseif not off and M.stash then
     for r, sel in pairs(M.stash) do r.sel = sel; set_value(r, r.options[sel][2]) end
     M.stash = nil
     if W.any_on() then W.apply() end
     if WS.any_on() then WS.apply() end
+    M.gun_dirty = true
   end
   M.tweaks_paused = off
 end
@@ -568,6 +578,16 @@ local function select_row(row)
     if not x then say("No waypoint set: put one on the map first", "warn")
     elseif P.teleport(x, y + 1, z) then say(slot == 0 and "Off to your waypoint" or "Off to the mission marker")
     else say("The game refused the teleport", "warn") end
+  elseif row.kind == "cash_drop" then
+    local o = row.options[row.sel]
+    say(P.drop_cash(o[2], 0, 2, 8) and (o[1] .. " dropped ahead of you") or "Couldn't drop cash right now", "status")
+  elseif row.kind == "reaction" then
+    local o = row.options[row.sel]
+    local n = P.near_reaction(o[2], 40)
+    say(n == 0 and "Nobody near" or (n .. (n == 1 and " person: " or " people: ") .. o[1]))
+  elseif row.kind == "arms" then
+    local n = P.near_arms(row.armed, 40)
+    say(n == 0 and "Nobody near" or (n .. (n == 1 and " person " or " people ") .. (row.armed and "re-armed" or "disarmed")))
   elseif row.kind == "crowd_act" then
     if row.key == "kill" then
       -- two steps: "down but not out" off now, the deaths 10 frames on
@@ -620,6 +640,7 @@ local function select_row(row)
   elseif row.kind == "weapons_reset" then
     for _, t in ipairs(TABS) do for _, r in ipairs(t.rows) do if r.kind == "wset" then r.sel = 1; W.set[r.key] = r.options[1][2] end end end
     W.restore()
+    M.gun_dirty = true
     M.save_tweaks()
     say("Weapons back to normal")
   elseif row.kind == "clean" then
@@ -725,6 +746,7 @@ local function select_row(row)
         if r.key == "tweaks_paused" then r.sel = 1; M.tweaks_paused = false end
       end
       W.restore(); WS.restore()
+      M.gun_dirty = true
       M.save_tweaks()
       say("Everything back to the game's own")
     end
@@ -771,12 +793,12 @@ local function row_value(row)
     return "Enter", "off"
   elseif row.kind == "voiceline" and not row.loaded then
     return "Enter to load", "off"
-  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" or row.kind == "crowd_act" then
+  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" or row.kind == "crowd_act" or row.kind == "arms" then
     return "Enter", "off"
   elseif row.kind == "mset" then
     local o = row.options[row.sel]
     return "<  " .. o[1] .. "  >", row.sel == 1 and "off" or "on"
-  elseif row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" or row.kind == "giveweapon" or row.kind == "voiceline" or row.kind == "gchoice" or row.kind == "weathernode" then
+  elseif row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" or row.kind == "giveweapon" or row.kind == "voiceline" or row.kind == "gchoice" or row.kind == "weathernode" or row.kind == "cash_drop" or row.kind == "reaction" then
     local o = row.options[row.sel]
     return o and ("<  " .. o[1] .. "  >") or "none", o and "row" or "off"
   elseif row.kind == "gcall" then
@@ -838,6 +860,7 @@ function M.adjust_wset(row, delta)
   row.sel = (row.sel - 1 + delta) % #row.options + 1
   W.set[row.key] = row.options[row.sel][2]
   M.save_tweaks()
+  M.gun_dirty = true
   local ok = W.apply()
   say(row.label .. ": " .. row.options[row.sel][1] .. (ok and "" or " (the weapons aren't loaded yet)"), ok and "status" or "warn")
 end
@@ -878,7 +901,6 @@ function M.adjust_mvset(row, delta)
   P.move[row.key] = row.options[row.sel][2]
   M.save_tweaks()
   P.update_move()
-  if row.key == "run" then P.update_sprint() end
   say(row.label .. ": " .. row.options[row.sel][1])
 end
 
@@ -1108,10 +1130,24 @@ function M.update()
   -- No recoil: the gun in hand's own recoil too (it keeps its own copy)
   P.no_recoil = W.set.no_recoil
   if C.loaded and frame % 5 == 3 and P.rockets then P.update_rockets() end
+  -- Full auto also clears the guns' "one shot a trigger pull"
+  local auto = P.full_auto and true or false
+  if W.set.full_auto ~= auto then W.set.full_auto = auto; M.gun_dirty = true; if C.loaded then W.apply() end end
+  -- weapon tweaks on the gun in hand (each new copy, or a changed setting)
+  if C.loaded and frame % 5 == 1 and W.gun_active() then W.update_gun(M.gun_dirty); M.gun_dirty = false end
   if C.loaded and frame % 5 == 4 and P.recoil_active() then P.update_recoil(P.no_recoil ~= M.recoil_was) M.recoil_was = P.no_recoil end
   if C.loaded and frame % 60 == 35 and P.fall_active() then P.update_fall() end
   if C.loaded and frame % 60 == 45 and P.homies_active() then P.update_homies() end
-  if C.loaded and frame % 60 == 55 and P.sprint_active() then P.update_sprint() end
+  if C.loaded then P.update_run() end
+  if C.loaded and P.rain then P.update_rain() end
+  -- Free shopping, when it changes
+  if C.loaded and (P.free_shop and true or false) ~= (M.shop_was or false) then
+    local names = {}
+    if P.free_shop then for _, o in ipairs(names_of_objects("store_category_info")) do names[#names + 1] = o.hash end end
+    local n = P.update_free_shop(names)
+    M.shop_was = P.free_shop and true or false
+    if M.shop_was then wml.log("free shopping: " .. n .. " categories") end
+  end
   -- special ammo: on a change, the gun in your hands; then any new gun
   if C.loaded and frame % 5 == 2 and (P.ammo or M.ammo_was) then
     P.update_ammo(P.ammo ~= M.ammo_was)

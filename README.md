@@ -49,7 +49,7 @@ rows; every row has a help line in the menu.
 - **Health:** God mode (the game's own health floor, not its cheat), Health
   (x2 to x10), Refill health, Health regen (none, fast, always full), No fall
   damage, No ragdoll
-- **Movement:** Air control, Swim speed, Your gravity
+- **Movement:** Run speed (up to x5), Air control, Swim speed, Your gravity
 - **Emotes:** D-pad emote 1 and D-pad emote 2 (swap the emotes on your
   D-pad, then use it as usual), Play emote, Repeat emote, Stop emote, Say a line (the game's
   voice lines)
@@ -88,8 +88,8 @@ rows; every row has a help line in the menu.
 ### World
 - Weather, Weather (all: every weather the game has), Time of day, Freeze clock, Clock speed, Pause world
 - **People:** Spawn person (any of the game's 834 characters), Spawn a
-  crowd (ten around you), Spawn 10 random people, Remove spawned people, Ragdoll
-  everyone near, Kill everyone near, Angry pedestrians
+  crowd (ten around you), Spawn 10 random people, Remove spawned people, Drop cash, Money rain,
+  Ragdoll everyone near, Kill everyone near, Angry pedestrians
 - Empty streets (no people or traffic), Low gravity
 - **Notoriety:** Never wanted (by anyone, by police: no cops, or by gangs),
   and raise, clear or max it with the Police, Idols, Marshal and Los Panteros

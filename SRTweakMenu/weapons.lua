@@ -29,6 +29,8 @@ local FLOAT_KEYS = {
   [2685072847] = "damage_all",    -- damage (everyone's: one-hit kill only)
   [3092279371] = "spread",        -- deviation_angle_start
   [3039539812] = "spread",        -- deviation_angle_end
+  [3278015433] = "spread",        -- hip_fire_deviation_scalar
+  [184102078] = "damage_player",  -- damage_avatar (a gun's own damage when you fire it)
   [1436921172] = "range",         -- range
   [2003839093] = "impulse",       -- impulse
   [3476011760] = "recoil",        -- recoil_pitch
@@ -41,6 +43,7 @@ local FLOAT_KEYS = {
 }
 local INT_KEYS = {
   [2201942346] = "magazine",      -- magazine size
+  [1271462471] = "single_shot",   -- is_single_shot (one shot a trigger pull)
 }
 -- The weapon's own fields: offset in its data, type, what.
 local FIELDS = {
@@ -50,7 +53,7 @@ local FIELDS = {
 
 -- Settings (1 = the game's own).
 W.set = { magazine = 1, fire_rate = 1, damage = 1, perfect_aim = false, range = 1, knockback = 1,
-          reload = 1, no_warmup = false, no_overheat = false, no_recoil = false }
+          reload = 1, no_warmup = false, no_overheat = false, no_recoil = false, full_auto = false }
 W.NO_RELOAD = 999
 
 local entries = {}   -- { addr =, t = "f"/"i", what =, orig = }
@@ -182,6 +185,8 @@ local function wanted(e)
   -- the shared damage values (so it can't be missed; enemies' guns too).
   if s.damage == "kill" and (w == "damage_player" or w == "damage_all") then return 100000 end
   if w == "damage_all" then return v end
+  -- Full auto: no gun fires just once a trigger pull
+  if w == "single_shot" then return s.full_auto and 0 or v end
   -- No recoil: kick, its limits and the camera shake from firing, all 0
   if w == "recoil" then return s.no_recoil and 0 or v end
   if w == "spread" then return (s.perfect_aim and v == v and v > 0 and v < 1e30) and 0 or v end
@@ -212,6 +217,53 @@ function W.apply()
   return true, n
 end
 
+-- The gun in hand. A gun keeps its own copy of most of its properties, made
+-- when you switch to it, so the shared data above only reaches later copies:
+-- at the weapon component (+49F8A0(+1C1F420(&gun id))), one list per fire mode
+-- (0x6A0 apart): pointer +0x138, count u16 +0x140, 24-byte entries (key hash
+-- +0, value +8, type +0x10: 1 float, 0 int). What the menu tunes is written
+-- straight into them, with each entry's original kept for this gun; a new gun
+-- starts over. (Recoil has its own code, in player.lua.)
+local gun_id, gun_entries
+function W.update_gun(force)
+  if not W.loaded then return end
+  local ok, str = wml.game("return tostring(gml_get_local_player_weapon())")
+  local id = ok and tonumber((str or ""):match("object (%x+)") or "", 16)
+  if not id or id == 0 then return end
+  if id ~= gun_id then
+    gun_id, gun_entries, force = id, nil, true
+  end
+  if not force then return end
+  if not gun_entries then
+    local buf = wml.buffer(15)
+    wml.write_u32(buf, id)
+    local entry = wml.call(wml.base + 0x1C1F420, buf)
+    local comp = entry ~= 0 and wml.call(wml.base + 0x49F8A0, entry) or 0
+    if comp == 0 then gun_id = nil; return end
+    gun_entries = {}
+    for section = 0, 1 do
+      local list = wml.read_u64(comp + section * 0x6A0 + 0x138)
+      local n = wml.read_u16(comp + section * 0x6A0 + 0x140)
+      if list ~= 0 and n <= 200 then
+        for i = 0, n - 1 do
+          local p = list + i * 24
+          local key, kind = wml.read_u32(p), wml.read_u32(p + 0x10)
+          local what = (kind == 1 and FLOAT_KEYS or kind == 0 and INT_KEYS or {})[key]
+          if what and what ~= "recoil" then
+            local t = kind == 1 and "f" or "i"
+            gun_entries[#gun_entries + 1] = { addr = p + 8, t = t, what = what, orig = read(p + 8, t) }
+          end
+        end
+      end
+    end
+  end
+  for _, e in ipairs(gun_entries) do
+    local want = wanted(e)
+    if read(e.addr, e.t) ~= want then write(e.addr, e.t, want) end
+  end
+end
+function W.gun_active() return W.any_on() or gun_entries ~= nil end
+
 -- Puts every weapon back as the game had it.
 function W.restore()
   for _, e in ipairs(entries) do if e.written and e.written ~= e.orig then write(e.addr, e.t, e.orig) end e.written = nil end
@@ -233,7 +285,7 @@ end
 function W.any_on()
   local s = W.set
   return s.magazine ~= 1 or s.fire_rate ~= 1 or s.damage ~= 1 or s.perfect_aim or s.range ~= 1 or s.knockback ~= 1
-      or s.reload ~= 1 or s.no_warmup or s.no_overheat or s.no_recoil
+      or s.reload ~= 1 or s.no_warmup or s.no_overheat or s.no_recoil or s.full_auto
 end
 
 return W
