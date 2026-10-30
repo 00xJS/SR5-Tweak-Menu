@@ -798,6 +798,12 @@ BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID unused)
         _snprintf_s(g_log_path, MAX_PATH, _TRUNCATE, "%s\\wml_%s.log", g_root, stem);
     }
     CreateDirectoryA(g_root, NULL);
+    // Keep the last run's log: after a crash it's the only evidence.
+    {
+        char prev[MAX_PATH];
+        _snprintf_s(prev, MAX_PATH, _TRUNCATE, "%s.prev", g_log_path);
+        MoveFileExA(g_log_path, prev, MOVEFILE_REPLACE_EXISTING);
+    }
     g_log = _fsopen(g_log_path, "w", _SH_DENYNO);
     hlog("SR5 Tweak Menu host started in %s (thread %lu)", exe, GetCurrentThreadId());
 

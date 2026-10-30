@@ -47,9 +47,11 @@ rows; every row has a help line in the menu.
 
 ### Player
 - **Health:** God mode (the game's own health floor, not its cheat), Health
-  (x2 to x10), Refill health, Kill yourself, Health regen (none, fast, always full), No fall
+  (x2 to x10), Refill health, Kill yourself, Bulletproof, Explosion-proof, Crash-proof, Health regen (none, fast, always full), No fall
   damage, No ragdoll, No clip (W A S D, Space, Ctrl, Shift)
 - **Movement:** Run speed (up to x5), Jump height (up to x10), Air control, Swim speed, Your gravity
+- **Look:** Play as spawned person, Back to yourself, Saved look, Character preset, Your voice, Voice pitch,
+  Facial expression, Walk style
 - **Emotes:** D-pad emote 1 and D-pad emote 2 (swap the emotes on your
   D-pad, then use it as usual), Play emote, Repeat emote, Stop emote, Say a line (the game's
   voice lines)
@@ -58,6 +60,9 @@ rows; every row has a help line in the menu.
   power, Wingsuit top speed, Wingsuit glide (floaty, level, climb)
 - Free shopping
 - Customize character (anywhere)
+- **Flow and abilities:** Unlimited Flow, Free skills, Flow gain, Extra Flow bars, Flow never drains, Rampage at full
+  Flow, Takedown cooldown, Call in Saints
+- **The game's own oddities:** Prank yourself (bees, noodle arms, toilet, cactus and more), Insurance Fraud here, Free ventures
 - **Progress:** Give XP, Give skill points, Add cash, Unlock EVERYTHING (all of these at once),
   Unlock fast travel points, Own every weapon, Unlock all skills, Unlock all perks, Unlock gang and homies,
   Unlock all clothing, Unlock everything in the stores, Unlock all collectibles (clothing, emotes, weapons,
@@ -67,7 +72,7 @@ rows; every row has a help line in the menu.
 
 ### Weapons
 - Magazine (x2, x5, No reload: kept full, never reloads, launchers too), Infinite ammo,
-  Fire rate (up to x8), Special ammo (fire, shock, chill, stun, bleed,
+  Fire rate (up to x8), Money gun, Remove this weapon, Special ammo (fire, shock, chill, stun, bleed,
   disintegrate: the gun in your hands), Full auto (single-shot guns keep firing while you
   hold the trigger, mouse or RT), Damage (x2 to x10, or One-hit kill),
   Reload speed (up to instant), Perfect aim, No recoil, No warm-up, No overheat, Range,
@@ -78,13 +83,16 @@ rows; every row has a help line in the menu.
 ### Vehicles
 - Spawn vehicle (any of the game's 90 ready-to-drive vehicles, next to you)
 - **Handling:** Engine power, Grip, Steering, Vehicle top speed, Suspension
-- Bulletproof tires, Destroy this vehicle
+- **Abilities:** Vehicle ability (jump, ball and chain, ejector seats, crab steering and more, on any vehicle), Tow hook,
+  Vehicle jump power, No ability cooldowns, Takedowns at any speed, Ram power
+- No collision damage, Heavy vehicle, Vehicle gravity, Boost now, Jump this vehicle, Next paint, Deliver to
+  garage, Remove spawned vehicles, Car camera resets after, Free camera in cars, Bulletproof tires, Destroy this vehicle
 - Vehicle god mode, Repair vehicle, Keep vehicle repaired, Drop a car, Infinite boost,
   Infinite mass, No traffic laws
 - **Traffic:** Monster truck traffic, Luxury traffic, Mascots
 
 ### Teleport
-- Go to waypoint, Fast travel point (the game's 44), **Saved places** (save this spot, go
+- Go to waypoint, Auto-teleport to waypoint, Store and Map place (what the map knows), Fast travel point (the game's 44), **Saved places** (save this spot, go
   to, delete), Go up (10 m to 3000 m), Where am I
 
 ### World
@@ -92,7 +100,8 @@ rows; every row has a help line in the menu.
 - **People:** Spawn person (any of the game's 834 characters), Spawn a
   crowd (ten around you), Spawn 10 random people, Remove spawned people, Spawned people (passive or fight you), Show activities on the map, Drop cash, Drop weapon, Money rain,
   Everyone near (cheer, laugh, taunt and more), Disarm and Re-arm everyone near,
-  Ragdoll everyone near, Kill everyone near, Set everyone near on fire, Stun everyone near, Make everyone near hostile or friendly, Blow up cars near, Angry pedestrians
+  Ragdoll everyone near, Kill everyone near, Set everyone near on fire, Stun everyone near, Make everyone near hostile or friendly, Everyone near dance, Float, Dissolve and Poison everyone near, No reinforcements, No roadblocks, Can't lose them, Gangs and police without guns, Gang on your side, Saints are
+  enemies, Notoriety forgets fast, Blow up cars near, Angry pedestrians
 - Empty streets (no people or traffic), Low gravity
 - **Notoriety:** Never wanted (by anyone, by police: no cops, or by gangs),
   and raise, clear or max it with the Police, Idols, Marshal and Los Panteros
@@ -105,7 +114,8 @@ rows; every row has a help line in the menu.
 - **Camera:** Field of view, Shoulder camera (centred, right, left), Turn
   speed (past the options' top), Brightness, Camera shake, Looping camera shake, Camera
   bobbing
-- Letterbox
+- Hide from view (sky, particles, shadows, far trees), Low health screen, Show only people, Camera distance
+  (first person to very far), Letterbox
 - **Free camera:** Photo mode (the game's own free camera)
 
 ### Settings
