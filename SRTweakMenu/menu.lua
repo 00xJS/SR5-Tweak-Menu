@@ -67,7 +67,6 @@ local TABS = {
     { kind = "refill", label = "Refill health", help = "Back to full health." },
     pset("regen", "Health regen", "Experimental: None, Fast (five times, no wait after a hit) or Always back to full.", { { "Game's", "game" }, { "None", "none" }, { "Fast", "fast" }, { "Always full", "full" } }),
     pset("no_fall", "No fall damage", "Falls from any height don't hurt (the game's own fall limits raised).", { { "Off", false }, { "On", true } }),
-    { kind = "mvset", key = "run", label = "Run speed", help = "Experimental: walking and running speed.", options = { { "Game's", 1 }, { "x1.5", 1.5 }, { "x2", 2 }, { "x3", 3 } }, sel = 1, save_key = "move.run" },
     { kind = "mvset", key = "air", label = "Air control", help = "Experimental: how much you steer in the air.", options = { { "Game's", 1 }, { "x2", 2 }, { "x4", 4 } }, sel = 1, save_key = "move.air" },
     { kind = "mvset", key = "swim", label = "Swim speed", help = "Experimental: how fast you swim.", options = { { "Game's", 1 }, { "x2", 2 }, { "x3", 3 } }, sel = 1, save_key = "move.swim" },
     { kind = "mvset", key = "gravity", label = "Your gravity", help = "Experimental: lower is floatier jumps and falls.", options = { { "Game's", 1 }, { "x0.5", 0.5 }, { "x0.25", 0.25 }, { "x2", 2 } }, sel = 1, save_key = "move.gravity" },
@@ -97,14 +96,14 @@ local TABS = {
     gchoice("Add cash", "Experimental: adds cash directly (it stays in your save).", award("cash", { { "$10,000", 10000 }, { "$100,000", 100000 }, { "$1,000,000", 1000000 } })),
     { kind = "unlock", key = "weapons", label = "Own every weapon", help = "Press twice: every weapon is yours, as if bought (saved in your game)." },
     { kind = "unlock", key = "stores", label = "Unlock everything in the stores", help = "Press twice: every store's clothing, weapons and props are yours (saved in your game)." },
-    { kind = "unlock", key = "collectibles", label = "Unlock all collectibles", help = "Press twice: every collectible outfit, emote, weapon and vehicle (saved in your game)." },
+    { kind = "unlock", key = "collectibles", label = "Unlock all collectibles", help = "Press twice: every collectible outfit, emote, weapon, car and HQ prop (saved in your game)." },
     toggle("super_saints", "Super Saints", "The game's Super Saints cheat."),
     toggle("milk_bones", "Milk Bones", "The game's Milk Bones cheat."),
     toggle("pratfall", "Pratfall", "You ragdoll at the slightest touch."),
     toggle("heaven_bound", "Heaven Bound", "The game's Heaven Bound cheat."),
   } },
   { name = "Weapons", rows = {
-    wset("magazine", "Magazine", "No reload: every magazine holds " .. W.NO_RELOAD .. ", launchers too. Add Infinite ammo to never run dry.", {
+    wset("magazine", "Magazine", "No reload: your magazine is kept full, so it never goes down or reloads (launchers too).", {
       { "Game's", 1 }, { "x2", 2 }, { "x5", 5 }, { "No reload", "no_reload" } }),
     { kind = "giveweapon", label = "Give weapon", help = "Experimental: Left/Right picks one of the game's weapons, Enter puts it in your inventory.", sel = 1, options = {} },
     { kind = "refill_ammo", label = "Refill all ammo", help = "Every weapon's magazine and reserve full, free (the game's infinite-ammo refill)." },
@@ -113,10 +112,19 @@ local TABS = {
     pset("ammo", "Special ammo", "Experimental: what the gun in your hands does to people it hits; new guns get it too.", {
       { "Normal", false }, { "Fire", { "on_fire", "fire" } }, { "Shock", { "electrified", "electricity" } }, { "Chill", { "chill", "water" } },
       { "Stun", { "stun", "electricity" } }, { "Bleed", { "bleed", "dot_bleeding" } }, { "Disintegrate", { "disintegrate", "insta_kill" } } }),
+    pset("rockets", "Rocket ammo", "Your guns fire rockets (others experimental). Off: your next weapon switch is back to bullets.", {
+      { "Off", false }, { "Rockets", { "weapon_launcher_shoulder_box_missile_projectile", "weapon_launcher_missile_explosion" } },
+      { "Burst rockets", { "weapon_launcher_marshall_burst_rocket_projectile", "weapon_launcher_missile_explosion" } },
+      { "Micro missiles", { "weapon_pistol_marshall_micromissile_projectile", "weapon_launcher_missile_explosion" } },
+      { "Guitars", { "weapon_launcher_guitar_projectile", "weapon_launcher_guitar_explosion" } },
+      { "Potatoes", { "weapon_launcher_potato_projectile", "weapon_launcher_potato_explosion" } },
+      { "Beer cans", { "weapon_launcher_beer_can_projectile", "weapon_launcher_beer_can_explosion" } },
+      { "Crossbow bolts", { "weapon_launcher_wastelanders_crossbow_projectile", "weapon_launcher_missile_explosion" } } }),
     pset("full_auto", "Full auto", "Single-shot guns keep firing while you hold the trigger (mouse or RT).", { { "Off", false }, { "On", 70 }, { "Fast", 40 } }),
     wset("damage", "Damage", "x2 to x10: your guns only. One-hit kill: every gun, enemies' too (pair it with God mode).", { { "Game's", 1 }, { "x2", 2 }, { "x5", 5 }, { "x10", 10 }, { "One-hit kill", "kill" } }),
     wset("reload", "Reload speed", "How fast reloads go.", { { "Game's", 1 }, { "x2", 2 }, { "x4", 4 }, { "Instant", 20 } }),
     wset("perfect_aim", "Perfect aim", "No spread: every shot goes where you aim.", { { "Off", false }, { "On", true } }),
+    wset("no_recoil", "No recoil", "No kick when you fire, and no camera shake from it.", { { "Off", false }, { "On", true } }),
     wset("no_warmup", "No warm-up", "Miniguns spin up and charged weapons charge at once.", { { "Off", false }, { "On", true } }),
     wset("no_overheat", "No overheat", "Weapons that overheat never do.", { { "Off", false }, { "On", true } }),
     wset("range", "Range", "How far every weapon reaches.", { { "Game's", 1 }, { "x2", 2 }, { "x4", 4 } }),
@@ -435,7 +443,8 @@ local function crc_of(name)
   local ok, v = wml.game("return string_crc(" .. string.format("%q", name) .. ")")
   return ok and type(v) == "number" and (math.floor(v) & 0xFFFFFFFF) or 0
 end
-local COLLECTIBLES = { "collectible_wearable_info", "collectible_emote", "collectible_weapon_info", "collectible_vehicle_info" }
+-- (building_customization_prop_info: the HQ props the phone's Collectibles screen shows; checked live: an award unlocks one)
+local COLLECTIBLES = { "collectible_wearable_info", "collectible_emote", "collectible_weapon_info", "collectible_vehicle_info", "building_customization_prop_info" }
 local function start_unlock(row)
   local q = {}
   if row.key == "weapons" then
@@ -869,6 +878,7 @@ function M.adjust_mvset(row, delta)
   P.move[row.key] = row.options[row.sel][2]
   M.save_tweaks()
   P.update_move()
+  if row.key == "run" then P.update_sprint() end
   say(row.label .. ": " .. row.options[row.sel][1])
 end
 
@@ -1092,10 +1102,18 @@ function M.update()
   if C.loaded and frame % 15 == 10 and P.vgod_active() then P.update_vehicle() end
   if C.loaded and frame % 30 == 25 and P.regen_active() then P.update_regen() end
   if Cam.any_on() then Cam.update(frame) end
+  -- No reload: the gun in hand's magazine kept full (every 3 frames), so it
+  -- never empties and no reload starts
+  if W.set.magazine == "no_reload" and C.loaded and frame % 3 == 0 then P.keep_magazine() end
+  -- No recoil: the gun in hand's own recoil too (it keeps its own copy)
+  P.no_recoil = W.set.no_recoil
+  if C.loaded and frame % 5 == 3 and P.rockets then P.update_rockets() end
+  if C.loaded and frame % 5 == 4 and P.recoil_active() then P.update_recoil(P.no_recoil ~= M.recoil_was) M.recoil_was = P.no_recoil end
   if C.loaded and frame % 60 == 35 and P.fall_active() then P.update_fall() end
   if C.loaded and frame % 60 == 45 and P.homies_active() then P.update_homies() end
+  if C.loaded and frame % 60 == 55 and P.sprint_active() then P.update_sprint() end
   -- special ammo: on a change, the gun in your hands; then any new gun
-  if C.loaded and frame % 30 == 15 and (P.ammo or M.ammo_was) then
+  if C.loaded and frame % 5 == 2 and (P.ammo or M.ammo_was) then
     P.update_ammo(P.ammo ~= M.ammo_was)
     M.ammo_was = P.ammo
   end

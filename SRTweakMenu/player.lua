@@ -324,7 +324,8 @@ function P.update_ammo(force)
     for i = 0, 15, 4 do wml.write_u32(buf + 0x20 + i, 0) end
     if kind == "f" then wml.write_f32(buf + 0x20, value); wml.write_u32(buf + 0x28, 1)
     else wml.write_u32(buf + 0x20, value); wml.write_u32(buf + 0x28, 3) end
-    wml.call(wml.base + 0x1BFF510, comp, buf + 0x10, 0, buf + 0x20, name)
+    -- both fire modes (sections 0 and 1)
+    for section = 0, 1 do wml.call(wml.base + 0x1BFF510, comp, buf + 0x10, section, buf + 0x20, name) end
   end
   local a = P.ammo
   set(73301821, a and crc(a[1]) or 0, "e")                -- status_effect
@@ -335,30 +336,168 @@ function P.update_ammo(force)
   ammo_gun = id
 end
 
--- Homie limit: how many homies can follow you is 1 + the stat
--- passive_mod_class_extra_homies; without the perk that owns it, the stat is
--- the class default, a float at +3C0DC10 + index * 0x10 + 8 (table of 0x10-
--- byte entries, the class's name crc at +0, count u32 at +5BE5DA0; read live:
--- index 141, default 0). With the perk owned, the perk decides.
-P.homies = 1
-local homie_default
-local function homie_stat()
+-- Rocket ammo on the gun in hand (confirmed in play): its shot type set to
+-- "projectile" (enum key shot_type, through +1BFF510), and its prefab
+-- properties "shot" (the projectile) and "explosion" set to a launcher's
+-- (+1C001E0(component, &key, section, prefab id, name), as the game's
+-- weapon_set_prefab_property_node does), both fire modes. A gun is remade
+-- when you switch to it, so every new gun gets it; turning it off leaves the
+-- gun in hand as it is until the next switch brings a plain copy.
+P.rockets = false   -- false or { shot prefab, explosion prefab or nil }
+local rocket_gun
+local prefab_ids = {}
+local function prefab_id(path)
+  if not prefab_ids[path] then
+    local p = wml.buffer(5, path)
+    local srid = wml.call(wml.base + 0xE8E370, p)
+    wml.call(wml.base + 0xE8EA40, srid, p, 7)   -- request (load) it
+    prefab_ids[path] = srid
+  end
+  return prefab_ids[path]
+end
+function P.update_rockets()
+  local r = P.rockets
+  if not r then rocket_gun = nil; return end
+  local ok, s = wml.game("return tostring(gml_get_local_player_weapon())")
+  local id = ok and tonumber((s or ""):match("object (%x+)") or "", 16)
+  if not id or id == 0 or (id == rocket_gun and P.rockets_set == r) then return end
+  local buf = wml.buffer(10)
+  wml.write_u32(buf, id)
+  local entry = wml.call(wml.base + 0x1C1F420, buf)
+  local comp = entry ~= 0 and wml.call(wml.base + 0x49F8A0, entry) or 0
+  if comp == 0 then return end
+  local name = wml.buffer(11, "sr5_tweak_menu")
+  for i = 0, 15, 4 do wml.write_u32(buf + 0x20 + i, 0) end
+  wml.write_u32(buf + 0x10, 817162218)                    -- shot_type
+  wml.write_u32(buf + 0x20, crc("projectile")); wml.write_u32(buf + 0x28, 3)
+  for section = 0, 1 do wml.call(wml.base + 0x1BFF510, comp, buf + 0x10, section, buf + 0x20, name) end
+  for key, path in pairs({ shot = r[1], explosion = r[2] }) do
+    wml.write_u32(buf + 0x10, crc(key))
+    local srid = prefab_id(path .. ".cprefab_pc")
+    for section = 0, 1 do wml.call(wml.base + 0x1C001E0, comp, buf + 0x10, section, srid, name) end
+  end
+  rocket_gun, P.rockets_set = id, r
+end
+
+-- No recoil on the gun in hand. A gun keeps its own copy of most of its
+-- properties, made when it's created (read live: a list at the weapon
+-- component's +0x138 pointer, inline at +0x150, count u16 at +0x140, 24-byte
+-- entries: key hash +0, value +8, type +0x10), so the shared weapon data
+-- (weapons.lua) only reaches guns made later. Its recoil keys are saved,
+-- then set to 0 with the per-gun setter (+1BFF510); off puts them back the
+-- next time that gun is in your hands. Keys a gun doesn't list come back as
+-- the keys' defaults.
+local RECOIL = {   -- key hash = default
+  [3476011760] = 2, [4628092] = 1, [635825236] = 10, [1210448282] = 5,   -- pitch, heading, max pitch, max heading
+  [562308622] = 1, [665612735] = 1, [1177745254] = 1,                    -- hip-fire recoil, camera shake, hip-fire shake
+}
+P.no_recoil = false
+local recoil_orig, recoil_gun = {}, nil   -- [gun id] = { [key] = value }
+function P.update_recoil(force)
+  local ok, s = wml.game("return tostring(gml_get_local_player_weapon())")
+  local id = ok and tonumber((s or ""):match("object (%x+)") or "", 16)
+  if not id or id == 0 or (id == recoil_gun and not force) then return end
+  local buf = wml.buffer(10)
+  wml.write_u32(buf, id)
+  local entry = wml.call(wml.base + 0x1C1F420, buf)
+  local comp = entry ~= 0 and wml.call(wml.base + 0x49F8A0, entry) or 0
+  if comp == 0 then return end
+  local name = wml.buffer(11, "sr5_tweak_menu")
+  local function set(key, value)
+    wml.write_u32(buf + 0x10, key)
+    for i = 0, 15, 4 do wml.write_u32(buf + 0x20 + i, 0) end
+    wml.write_f32(buf + 0x20, value); wml.write_u32(buf + 0x28, 1)
+    for section = 0, 1 do wml.call(wml.base + 0x1BFF510, comp, buf + 0x10, section, buf + 0x20, name) end
+  end
+  if P.no_recoil and not recoil_orig[id] then
+    local o = {}
+    for k, d in pairs(RECOIL) do o[k] = d end
+    local list, n = wml.read_u64(comp + 0x138), wml.read_u16(comp + 0x140)
+    if list ~= 0 and n <= 200 then
+      for i = 0, n - 1 do
+        local e = list + i * 24
+        local k = wml.read_u32(e)
+        if RECOIL[k] and wml.read_u32(e + 0x10) == 1 then o[k] = wml.read_f32(e + 8) end
+      end
+    end
+    recoil_orig[id] = o
+    for k in pairs(RECOIL) do set(k, 0) end
+  elseif not P.no_recoil and recoil_orig[id] then
+    for k, v in pairs(recoil_orig[id]) do set(k, v) end
+    recoil_orig[id] = nil
+  end
+  recoil_gun = id
+end
+function P.recoil_active() return P.no_recoil or next(recoil_orig) ~= nil end
+
+-- No reload: the gun in hand's magazine kept full. The game's inventory
+-- (+4BB340(player)): +98F500(inventory, &magazine, &reserve, &magazine size,
+-- slot) reads a slot, +98F870(inventory, slot, magazine, reserve, 0, &none
+-- id, 0) sets it (what the Infinite Ammo cheat's refill +662FF0 does for the
+-- reserve). The slot in hand: player_local_inventory_get_active_slot().
+function P.keep_magazine()
+  local p = P.object()
+  if not p then return end
+  local ok, slot = wml.game("return player_local_inventory_get_active_slot()")
+  if not ok or type(slot) ~= "number" or slot < 0 or slot > 12 then return end
+  local inv = wml.call(wml.base + 0x4BB340, p)
+  if inv == 0 then return end
+  local buf = wml.buffer(14)
+  for i = 0, 31, 4 do wml.write_u32(buf + i, 0) end
+  if (wml.call(wml.base + 0x98F500, inv, buf, buf + 4, buf + 8, slot, 0, 0, 0) & 0xFF) == 0 then return end
+  local mag, reserve, size = wml.read_u32(buf), wml.read_u32(buf + 4), wml.read_u32(buf + 8)
+  if size > 0 and size < 100000 and mag < size then
+    wml.write_u32(buf + 16, wml.read_u32(wml.base + 0x3C44910))
+    wml.call(wml.base + 0x98F870, inv, slot, size, reserve, 0, buf + 16, 0)
+  end
+end
+
+-- Moddable stats ("passive_mod_class_*"): without a perk that owns one, a
+-- stat is its class default, a float at +3C0DC10 + index * 0x10 + 8 (a table
+-- of 0x10-byte entries, the class's name crc at +0, count u32 at +5BE5DA0).
+-- Read live: sprint speed (index 2) default 1.0, a multiplier; extra homies
+-- (index 141) default 0, the homie limit being 1 + it. With a perk owned,
+-- the perk decides. The game's own defaults are kept in a global, so a
+-- reload of this file never takes a changed value for the game's.
+SR5TM_STAT_DEFAULTS = SR5TM_STAT_DEFAULTS or {}
+local STATS = { sprint = 0x0E6AC014, homies = 0xF448041B }
+local function stat_addr(crc)
   local n = wml.read_u32(wml.base + 0x5BE5DA0)
   for i = 0, math.min(n, 1000) - 1 do
     local e = wml.base + 0x3C0DC10 + i * 0x10
-    if wml.read_u32(e) == 0xF448041B then return e + 8 end
+    if wml.read_u32(e) == crc then return e + 8 end
   end
   return nil
 end
-function P.update_homies()
-  local a = homie_stat()
+-- want: a value, or nil for the game's own
+local function set_stat(crc, want)
+  local a = stat_addr(crc)
   if not a then return end
-  if not homie_default then homie_default = wml.read_f32(a) end
-  local want = P.homies == 1 and homie_default or (P.homies - 1)
-  if wml.read_f32(a) ~= want then wml.write_f32(a, want) end
-  if P.homies == 1 then homie_default = nil end
+  local d = SR5TM_STAT_DEFAULTS[crc]
+  if not d then d = wml.read_f32(a); SR5TM_STAT_DEFAULTS[crc] = d end
+  local v = want or d
+  if wml.read_f32(a) ~= v then wml.write_f32(a, v) end
 end
-function P.homies_active() return P.homies ~= 1 or homie_default ~= nil end
+
+-- Homie limit: 1 + extra homies.
+P.homies = 1
+function P.update_homies()
+  set_stat(STATS.homies, P.homies ~= 1 and (P.homies - 1) or nil)
+  P.homies_written = P.homies ~= 1
+end
+function P.homies_active() return P.homies ~= 1 or P.homies_written end
+
+-- Sprint speed: the sprint speed stat, the game's default times the setting
+-- (the menu's Run speed row; the locomotion component's walk / run values
+-- changed nothing in play).
+function P.update_sprint()
+  local d = SR5TM_STAT_DEFAULTS[STATS.sprint]
+  if not d then local a = stat_addr(STATS.sprint); d = a and wml.read_f32(a); SR5TM_STAT_DEFAULTS[STATS.sprint] = d end
+  if not d then return end
+  set_stat(STATS.sprint, P.move.run ~= 1 and d * P.move.run or nil)
+  P.sprint_written = P.move.run ~= 1
+end
+function P.sprint_active() return P.move.run ~= 1 or P.sprint_written end
 
 -- People the menu spawned (their object ids), and removing them: +1E6920(&id)
 -- destroys an object (the game's "gameplay util destroy"). An entry's own id
@@ -492,16 +631,19 @@ function P.car_on() for _, v in pairs(P.car) do if v ~= 1 then return true end e
 -- From +D0, in the reflection's order: gravity multiplier, walk, run, on-foot
 -- gain, in-air gain, in-air acceleration, swim gain, swim acceleration.
 P.move = { run = 1, air = 1, swim = 1, gravity = 1 }
-local MOVE = { run = { 0xD4, 0xD8 }, air = { 0xE0, 0xE4 }, swim = { 0xE8, 0xEC }, gravity = { 0xD0 } }
-local move_orig = {}   -- [component address] = { [offset] = original }
+-- (Run speed is the sprint speed stat, above: +D4 / +D8 changed nothing in
+-- play.) Originals are kept in a global: a reload of this file must not take
+-- changed values for the game's (it did, and they compounded).
+local MOVE = { air = { 0xE0, 0xE4 }, swim = { 0xE8, 0xEC }, gravity = { 0xD0 } }
+SR5TM_MOVE_ORIG = SR5TM_MOVE_ORIG or {}
 function P.update_move()
   local c = P.component(0x1F)
   if not c then return end
-  local o = move_orig[c]
+  local o = SR5TM_MOVE_ORIG[c]
   if not o then
     o = {}
     for _, offs in pairs(MOVE) do for _, off in ipairs(offs) do o[off] = wml.read_f32(c + off) end end
-    move_orig = { [c] = o }   -- (one player: forget older components)
+    SR5TM_MOVE_ORIG = { [c] = o }   -- (one player: forget older components)
   end
   for key, offs in pairs(MOVE) do
     for _, off in ipairs(offs) do
@@ -512,7 +654,7 @@ function P.update_move()
 end
 function P.move_on()
   local m = P.move
-  return m.run ~= 1 or m.air ~= 1 or m.swim ~= 1 or m.gravity ~= 1
+  return m.air ~= 1 or m.swim ~= 1 or m.gravity ~= 1
 end
 
 -- ------------------------------------------------------------------ saved places

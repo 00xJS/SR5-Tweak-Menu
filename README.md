@@ -49,7 +49,7 @@ rows; every row has a help line in the menu.
 - **Health:** God mode (the game's own health floor, not its cheat), Health
   (x2 to x10), Refill health, Health regen (none, fast, always full), No fall
   damage, No ragdoll
-- **Movement:** Run speed, Air control, Swim speed, Your gravity
+- **Movement:** Air control, Swim speed, Your gravity
 - **Emotes:** D-pad emote 1 and D-pad emote 2 (swap the emotes on your
   D-pad, then use it as usual), Play emote, Repeat emote, Stop emote, Say a line (the game's
   voice lines)
@@ -57,16 +57,19 @@ rows; every row has a help line in the menu.
 - **Wingsuit:** Wingsuit boosts (every 2 s or unlimited), Wingsuit boost
   power, Wingsuit top speed, Wingsuit glide (floaty, level, climb)
 - **Progress:** Give XP, Give skill points, Add cash, Own every weapon,
-  Unlock everything in the stores, Unlock all collectibles (these stay in your save)
+  Unlock everything in the stores, Unlock all collectibles (clothing, emotes, weapons,
+  vehicles, HQ props; these stay in your save)
 - **The game's cheats:** Invincibility, Give cash, Max level, Super Saints,
   Milk Bones, Pratfall, Heaven Bound
 
 ### Weapons
-- Magazine (x2, x5, No reload: 999 a magazine, launchers too), Infinite ammo,
+- Magazine (x2, x5, No reload: kept full, never reloads, launchers too), Infinite ammo,
   Fire rate (up to x8), Special ammo (fire, shock, chill, stun, bleed,
-  disintegrate: the gun in your hands), Full auto (single-shot guns keep firing while you
+  disintegrate: the gun in your hands), Rocket ammo (rockets from
+  every gun; burst rockets, micro missiles, guitars, potatoes, beer cans,
+  crossbow bolts), Full auto (single-shot guns keep firing while you
   hold the trigger, mouse or RT), Damage (x2 to x10, or One-hit kill),
-  Reload speed (up to instant), Perfect aim, No warm-up, No overheat, Range,
+  Reload speed (up to instant), Perfect aim, No recoil, No warm-up, No overheat, Range,
   Knockback
 - Give weapon (any of the game's), Refill all ammo (free), Max every weapon's
   upgrades, Golden gun, Weapons back to normal
