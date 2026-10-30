@@ -118,23 +118,95 @@ function P.vehicle_object()
   return wml.read_u64(wml.base + 0x45E8458) + idx * 0x90
 end
 
--- Vehicle god mode (experimental): the vehicle's health component, held at
--- its max with the min raised to it, like the player's.
+-- An object table entry from an object id (nil if it's gone).
+function P.entry_of(id)
+  if not id or id == 0 then return nil end
+  local idx = wml.read_u32(wml.read_u64(wml.base + 0x5CB5440) + id * 4) & 0x3FFFFFFF
+  if idx == 0x3FFFFFFF then return nil end
+  return wml.read_u64(wml.base + 0x45E8458) + idx * 0x90
+end
+
+-- Vehicle god mode (experimental): the vehicle's own health component, type
+-- 0x44 (get_vehicle_health_from_object, +A03E00, reads it): +0x00 max hit
+-- points, +0x78 current, +0x88 min; byte +0x56 flags, 0x01 indestructible,
+-- 0x04 invulnerable (hit points can't change). Both set, health kept full;
+-- the flags go back when it's off or you leave the vehicle.
 P.vgod = false
-local vgod_orig = {}   -- [health component] = original min
+local VH_MAX, VH_CUR, VH_FLAGS = 0x00, 0x78, 0x56
+local vgod_orig = {}   -- [health component] = original flags
 function P.update_vehicle()
   local v = P.vgod and P.vehicle_object()
-  local h = v and P.component(0x8D, v)
-  for comp, min in pairs(vgod_orig) do
-    if comp ~= h then wml.write_f32(comp + MIN, min); vgod_orig[comp] = nil end
+  local h = v and P.component(0x44, v)
+  for comp, flags in pairs(vgod_orig) do
+    if comp ~= h then wml.write_u8(comp + VH_FLAGS, flags); vgod_orig[comp] = nil end
   end
   if not h then return end
-  if not vgod_orig[h] then vgod_orig[h] = wml.read_f32(h + MIN) end
-  local max = wml.read_f32(h + MAX)
-  wml.write_f32(h + MIN, max)
-  if wml.read_f32(h + CUR) < max then wml.write_f32(h + CUR, max) end
+  if not vgod_orig[h] then vgod_orig[h] = wml.read_u8(h + VH_FLAGS) end
+  wml.write_u8(h + VH_FLAGS, vgod_orig[h] | 0x05)
+  local max = wml.read_f32(h + VH_MAX)
+  if max > 0 and wml.read_f32(h + VH_CUR) < max then wml.write_f32(h + VH_CUR, max) end
 end
 function P.vgod_active() return P.vgod or next(vgod_orig) ~= nil end
+
+-- Health regen (experimental), in the health component: +0x150 regen
+-- behaviour (0 the game's, 2 always back to full, 3 none), +0x158 regen a
+-- second, +0x15C the wait after a hit (ms). "fast": five times the rate, no
+-- wait. The originals go back when it's set to the game's.
+P.regen = "game"
+local regen_orig = {}   -- [health component] = { behaviour, rate, wait }
+function P.update_regen()
+  local h = P.health_component()
+  for comp, o in pairs(regen_orig) do
+    if comp ~= h or P.regen == "game" then
+      wml.write_u32(comp + 0x150, o[1]); wml.write_u32(comp + 0x158, o[2]); wml.write_u32(comp + 0x15C, o[3])
+      regen_orig[comp] = nil
+    end
+  end
+  if not h or P.regen == "game" then return end
+  local o = regen_orig[h]
+  if not o then
+    o = { wml.read_u32(h + 0x150), wml.read_u32(h + 0x158), wml.read_u32(h + 0x15C) }
+    regen_orig[h] = o
+  end
+  local beh, rate, wait = o[1], o[2], o[3]
+  if P.regen == "none" then beh = 3
+  elseif P.regen == "full" then beh = 2
+  elseif P.regen == "fast" then rate, wait = math.max(o[2] * 5, 50), 0 end
+  if wml.read_u32(h + 0x150) ~= beh then wml.write_u32(h + 0x150, beh) end
+  if wml.read_u32(h + 0x158) ~= rate then wml.write_u32(h + 0x158, rate) end
+  if wml.read_u32(h + 0x15C) ~= wait then wml.write_u32(h + 0x15C, wait) end
+end
+function P.regen_active() return P.regen ~= "game" or next(regen_orig) ~= nil end
+
+-- The map waypoint: the game's GPS slots, 4 of 0x1C bytes at +3BFA170 (slot
+-- 0 the local player's, as gps_start sets it): +0xC the target's object id,
+-- +0x18 a byte set while it's active. Returns its position, or nil.
+function P.waypoint()
+  for slot = 0, 3 do
+    local s = wml.base + 0x3BFA170 + slot * 0x1C
+    if wml.read_u8(s + 0x18) ~= 0 then
+      local e = P.entry_of(wml.read_u32(s + 0xC))
+      if e then return s32(wml.read_u32(e + 0x30)) / 10000, s32(wml.read_u32(e + 0x34)) / 10000, s32(wml.read_u32(e + 0x38)) / 10000, slot end
+    end
+  end
+  return nil
+end
+
+-- People the menu spawned (their object ids), and removing them: +1E6920(&id)
+-- destroys an object (the game's "gameplay util destroy"). An entry's own id
+-- is at +0x58; ids are reused, so an id is only removed while its entry still
+-- carries it.
+P.spawned = {}
+function P.remember(entry) if entry then P.spawned[#P.spawned + 1] = wml.read_u32(entry + 0x58) end end
+function P.remove_spawned()
+  local n = 0
+  for _, id in ipairs(P.spawned) do
+    local e = P.entry_of(id)
+    if e and wml.read_u32(e + 0x58) == id then wml.call(wml.base + 0x1E6920, e + 0x58); n = n + 1 end
+  end
+  P.spawned = {}
+  return n
+end
 
 -- Spawning: the game's own spawner (game_customize_anywhere_spawn_lightrig,
 -- +454980) step by step, so the position can be moved: look up the prefab
@@ -186,33 +258,63 @@ function P.spawn_npc(id, side, ahead)
   wml.write_u32(misc + 0x108, wml.read_u32(B + 0x3C3CC38))
   wml.call(B + 0xB39E90, ctx, misc + 0x100, 0, misc, misc + 0x108)
   local obj = wml.call(B + 0xB3B580, 0, ctx, 0, 0, wml.buffer(7, "sr5_tweak_menu"), 1)
+  -- it gives back the new person's entry (callers read its id at +0x58)
+  if obj ~= 0 then P.remember(obj) end
   return obj ~= 0 and obj or nil
 end
 
 -- Vehicle handling (experimental): the vehicle's wheeled locomotion
--- component (type 0x12) holds its engine at +0x90C: min / optimum / max rpm,
--- then max torque (+0x918); +0x930 looks like its top speed (m/s).
-P.car = { power = 1, top = 1 }
-local CAR = { power = { 0x918 }, top = { 0x930 } }
-local car_orig = {}   -- [component address] = { [offset] = original }
+-- component (type 0x12) keeps the handling it drives with in a block at
+-- +0x8BC (each value resolved from the vehicle's data): +0x04 / +0x0C wheel
+-- friction and max friction multipliers (flag byte +0x10), +0x2C steering
+-- max angle (radians) and +0x30 the speed it's allowed up to (flag +0x48),
+-- +0x5C max torque (flag +0x60), +0x74 top speed, m/s (flag +0x78). The
+-- block in use is the pointer at +0x1DE8 (normally this one; missions can
+-- swap in their own, and then it's left alone). +1B67C30(component, block,
+-- 1) pushes a block into the live physics, for the categories whose flag is
+-- set: it's called after each change.
+P.car = { power = 1, top = 1, grip = 1, steer = 1 }
+local BLOCK, IN_USE, APPLY = 0x8BC, 0x1DE8, 0x1B67C30
+local CAR = {
+  power = { offs = { 0x5C }, flag = 0x60 }, top = { offs = { 0x74 }, flag = 0x78 },
+  grip = { offs = { 0x04, 0x0C }, flag = 0x10 }, steer = { offs = { 0x2C, 0x30 }, flag = 0x48 },
+}
+local car_orig = {}   -- [component address] = { [block offset] = original value or flag }
 function P.update_car()
   local v = P.vehicle_object()
   local c = v and P.component(0x12, v)
   if not c then return end
+  local b = c + BLOCK
+  local used = wml.read_u64(c + IN_USE)
+  if used ~= 0 and used ~= b then return end   -- a mission's own handling
   local o = car_orig[c]
   if not o then
     o = {}
-    for _, offs in pairs(CAR) do for _, off in ipairs(offs) do o[off] = wml.read_f32(c + off) end end
+    for _, cat in pairs(CAR) do
+      for _, off in ipairs(cat.offs) do o[off] = wml.read_f32(b + off) end
+      o[cat.flag] = wml.read_u8(b + cat.flag)
+    end
     car_orig[c] = o
   end
-  for key, offs in pairs(CAR) do
-    for _, off in ipairs(offs) do
+  local changed, restored = false, {}
+  for key, cat in pairs(CAR) do
+    for _, off in ipairs(cat.offs) do
       local want = o[off] * P.car[key]
-      if wml.read_f32(c + off) ~= want then wml.write_f32(c + off, want) end
+      if wml.read_f32(b + off) ~= want then
+        wml.write_f32(b + off, want)
+        changed = true
+        if P.car[key] == 1 then restored[#restored + 1] = cat.flag end
+      end
     end
+    if P.car[key] ~= 1 and wml.read_u8(b + cat.flag) ~= 1 then wml.write_u8(b + cat.flag, 1); changed = true end
+  end
+  if changed then
+    wml.call(wml.base + APPLY, c, b, 1)
+    -- back to the game's: its own flag again, once the originals are pushed
+    for _, flag in ipairs(restored) do wml.write_u8(b + flag, o[flag]) end
   end
 end
-function P.car_on() return P.car.power ~= 1 or P.car.top ~= 1 end
+function P.car_on() for _, v in pairs(P.car) do if v ~= 1 then return true end end return false end
 
 -- Movement (experimental): the character locomotion component (type 0x1F).
 -- From +D0, in the reflection's order: gravity multiplier, walk, run, on-foot

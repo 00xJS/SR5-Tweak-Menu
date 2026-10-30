@@ -45,13 +45,16 @@ rows; every row has a help line in the menu.
 
 ### Player
 - **Health:** God mode (the game's own health floor, not its cheat), Health
-  (x2 to x10), Refill health
+  (x2 to x10), Refill health, Health regen (none, fast, always full), No ragdoll
 - **Movement:** Run speed, Air control, Swim speed, Your gravity
 - **Emotes:** D-pad emote 1 and D-pad emote 2 (swap the emotes on your
-  D-pad, then use it as usual), Play emote, Repeat emote, Stop emote
-- Summon homie
+  D-pad, then use it as usual), Play emote, Repeat emote, Stop emote, Say a line (the game's
+  voice lines)
+- Summon homie, Dismiss homies
 - **Wingsuit:** Wingsuit boosts (every 2 s or unlimited), Wingsuit boost
   power, Wingsuit top speed, Wingsuit glide (floaty, level, climb)
+- **Progress:** Give XP, Give skill points, Add cash, Unlock everything in the
+  stores, Unlock all collectibles (these stay in your save)
 - **The game's cheats:** Invincibility, Give cash, Max level, Super Saints,
   Milk Bones, Pratfall, Heaven Bound
 
@@ -61,24 +64,26 @@ rows; every row has a help line in the menu.
   hold the trigger, mouse or RT), Damage (x2 to x10, or One-hit kill),
   Reload speed (up to instant), Perfect aim, No warm-up, No overheat, Range,
   Knockback
-- Max every weapon's upgrades, Golden gun, Weapons back to normal
+- Give weapon (any of the game's), Refill all ammo (free), Max every weapon's
+  upgrades, Golden gun, Weapons back to normal
 
 ### Vehicles
 - Spawn vehicle (any of the game's 90 ready-to-drive vehicles, next to you)
-- **Handling:** Engine power, Vehicle top speed
-- Repair vehicle, Keep vehicle repaired, Drop a car, Infinite boost,
+- **Handling:** Engine power, Grip, Steering, Vehicle top speed
+- Vehicle god mode, Repair vehicle, Keep vehicle repaired, Drop a car, Infinite boost,
   Infinite mass, No traffic laws
 - **Traffic:** Monster truck traffic, Luxury traffic, Mascots
 
 ### Teleport
-- Fast travel point (the game's 44), **Saved places** (save this spot, go
+- Go to waypoint, Fast travel point (the game's 44), **Saved places** (save this spot, go
   to, delete), Go up (10 m to 3000 m), Where am I
 
 ### World
-- Weather, Time of day, Freeze clock, Clock speed, Pause world
+- Weather, Weather (all: every weather the game has), Time of day, Freeze clock, Clock speed, Pause world
 - **People:** Spawn person (any of the game's 834 characters), Spawn a
-  crowd (ten around you), Spawn 10 random people, Angry pedestrians
-- Low gravity
+  crowd (ten around you), Spawn 10 random people, Remove spawned people, Angry
+  pedestrians
+- Empty streets (no people or traffic), Low gravity
 - **Notoriety:** Never wanted (by anyone, by police: no cops, or by gangs),
   and raise, clear or max it with the Police, Idols, Marshal and Los Panteros
 - **Difficulty:** the custom difficulty sliders (player health, player
@@ -87,13 +92,14 @@ rows; every row has a help line in the menu.
 ### Visual
 - Screen filter (black & white, retro, night vision, old-timey, vapor,
   western, steamboat), Hide HUD
-- **Camera:** Field of view, Camera shake, Looping camera shake, Camera
+- **Camera:** Field of view, Shoulder camera (centred, right, left), Turn
+  speed (past the options' top), Camera shake, Looping camera shake, Camera
   bobbing
 - **Free camera:** Photo mode (the game's own free camera)
 
 ### Settings
-- **Game:** Skip cutscene, Pause / resume cutscene, Load last save, Tutorial
-  popups
+- **Game:** Skip cutscene, Pause / resume cutscene, Quick save, Load last
+  save, Tutorial popups
 - All tweaks (the master switch), Hold Back opens the menu, Keep my save
   clean, Menu opacity
 - What's on (every tweak and cheat that's on), Turn every cheat off,
@@ -152,6 +158,7 @@ opacity and Keep my save clean. Restart the game after changing them.
 | `tweaks.lua` | Settings kept for next time |
 | `world.lua` | The clock (freeze, speed), pausing the world, notoriety |
 | `wingsuit.lua` | Wingsuit tweaks (its data and your live copy) |
+| `camera.lua` | Camera turn speed |
 | `vdata.lua` | Shared: field addresses in the game's reflection data |
 | `gameui.lua` | Draws the menu with the game's interface (vint text objects) |
 | `luadump.lua` | Development: reads a game Lua function's constants from memory |
@@ -171,7 +178,11 @@ load address).
 - **Research.** `research/` holds what was found in the game (addresses,
   the game's Lua globals, its interface functions) and `tools/` the Python
   scripts used to find it (they read `SaintsRow_DX12.exe` and the running
-  game; `pip install pefile capstone numpy`).
+  game; `pip install pefile capstone numpy`). `tools/vpp.py` lists and
+  extracts the game's `.vpp_pc` archives (its interface Lua is plain source
+  there); what it extracts stays out of git. `tools/rcls.py` prints a
+  reflection class's fields with offsets, `tools/vtbl.py` finds a class's
+  vtable.
 
 ## Credits
 
