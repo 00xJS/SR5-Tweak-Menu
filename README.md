@@ -90,9 +90,9 @@ rows; every row has a help line in the menu.
 ### World
 - Weather, Weather (all: every weather the game has), Time of day, Freeze clock, Clock speed, Pause world
 - **People:** Spawn person (any of the game's 834 characters), Spawn a
-  crowd (ten around you), Spawn 10 random people, Remove spawned people, Show activities on the map, Drop cash, Drop weapon, Money rain,
+  crowd (ten around you), Spawn 10 random people, Remove spawned people, Spawned people (passive or fight you), Show activities on the map, Drop cash, Drop weapon, Money rain,
   Everyone near (cheer, laugh, taunt and more), Disarm and Re-arm everyone near,
-  Ragdoll everyone near, Kill everyone near, Blow up cars near, Angry pedestrians
+  Ragdoll everyone near, Kill everyone near, Set everyone near on fire, Stun everyone near, Make everyone near hostile or friendly, Blow up cars near, Angry pedestrians
 - Empty streets (no people or traffic), Low gravity
 - **Notoriety:** Never wanted (by anyone, by police: no cops, or by gangs),
   and raise, clear or max it with the Police, Idols, Marshal and Los Panteros

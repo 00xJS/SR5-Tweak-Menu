@@ -187,6 +187,7 @@ local TABS = {
     { kind = "wdset", key = "clock_speed", label = "Clock speed", help = "How fast the time of day passes.", options = { { "Game's", 1 }, { "x0.5", 0.5 }, { "x2", 2 }, { "x5", 5 }, { "x10", 10 } }, sel = 1, save_key = "world.clock_speed" },
     { kind = "wdset", key = "pause", label = "Pause world", help = "Everything stops, you too (the game's own pause); the menu still works.", options = { { "Off", false }, { "On", true } }, sel = 1 },
     { kind = "person", label = "Spawn person", help = "Left/Right picks one of the game's characters, Enter spawns them beside you.", sel = 1, options = {} },
+    pset("spawn_hostile", "Spawned people", "Experimental. Fight you: people you spawn from now on turn on you. Passive: they just wander.", { { "Passive", false }, { "Fight you", true } }),
     { kind = "crowd", label = "Spawn a crowd", help = "Ten of the character picked above, in a ring around you." },
     { kind = "random_people", label = "Spawn 10 random people", help = "Ten of the game's characters, picked at random, around you." },
     { kind = "despawn", label = "Remove spawned people", help = "Experimental: removes everyone the menu spawned." },
@@ -200,6 +201,10 @@ local TABS = {
     { kind = "arms", armed = true, label = "Re-arm everyone near", help = "Gives people within 40 m their guns back." },
     { kind = "crowd_act", key = "ragdoll", label = "Ragdoll everyone near", help = "Everyone within 40 m falls over." },
     { kind = "crowd_act", key = "kill", label = "Kill everyone near", help = "Everyone within 40 m dies, as if you shot them. Mission characters are left alone." },
+    { kind = "crowd_act", key = "fire", label = "Set everyone near on fire", help = "Everyone within 40 m bursts into flames, as if you lit them." },
+    { kind = "crowd_act", key = "stun", label = "Stun everyone near", help = "Experimental: everyone within 40 m is stunned where they stand." },
+    { kind = "crowd_act", key = "hostile", label = "Make everyone near hostile", help = "Experimental: everyone within 40 m turns on you for an hour." },
+    { kind = "crowd_act", key = "friendly", label = "Make everyone near friendly", help = "Experimental: everyone within 40 m joins the Saints' side." },
     { kind = "crowd_act", key = "cars", label = "Blow up cars near", help = "Every vehicle within 40 m explodes, except the one you're in." },
     { kind = "wdset", key = "empty_streets", label = "Empty streets", help = "Experimental: no more people or traffic appear; the ones out there go as you leave them.", options = { { "Off", false }, { "On", true } }, sel = 1, save_key = "world.empty_streets" },
     toggle("low_gravity", "Low gravity", "Everything floats a little."),
@@ -597,6 +602,8 @@ local function step_unlock()
   end
 end
 
+local CROWD = { ragdoll = { "ragdoll_near", "ragdolled" }, kill = { "kill_near", "killed" }, fire = { "fire_near", "set on fire" },
+  stun = { "stun_near", "stunned" }, hostile = { "hostile_near", "turned on you" }, friendly = { "friendly_near", "on your side" } }
 local function select_row(row)
   if M.stash then M.stash[row] = nil end   -- changed while All tweaks is off: keep the new choice
   if row.kind == "toggle" or row.kind == "action" then
@@ -688,8 +695,9 @@ local function select_row(row)
       local n = P.destroy_near(40)
       say(n == 0 and "No vehicles near" or (n .. (n == 1 and " vehicle" or " vehicles") .. " blown up"))
     else
-      local n = row.key == "kill" and P.kill_near(40) or row.key == "ragdoll" and P.ragdoll_near(40)
-      say(n == 0 and "Nobody near" or (n .. (n == 1 and " person " or " people ") .. (row.key == "kill" and "killed" or "ragdolled")))
+      local act = CROWD[row.key]
+      local n = P[act[1]](40)
+      say(n == 0 and "Nobody near" or (n .. (n == 1 and " person " or " people ") .. act[2]))
     end
   elseif row.kind == "despawn" then
     local n = P.remove_spawned()
@@ -1249,6 +1257,7 @@ function M.update()
   if C.loaded and frame % 30 == 17 and (P.tires or P.tires_set) then P.update_tires() end
   if C.loaded and frame % 30 == 22 and (P.spring ~= 1 or M.spring_was) then P.update_spring(); M.spring_was = P.spring ~= 1 end
   if frame % 30 == 27 and P.spawned_pending() then P.spawn_settle() end
+  if frame % 30 == 12 and P.hostile_pending() then P.update_hostile() end
   if C.loaded and P.rain then P.update_rain() end
   -- Free shopping, when it changes
   if C.loaded and (P.free_shop and true or false) ~= (M.shop_was or false) then
