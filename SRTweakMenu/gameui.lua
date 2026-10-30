@@ -21,6 +21,14 @@
 -- the panel at +100, the text at -100 (lower depth is drawn in front).
 -- Only lines whose text or colour changed are sent to the game, in one call
 -- per frame.
+--
+-- Fitting: nothing may run past the panel. Each text is measured by the game
+-- (vint_get_local_size at scale 1, in the game Lua function sr5tm_fit) and
+-- scaled down until it fits its column: a row's label up to the value
+-- column, its value to the panel's edge, a line without a value the panel's
+-- width. Measures can lag a frame behind a new text, so shown lines are
+-- fitted again a few times a second (U.refit). Long help text is wrapped onto
+-- two lines first (U.wrap), from an average character width measured once.
 
 local U = { lines = 0 }
 local S = wml.setting
@@ -31,6 +39,7 @@ local SCALE = S("menu_scale", 0.9)
 local FONT = S("menu_font", "avant_garde_body")
 local DOC = S("menu_document", "fades")
 local PAD = 24
+local GAP = 16       -- space kept between a label and its value
 local handles = {}   -- [line] = { label, value }
 local panel           -- the backing panel, or nil
 local shown = {}     -- [line] = { key = }
@@ -48,6 +57,15 @@ local function q(s) return string.format("%q", s) end
 -- Makes `n` lines (hidden) and the panel. Returns true when the lines exist.
 function U.create(n)
   local r = table.pack(game([[
+    -- scales a text object down until it's at most `max` wide (at `base` it fits as is)
+    rawset(_G, "sr5tm_fit", function(h, base, max)
+      if not vint_object_exists(h) then return end
+      vint_set_scale(h, 1, 1)
+      local w = vint_get_local_size(h)
+      local k = base
+      if w and w > 0 and w * base > max then k = max / w end
+      vint_set_scale(h, k, k)
+    end)
     local doc = vint_document_find(]] .. q(DOC) .. [[)
     if not doc then return nil end
     local parent = vint_document_get_root_element(doc)
@@ -106,8 +124,62 @@ function U.create(n)
   for i = 1, n do handles[i] = { r[(i - 1) * 2 + 2], r[(i - 1) * 2 + 3] } end
   panel = (r[1] or 0) ~= 0 and r[1] or nil
   U.lines, made = n, true
-  wml.log("gameui: " .. n .. " lines made" .. (panel and ", with a panel" or ", no panel (no bitmap to copy)"))
+  -- the font's average character width (at scale 1), for wrapping
+  local sample = "The quick brown fox jumps over the lazy dog, then the next one does too"
+  local w = game("local h = " .. handles[1][1] .. " vint_set_scale(h, 1, 1) vint_set_text(h, " .. q(sample) ..
+    ") local w = vint_get_local_size(h) vint_set_text(h, '') vint_set_scale(h, " .. SCALE .. ", " .. SCALE .. ") return w")
+  if type(w) == "number" and w > 0 then U.char_w = w / #sample end
+  wml.log("gameui: " .. n .. " lines made" .. (panel and ", with a panel" or ", no panel (no bitmap to copy)") ..
+    ", characters " .. (U.char_w and string.format("%.1f", U.char_w) or "unmeasured") .. " units wide")
   return true
+end
+
+-- How many characters fit across the panel at the menu's scale.
+local function line_chars()
+  if U.char_w then return math.max(30, math.floor(WIDTH / (U.char_w * SCALE)) - 2) end
+  return 80
+end
+
+-- Splits `text` at spaces into at most `n` lines that fit the panel's width.
+-- (The last line takes what's left; fitting shrinks it if it's still long.)
+function U.wrap(text, n)
+  local width, out, line = line_chars(), {}, ""
+  for word in (text or ""):gmatch("%S+") do
+    if line ~= "" and #line + 1 + #word > width and #out < n - 1 then
+      out[#out + 1] = line
+      line = word
+    else
+      line = line == "" and word or (line .. " " .. word)
+    end
+  end
+  out[#out + 1] = line
+  return out
+end
+
+-- The widest a line's label and value may be.
+local function limits(value)
+  if value ~= "" then return VALUE_X - GAP, WIDTH - VALUE_X end
+  return WIDTH, WIDTH - VALUE_X
+end
+
+-- Runs fitting code; the first failure switches fitting off (logged once).
+local function run_fits(fits)
+  if U.no_fit or #fits == 0 then return end
+  local ok, err = wml.game(table.concat(fits, "\n"))
+  if not ok then U.no_fit = true; wml.log("gameui: fitting text is off: " .. tostring(err)) end
+end
+
+-- Fits every shown line again (measures may lag behind a new text).
+function U.refit()
+  if not made then return end
+  local code = {}
+  for i = 1, U.lines do
+    local s, h = shown[i], handles[i]
+    if s then
+      code[#code + 1] = "sr5tm_fit(" .. h[1] .. ", " .. SCALE .. ", " .. s.max1 .. ") sr5tm_fit(" .. h[2] .. ", " .. SCALE .. ", " .. s.max2 .. ")"
+    end
+  end
+  run_fits(code)
 end
 
 -- Are our objects still there? (Loading a save rebuilds the interface.)
@@ -135,7 +207,7 @@ end
 -- Shows `rows`: { { label =, value =, colour =, value_colour = } ... }; nil hides everything.
 function U.show(rows)
   if not made then return end
-  local code = {}
+  local code, fits = {}, {}
   panel_code(code, rows ~= nil)
   for i = 1, U.lines do
     local want = rows and rows[i]
@@ -158,12 +230,16 @@ function U.show(rows)
         code[#code + 1] = "vint_set_text(" .. h[1] .. ", " .. q(label) .. ") vint_set_text(" .. h[2] .. ", " .. q(value) .. ")"
         code[#code + 1] = "vint_set_tint(" .. h[1] .. ", " .. c[1] .. ", " .. c[2] .. ", " .. c[3] .. ")"
         code[#code + 1] = "vint_set_tint(" .. h[2] .. ", " .. vc[1] .. ", " .. vc[2] .. ", " .. vc[3] .. ")"
+        local max1, max2 = limits(value)
+        fits[#fits + 1] = "sr5tm_fit(" .. h[1] .. ", " .. SCALE .. ", " .. max1 .. ") sr5tm_fit(" .. h[2] .. ", " .. SCALE .. ", " .. max2 .. ")"
         if not old then code[#code + 1] = "vint_set_visible(" .. h[1] .. ", true) vint_set_visible(" .. h[2] .. ", true)" end
-        shown[i] = { key = key }
+        shown[i] = { key = key, max1 = max1, max2 = max2 }
       end
     end
   end
   if #code > 0 then game(table.concat(code, "\n")) end
+  -- fitting in its own call: if measuring ever fails, the text is still set
+  run_fits(fits)
 end
 
 function U.forget() made, handles, shown, panel, panel_shown, panel_alpha, U.lines = false, {}, {}, nil, nil, nil, 0 end

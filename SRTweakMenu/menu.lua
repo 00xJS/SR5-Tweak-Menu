@@ -26,7 +26,7 @@ local S = wml.setting
 local M = { open = false, tab = 1, cursor = {}, status = "", status_kind = "status", status_frames = 0,
   clean = S("keep_save_clean", true), spicy_hold = 0 }
 local ROWS = S("menu_rows", 11)
-local LINES = ROWS + 4
+local LINES = ROWS + 5   -- title, tabs, rows, two help lines, status
 local OPEN_KEY = tostring(S("menu_key", "F5"))
 
 local function toggle(cheat, label, help) return { kind = "toggle", cheat = cheat, label = label, help = help } end
@@ -61,8 +61,8 @@ local TABS = {
     { kind = "mvset", key = "air", label = "Air control", help = "Experimental: how much you steer in the air.", options = { { "Game's", 1 }, { "x2", 2 }, { "x4", 4 } }, sel = 1, save_key = "move.air" },
     { kind = "mvset", key = "swim", label = "Swim speed", help = "Experimental: how fast you swim.", options = { { "Game's", 1 }, { "x2", 2 }, { "x3", 3 } }, sel = 1, save_key = "move.swim" },
     { kind = "mvset", key = "gravity", label = "Your gravity", help = "Experimental: lower is floatier jumps and falls.", options = { { "Game's", 1 }, { "x0.5", 0.5 }, { "x0.25", 0.25 }, { "x2", 2 } }, sel = 1, save_key = "move.gravity" },
-    { kind = "emote_slot", slot = "primary", label = "D-pad emote 1", help = "Left/Right picks an emote, Enter puts it on your first D-pad emote; then use the D-pad as usual.", sel = 1, options = {} },
-    { kind = "emote_slot", slot = "secondary", label = "D-pad emote 2", help = "Left/Right picks an emote, Enter puts it on your second D-pad emote; then use the D-pad as usual.", sel = 1, options = {} },
+    { kind = "emote_slot", slot = "primary", label = "D-pad emote 1", help = "Left/Right picks, Enter puts it on your first D-pad emote; then use the D-pad as usual.", sel = 1, options = {} },
+    { kind = "emote_slot", slot = "secondary", label = "D-pad emote 2", help = "Left/Right picks, Enter puts it on your second D-pad emote; then use the D-pad as usual.", sel = 1, options = {} },
     { kind = "emote", label = "Play emote", help = "Experimental: Left/Right picks one of the game's emotes, Enter plays it now.", sel = 1, options = {} },
     { kind = "mset", key = "repeat_emote", label = "Repeat emote", help = "Plays the emote picked in Play emote again and again; Stop emote ends it.", options = { { "Off", false }, { "Every 3 s", 180 }, { "Every 6 s", 360 }, { "Every 12 s", 720 } }, sel = 1 },
     { kind = "emote_stop", label = "Stop emote", help = "Stops the emote you're playing (and Repeat emote)." },
@@ -85,14 +85,14 @@ local TABS = {
     toggle("infinite_ammo", "Infinite ammo", "Your reserve ammo never runs out (the game's cheat; your save stays clean)."),
     wset("fire_rate", "Fire rate", "How fast every weapon fires.", { { "Game's", 1 }, { "x1.5", 1.5 }, { "x2", 2 }, { "x4", 4 }, { "x8", 8 } }),
     pset("full_auto", "Full auto", "Single-shot guns keep firing while you hold the trigger (mouse or RT).", { { "Off", false }, { "On", 70 }, { "Fast", 40 } }),
-    wset("damage", "Damage", "x2 to x10: your weapons only. One-hit kill: every gun, enemies' too, so pair it with God mode.", { { "Game's", 1 }, { "x2", 2 }, { "x5", 5 }, { "x10", 10 }, { "One-hit kill", "kill" } }),
+    wset("damage", "Damage", "x2 to x10: your guns only. One-hit kill: every gun, enemies' too (pair it with God mode).", { { "Game's", 1 }, { "x2", 2 }, { "x5", 5 }, { "x10", 10 }, { "One-hit kill", "kill" } }),
     wset("reload", "Reload speed", "How fast reloads go.", { { "Game's", 1 }, { "x2", 2 }, { "x4", 4 }, { "Instant", 20 } }),
     wset("perfect_aim", "Perfect aim", "No spread: every shot goes where you aim.", { { "Off", false }, { "On", true } }),
     wset("no_warmup", "No warm-up", "Miniguns spin up and charged weapons charge at once.", { { "Off", false }, { "On", true } }),
     wset("no_overheat", "No overheat", "Weapons that overheat never do.", { { "Off", false }, { "On", true } }),
     wset("range", "Range", "How far every weapon reaches.", { { "Game's", 1 }, { "x2", 2 }, { "x4", 4 } }),
     wset("knockback", "Knockback", "How hard hits push people and things.", { { "Game's", 1 }, { "x3", 3 }, { "x10", 10 } }),
-    gcall("Max every weapon's upgrades", "Every upgradeable weapon to its top level (saved with your game, as buying them would be).", [[
+    gcall("Max every weapon's upgrades", "Every upgradeable weapon to its top level (saved with your game, like buying them).", [[
       local n = 0
       for _, inv in vlib_info_object:ipairs("inventory_weapon_info") do
         if weapon_has_upgrades(inv) then
@@ -106,11 +106,11 @@ local TABS = {
     { kind = "weapons_reset", label = "Weapons back to normal", help = "Every weapon setting back to the game's." },
   } },
   { name = "Vehicles", rows = {
-    { kind = "deliver", label = "Spawn vehicle", help = "Left/Right picks one of the game's 90 ready-to-drive vehicles, Enter spawns it next to you.", sel = 1, options = {} },
+    { kind = "deliver", label = "Spawn vehicle", help = "Left/Right picks one of the game's 90 vehicles, Enter spawns it next to you.", sel = 1, options = {} },
     { kind = "carset", key = "power", label = "Engine power", help = "Experimental: the torque of the vehicle you're in.", options = { { "Game's", 1 }, { "x2", 2 }, { "x3", 3 }, { "x5", 5 } }, sel = 1, save_key = "car.power" },
     { kind = "carset", key = "top", label = "Vehicle top speed", help = "Experimental: the top speed of the vehicle you're in.", options = { { "Game's", 1 }, { "x1.5", 1.5 }, { "x2", 2 }, { "x3", 3 } }, sel = 1, save_key = "car.top" },
     action("vehicle_health", "Repair vehicle", "Fixes the vehicle you're in."),
-    pset("keep_repaired", "Keep vehicle repaired", "Repairs the vehicle you're in every second (the game's repair cheat): close to vehicle god mode.", { { "Off", false }, { "On", true } }),
+    pset("keep_repaired", "Keep vehicle repaired", "Repairs the vehicle you're in every second (the game's repair cheat): near god mode.", { { "Off", false }, { "On", true } }),
     action("drop_car", "Drop a car", "Drops a car from the sky."),
     toggle("infinite_boost", "Infinite boost", "Vehicle boost never runs out."),
     toggle("infinite_mass", "Infinite mass", "Your vehicle shoves anything aside."),
@@ -142,7 +142,7 @@ local TABS = {
     { kind = "random_people", label = "Spawn 10 random people", help = "Ten of the game's characters, picked at random, around you." },
     toggle("low_gravity", "Low gravity", "Everything floats a little."),
     toggle("ped_agro", "Angry pedestrians", "People on the street turn on you."),
-    { kind = "wdset", key = "never_wanted", label = "Never wanted", help = "Notoriety is cleared as soon as you get it: from anyone, only the police and Marshal (no cops), or only gangs.",
+    { kind = "wdset", key = "never_wanted", label = "Never wanted", help = "Clears notoriety as soon as you get it: from anyone, the police and Marshal, or gangs.",
       options = { { "Off", false }, { "By anyone", "all" }, { "By police", "police" }, { "By gangs", "gangs" } }, sel = 1, save_key = "world.never_wanted" },
     choice("Police", "Raise or clear your notoriety with them; Max raises it to the top.", { { "Raise", "increase_police" }, { "Clear", "clear_police" }, { "Max", "increase_police", max = true } }),
     choice("Idols", "Raise or clear your notoriety with them; Max raises it to the top.", { { "Raise", "increase_idols" }, { "Clear", "clear_idols" }, { "Max", "increase_idols", max = true } }),
@@ -170,13 +170,13 @@ local TABS = {
     gcall("Pause / resume cutscene", "Pauses the cutscene that's playing, or resumes it.", "if rawget(_G, 'SR5TM_CINE_PAUSED') then cinematic_resume() rawset(_G, 'SR5TM_CINE_PAUSED', nil) return 'resumed' else cinematic_pause() rawset(_G, 'SR5TM_CINE_PAUSED', true) return 'paused' end"),
     gcall("Load last save", "Loads your newest save (press twice). Unsaved progress is lost.", "gml_ui_save_game_request_load_newest() return 'loading'", true),
     opt("Tutorial popups", "The game's tutorial popups option (0 = none).", "options_get_tutorial_frequency()", "options_set_tutorial_frequency(%s)", { { "Off", 0 }, { "1", 1 }, { "2", 2 }, { "3", 3 } }),
-    { kind = "mset", key = "tweaks_paused", label = "All tweaks", help = "Off puts every menu tweak back to the game's for now; On brings them all back. Cheats stay as they are.", options = { { "On", false }, { "Off", true } }, sel = 1 },
-    { kind = "mset", key = "hold_back", label = "Hold Back opens the menu", help = "Experimental: hold the controller's Back (View) button for a second to open or close the menu. The game sees the press too.", options = { { "Off", false }, { "On", true } }, sel = 1, save_key = "menu.hold_back" },
+    { kind = "mset", key = "tweaks_paused", label = "All tweaks", help = "Off: every menu tweak back to the game's for now. On: they all come back. Cheats stay.", options = { { "On", false }, { "Off", true } }, sel = 1 },
+    { kind = "mset", key = "hold_back", label = "Hold Back opens the menu", help = "Experimental: hold Back (View) for a second to open or close the menu. The game sees it too.", options = { { "Off", false }, { "On", true } }, sel = 1, save_key = "menu.hold_back" },
     { kind = "clean", label = "Keep my save clean", help = "Spicy cheats don't mark your save; achievements pause only while one is on." },
     { kind = "opacity", label = "Menu opacity", help = "How dark the panel behind the menu is. Left/Right." },
     { kind = "active", label = "What's on", help = "Lists every tweak and cheat that's on right now." },
     { kind = "all_off", label = "Turn every cheat off", help = "Switches off every toggle cheat that's on." },
-    { kind = "normal", label = "Everything back to normal", help = "Every menu tweak back to the game's own (press twice). Cheats and game options are left as they are." },
+    { kind = "normal", label = "Everything back to normal", help = "Every menu tweak back to the game's (press twice). Cheats and game options stay." },
     { kind = "forget", label = "Forget saved tweaks", help = "Settings are kept for next time as you change them; this starts fresh." },
     { kind = "close", label = "Close menu", help = "F5, or hold RB and press D-pad Down, opens it again." },
   } },
@@ -495,7 +495,7 @@ local function select_row(row)
     end
     for _, c in ipairs(C.list) do if c.toggle and c.active then on[#on + 1] = c.name end end
     local text = #on == 0 and "Nothing's on: the game as it comes" or (#on .. " on: " .. table.concat(on, ", "))
-    if #text > 110 then text = text:sub(1, 107) .. "..." end
+    if #text > 95 then text = text:sub(1, 92) .. "..." end
     say(text)
   elseif row.kind == "normal" then
     if M.pending_confirm ~= row then
@@ -591,10 +591,16 @@ local function render()
     end
   end
   local row = tab.rows[cur]
-  lines[ROWS + 3] = { label = row and row.help or "", colour = "help" }
-  if M.status_frames > 0 then lines[ROWS + 4] = { label = M.status, colour = M.status_kind }
-  else lines[ROWS + 4] = { label = M.clean and "* spicy: your save stays clean (Settings)" or "* spicy: these mark your save", colour = "off" } end
+  -- the help text, wrapped onto two lines
+  local help = U.wrap(row and row.help or "", 2)
+  lines[ROWS + 3] = { label = help[1] or "", colour = "help" }
+  lines[ROWS + 4] = { label = help[2] or "", colour = "help" }
+  if M.status_frames > 0 then lines[ROWS + 5] = { label = M.status, colour = M.status_kind }
+  else lines[ROWS + 5] = { label = M.clean and "* spicy: your save stays clean (Settings)" or "* spicy: these mark your save", colour = "off" } end
   U.show(lines)
+  -- fit again every 10 frames: the game's measure can lag behind new text
+  M.renders = (M.renders or 0) + 1
+  if M.renders % 10 == 5 then U.refit() end
 end
 
 -- ------------------------------------------------------------------ input
