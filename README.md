@@ -48,7 +48,7 @@ rows; every row has a help line in the menu.
 ### Player
 - **Health:** God mode (the game's own health floor, not its cheat), Health
   (x2 to x10), Refill health, Health regen (none, fast, always full), No fall
-  damage, No ragdoll
+  damage, No ragdoll, No clip (W A S D, Space, Ctrl, Shift)
 - **Movement:** Run speed (up to x5), Air control, Swim speed, Your gravity
 - **Emotes:** D-pad emote 1 and D-pad emote 2 (swap the emotes on your
   D-pad, then use it as usual), Play emote, Repeat emote, Stop emote, Say a line (the game's
@@ -56,6 +56,7 @@ rows; every row has a help line in the menu.
 - Summon homie, Dismiss homies, Homie limit (up to 4)
 - **Wingsuit:** Wingsuit boosts (every 2 s or unlimited), Wingsuit boost
   power, Wingsuit top speed, Wingsuit glide (floaty, level, climb)
+- Free shopping
 - **Progress:** Give XP, Give skill points, Add cash, Own every weapon,
   Unlock everything in the stores, Unlock all collectibles (clothing, emotes, weapons,
   vehicles, HQ props; these stay in your save)
@@ -65,9 +66,7 @@ rows; every row has a help line in the menu.
 ### Weapons
 - Magazine (x2, x5, No reload: kept full, never reloads, launchers too), Infinite ammo,
   Fire rate (up to x8), Special ammo (fire, shock, chill, stun, bleed,
-  disintegrate: the gun in your hands), Rocket ammo (rockets from
-  every gun; burst rockets, micro missiles, guitars, potatoes, beer cans,
-  crossbow bolts), Full auto (single-shot guns keep firing while you
+  disintegrate: the gun in your hands), Full auto (single-shot guns keep firing while you
   hold the trigger, mouse or RT), Damage (x2 to x10, or One-hit kill),
   Reload speed (up to instant), Perfect aim, No recoil, No warm-up, No overheat, Range,
   Knockback
@@ -76,7 +75,8 @@ rows; every row has a help line in the menu.
 
 ### Vehicles
 - Spawn vehicle (any of the game's 90 ready-to-drive vehicles, next to you)
-- **Handling:** Engine power, Grip, Steering, Vehicle top speed
+- **Handling:** Engine power, Grip, Steering, Vehicle top speed, Suspension
+- Bulletproof tires, Destroy this vehicle
 - Vehicle god mode, Repair vehicle, Keep vehicle repaired, Drop a car, Infinite boost,
   Infinite mass, No traffic laws
 - **Traffic:** Monster truck traffic, Luxury traffic, Mascots
@@ -89,7 +89,8 @@ rows; every row has a help line in the menu.
 - Weather, Weather (all: every weather the game has), Time of day, Freeze clock, Clock speed, Pause world
 - **People:** Spawn person (any of the game's 834 characters), Spawn a
   crowd (ten around you), Spawn 10 random people, Remove spawned people, Drop cash, Money rain,
-  Ragdoll everyone near, Kill everyone near, Angry pedestrians
+  Everyone near (cheer, laugh, taunt and more), Disarm and Re-arm everyone near,
+  Ragdoll everyone near, Angry pedestrians
 - Empty streets (no people or traffic), Low gravity
 - **Notoriety:** Never wanted (by anyone, by police: no cops, or by gangs),
   and raise, clear or max it with the Police, Idols, Marshal and Los Panteros
