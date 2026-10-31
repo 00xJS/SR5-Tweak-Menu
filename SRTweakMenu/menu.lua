@@ -534,6 +534,15 @@ local SONGS = {
   { "Unreleased: que pasa geno g", "que_pasa_geno_g" },
   { "Unreleased: young men dead", "young_men_dead" }
 }
+-- Every vehicle and variant, for Any vehicle.
+local VEH = require("vehicles")
+local ANY_VEHICLES = {}
+for _, v in ipairs(VEH.list) do ANY_VEHICLES[#ANY_VEHICLES + 1] = { v[1], v[2], v[3] } end
+local function any_variants(i)
+  local out = {}
+  for _, p in ipairs(ANY_VEHICLES[i][3]) do out[#out + 1] = { p[1] .. " (" .. p[2] .. ")", p[1] } end
+  return out
+end
 local TABS = {
   { name = "Player", rows = {
     pset("god", "God mode", "You can't die. Not the game's cheat: your save stays clean.", { { "Off", false }, { "On", true } }),
@@ -634,7 +643,8 @@ local TABS = {
     wset("fire_rate", "Fire rate", "How fast every weapon fires.", { { "Game's", 1 }, { "x1.5", 1.5 }, { "x2", 2 }, { "x4", 4 }, { "x8", 8 } }),
     pset("ammo", "Special ammo", "Experimental: what the gun in your hands does to people it hits; new guns get it too.", {
       { "Normal", false }, { "Fire", { "on_fire", "fire" } }, { "Shock", { "electrified", "electricity" } }, { "Chill", { "chill", "water" } },
-      { "Stun", { "stun", "electricity" } }, { "Bleed", { "bleed", "dot_bleeding" } }, { "Disintegrate", { "disintegrate", "insta_kill" } } }),
+      { "Stun", { "stun", "electricity" } }, { "Bleed", { "bleed", "dot_bleeding" } }, { "Disintegrate", { "disintegrate", "insta_kill" } },
+      { "Flee", { "flee", "physical" } }, { "Panic", { "panic", "physical" } }, { "Blind", { "blindness", "physical" } }, { "Slip", { "slippery", "physical" } }, { "Stagger", { "stagger", "physical" } }, { "Fall over", { "eat food ragdoll", "physical" } }, { "Poison look", { "toxic_waste", "physical" } } }),
     pset("full_auto", "Full auto", "Single-shot guns keep firing while you hold the trigger (mouse or RT).", { { "Off", false }, { "On", 70 }, { "Fast", 40 } }),
     wset("damage", "Damage", "x2 to x10: your guns only. One-hit kill: every gun, enemies' too (pair it with God mode).", { { "Game's", 1 }, { "x2", 2 }, { "x5", 5 }, { "x10", 10 }, { "One-hit kill", "kill" } }),
     wset("reload", "Reload speed", "How fast reloads go.", { { "Game's", 1 }, { "x2", 2 }, { "x4", 4 }, { "Instant", 20 } }),
@@ -644,6 +654,7 @@ local TABS = {
     wset("no_overheat", "No overheat", "Weapons that overheat never do.", { { "Off", false }, { "On", true } }),
     wset("range", "Range", "How far every weapon reaches.", { { "Game's", 1 }, { "x2", 2 }, { "x4", 4 } }),
     wset("knockback", "Knockback", "How hard hits push people and things.", { { "Game's", 1 }, { "x3", 3 }, { "x10", 10 } }),
+    wset("blast", "Blast radius", "Experimental: how far launchers' and thrown weapons' explosions reach.", { { "Game's", 1 }, { "x2", 2 }, { "x5", 5 } }),
     gcall("Max every weapon's upgrades", "Every upgradeable weapon to its top level (saved with your game, like buying them).", [[
       local n = 0
       for _, inv in vlib_info_object:ipairs("inventory_weapon_info") do
@@ -721,7 +732,7 @@ local TABS = {
     { kind = "wdset", key = "clock_speed", label = "Clock speed", help = "How fast the time of day passes.", options = { { "Game's", 1 }, { "x0.5", 0.5 }, { "x2", 2 }, { "x5", 5 }, { "x10", 10 } }, sel = 1, save_key = "world.clock_speed" },
     { kind = "wdset", key = "pause", label = "Pause world", help = "Everything stops, you too (the game's own pause); the menu still works.", options = { { "Off", false }, { "On", true } }, sel = 1 },
     { kind = "person", label = "Spawn person", help = "Left/Right picks one of the game's characters, Enter spawns them beside you.", sel = 1, options = {} },
-    pset("spawn_hostile", "Spawned people", "Experimental. What people you spawn do from now on: wander off, stay with you as bodyguards, or fight you.", { { "Passive", false }, { "Bodyguards", "guard" }, { "Fight you", true } }),
+    pset("spawn_hostile", "Spawned people", "Experimental. What people you spawn do from now on: wander off, stay with you as bodyguards, fight gangs at your side, or fight you.", { { "Passive", false }, { "Bodyguards", "guard" }, { "Your army", "army" }, { "Fight you", true } }),
     gchoice("Radio station", "Experimental: Left/Right picks, Enter tunes the vehicle you're in. Premium stations too.", { { "Off", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("off", false) return 'Off']] }, { "88.7 Dos Ochos", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("dos ochos", false) return '88.7 Dos Ochos']] }, { "90.5 Public Radio", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("public radio", false) return '90.5 Public Radio']] }, { "93.3 Tumbleweed", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("tumbleweed", false) return '93.3 Tumbleweed']] }, { "95.7 The Drop", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("thedrop", false) return '95.7 The Drop']] }, { "99.5 The Cipher", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("the cipher", false) return '99.5 The Cipher']] }, { "101.1 Outrun", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("outrun", false) return '101.1 Outrun']] }, { "103.3 Overdrive", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("overdrive", false) return '103.3 Overdrive']] }, { "201 Flex", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("flex", false) return '201 Flex']] }, { "203 El Latido", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("el_latido", false) return '203 El Latido']] }, { "204 Nuclear Blast", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("nuclear_blast", false) return '204 Nuclear Blast']] } }),
     gchoice("Music anywhere", "Experimental: Left/Right picks a station's songs, Enter plays them anywhere, on foot too, no DJ or ads.", { { "Stop", [[playlist_stop() return 'Music off']] }, { "The Drop", [[playlist_play(vlib_info_object:get_object("playlist_info", "kbpm_thedrop")) return 'Playing The Drop']] }, { "Outrun", [[playlist_play(vlib_info_object:get_object("playlist_info", "kfdr_outrun")) return 'Playing Outrun']] }, { "Dos Ochos", [[playlist_play(vlib_info_object:get_object("playlist_info", "kfst_dosochos")) return 'Playing Dos Ochos']] }, { "Overdrive", [[playlist_play(vlib_info_object:get_object("playlist_info", "kfvzz_overdrive")) return 'Playing Overdrive']] }, { "The Cipher", [[playlist_play(vlib_info_object:get_object("playlist_info", "kjmz_thecipher")) return 'Playing The Cipher']] }, { "Public Radio", [[playlist_play(vlib_info_object:get_object("playlist_info", "ksipr_santopublic")) return 'Playing Public Radio']] }, { "Tumbleweed", [[playlist_play(vlib_info_object:get_object("playlist_info", "kwpke_tumbleweed")) return 'Playing Tumbleweed']] }, { "Flex", [[playlist_play(vlib_info_object:get_object("playlist_info", "sm1_flex")) return 'Playing Flex']] }, { "El Latido", [[playlist_play(vlib_info_object:get_object("playlist_info", "sm3_ellatido")) return 'Playing El Latido']] }, { "Nuclear Blast", [[playlist_play(vlib_info_object:get_object("playlist_info", "sm4_nuclearblast")) return 'Playing Nuclear Blast']] } }),
     { kind = "song", label = "Play song", help = "Experimental: Left/Right picks any song, including three no station plays, Enter plays it anywhere.", sel = 1, options = SONGS },
@@ -775,6 +786,11 @@ local TABS = {
     pset("blast_damage", "Explosion damage", "Experimental: some explosions take their damage from the weapon instead.", { { "Game's", false }, { "x2", 2.0 }, { "x5", 5.0 } }),
     pset("own_blast", "Hurting yourself", "Experimental: the damage you do to yourself, as from your own explosions.", { { "Game's", false }, { "None", 0.0001 } }),
     { kind = "launch_car", label = "Launch this vehicle", help = "Experimental: Left/Right picks, Enter throws the car you're in, or the nearest, into the air.", sel = 1, options = { { "Small", 30000 }, { "Big", 80000 }, { "Moon", 200000 } } },
+    { kind = "crowd_act", key = "zombies", label = "Zombie outbreak", help = "Experimental: a third of the people within 40 m turn on everyone else." },
+    { kind = "crowd_act", key = "riot", label = "Riot", help = "Experimental: everyone within 40 m splits into two sides, which fight." },
+    { kind = "crowd_act", key = "downed", label = "Downed, not dead", help = "Experimental: people within 40 m go down instead of dying when they're killed." },
+    pset("free_for_all", "Free for all", "Experimental: these factions attack anyone they don't have a rule for, you and their own included.", { { "Off", false }, { "Gangs", "gangs" }, { "Gangs and police", "all" } }),
+    pset("gang_presence", "Gang presence", "Experimental: how many of each gang the district keeps on its streets. Districts only have the gangs they have. Watch your frame rate.", { { "Game's", false }, { "x3", 3 }, { "x6", 6 } }),
     { kind = "crowd_act", key = "launch", label = "Launch everyone near", help = "Experimental: everyone within 40 m flies up." },
     pset("peds", "Pedestrians", "Experimental: how many people the district keeps around. Watch your frame rate.", { { "Game's", false }, { "Few", 0.25 }, { "x2", 2 }, { "x3", 3 } }),
     pset("traffic", "Traffic", "Experimental: how many cars the district keeps around. Watch your frame rate.", { { "Game's", false }, { "Few", 0.25 }, { "x2", 2 }, { "x3", 3 } }),
@@ -785,9 +801,23 @@ local TABS = {
     pset("no_flinch", "No flinch", "Experimental: taking a hit doesn't make you flinch.", { { "Off", false }, { "On", 100000.0 } }),
     pset("dodge_ms", "Dodge safe time", "Experimental: how long a dodge keeps you from harm.", { { "Game's", false }, { "1 s", 1000 }, { "2 s", 2000 }, { "5 s", 5000 } }),
     { kind = "revive_me", label = "Get up", help = "Experimental: the co-op revive, on yourself: use it when you're down." },
+    pset("slow_button", "Slow motion button", "Experimental: hold LB and RB, or Alt, for slow motion while it's held. Everyone slows, you too.", { { "Off", false }, { "x0.5", 2.0 }, { "x0.25", 4.0 }, { "x0.1", 10.0 } }),
+    pset("panic", "People panic", "Experimental: how far gunfire and explosions scare people. New scares only.", { { "Game's", false }, { "Hardly at all", 0.05 }, { "Whole block", 3 } }),
+    pset("ragdoll_easy", "Knocked over", "Experimental: how hard something has to hit you to knock you over.", { { "Game's", false }, { "Easily", 0.2 }, { "Hardly ever", 5 } }),
+    pset("no_parked", "No parked cars", "Experimental: stops new parked cars appearing. The ones already there stay.", { { "Off", false }, { "On", true } }),
+    pset("rockets", "Rocket rounds", "Experimental: the gun in your hands fires rockets, no more than 4 a second. This crashed the game before, for a reason that's now fixed: save first.", { { "Off", false }, { "On", { [[data\sr_city\spawnables\weapons\launcher\weapon_launcher_shoulder_box_missile_projectile]], [[data\sr_city\spawnables\weapons\launcher\weapon_launcher_missile_explosion]] } } }),
+    pset("explosive_melee", "Explosive punches", "Experimental: melee hits explode, your fists too. Switch away and back if it doesn't take. Pair it with God mode, and save first.", { { "Off", false }, { "On", [[data\sr_city\spawnables\weapons\launcher\weapon_launcher_missile_explosion]] } }),
+    { kind = "console_list", class = "char_cust_outfit", handler = 0x14055C0, what = "Wearing", label = "Wear any outfit", help = "Experimental: Left/Right picks a whole outfit, any of the game's, Enter wears it. Undo my look puts you back.", sel = 1, options = {} },
+    { kind = "console_list", class = "skill_info", handler = 0x68B530, what = "Equipped", label = "Equip any skill", help = "Experimental: Left/Right picks any skill, Enter gives it to you and equips it (saved with your game).", sel = 1, options = {} },
+    { kind = "game_list", class = "radio_newscast_info", label = "Newscast", help = "Experimental: Left/Right picks any newscast, Enter plays it. Later ones spoil the story, and you've finished it.", sel = 1, options = {}, code = [[newscast_play(vlib_info_object:get_object("radio_newscast_info", %q))]] },
+    gcall("Stop newscast", "Stops the newscast.", [[newscast_stop() return 'Stopped']]),
+    { kind = "hq_theme", label = "HQ room theme", help = "Experimental: rebuilds your headquarters' rooms in another level's look (saved with your game). Don't stand inside if you can help it.", sel = 1, options = { { "Normal", false }, { "Level 1", "hq_level_1" }, { "Level 2", "hq_level_2" }, { "Level 3", "hq_level_3" }, { "Dead", "hq_room_theme_ct_dead" } } },
+    { kind = "any_vehicle", label = "Any vehicle", help = "Experimental: Left/Right picks any of the game's vehicles, rare and reward ones too. Next row picks its variant.", sel = 1, options = ANY_VEHICLES },
+    { kind = "any_variant", label = "Variant", help = "Experimental: Left/Right picks a version, with how you'd normally meet it, Enter spawns it. Some need water or a mission, and may not appear.", sel = 1, options = any_variants(1) },
+    pset("rare_traffic", "Rare traffic", "Experimental: cars this district rarely shows come out far more. Only the ones it already lists, and only as they load.", { { "Off", false }, { "On", true } }),
     { kind = "car_effect", label = "Effect on this car", help = "Experimental: Left/Right picks one, Enter: the car you're in, or the nearest, gets it for 30 seconds.", sel = 1,
       options = { { "Slippery", "slippery" }, { "Super grip", "supergrip" }, { "Plow", "plow" }, { "Vehicular manslaughter", "vehicular_manslaughter" } } },
-    { kind = "proto_weapon", label = "Prototype weapon", help = "Experimental, press twice: a weapon no list in the game names. May not work, or may crash: save first.", sel = 1,
+    { kind = "proto_weapon", label = "Prototype weapon", help = "Experimental, press twice: a weapon no list in the game names, in place of what's in its slot, whose icon and name it shows. May not work, or may crash: save first.", sel = 1,
       options = { { "Full-auto police shotgun", "weapon_shotgun_police_full_auto", 5 }, { "Idols miniboss SMG", "weapon_smg_idols_miniboss_hidden", 3 }, { "Idols knife", "weapon_melee_idols_subgrunt_knife", 1 }, { "Panther claws", "weapon_panteros_specialist_melee", 1 }, { "Coyote's bite", "weapon_melee_coyote", 1 }, { "Frost shield", "weapon_frostlander_shield_player", 8 }, { "Sticky bomb", "weapon_special_sticky_proximity_bomb", 7 }, { "Small mine", "weapon_proximity_mine_small", 12 } } },
     { kind = "unlock", key = "tidy", label = "Remove test guns", help = "Press twice: takes the 41 dev test guns and vehicle mounts that Own every weapon adds (the TEMP ICON ones) out of your wheel and your save. Own every weapon brings them back." },
     { kind = "unlock", key = "skins", label = "Unlock all weapon skins", help = "Press twice: every weapon skin is yours, in the game's weapon screen. Stays in your save." },
@@ -906,22 +936,22 @@ local LAYOUT = {
     { "Health and survival", "God mode, health, and what can't hurt you.", { "God mode", "Health", "Refill health", "Health regen", "No fall damage", "No ragdoll", "No flinch", "Dodge safe time", "Bulletproof", "Explosion-proof", "Crash-proof", "Get up", "Kill yourself" } },
     { "Movement", "How you run, jump and fall.", { "Run speed", "Jump height", "Air control", "Swim speed", "Your gravity", "No clip", "Movement style", "Walk style" } },
     { "Wingsuit", "Boosts, power, speed and glide.", { "Wingsuit boosts", "Wingsuit boost power", "Wingsuit top speed", "Wingsuit glide", "Wingsuit from low down", "Wingsuit now" } },
-    { "Flow and abilities", "Your ability meter, skills and takedowns.", { "All perks on", "Effect on you", "Unlimited Flow", "Free skills", "Flow gain", "Extra Flow bars", "Flow never drains", "Rampage at full Flow", "Takedown cooldown" } },
+    { "Flow and abilities", "Your ability meter, skills and takedowns.", { "All perks on", "Equip any skill", "Effect on you", "Unlimited Flow", "Free skills", "Flow gain", "Extra Flow bars", "Flow never drains", "Rampage at full Flow", "Takedown cooldown" } },
     { "Emotes and voice", "Emotes, expressions and how you sound.", { "D-pad emote 1", "D-pad emote 2", "Play emote", "Hidden emote", "Repeat emote", "Freeze emote", "Stop emote", "Facial expression", "Your voice", "Voice pitch", "Say a line" } },
     { "Homies", "Who's with you.", { "Summon homie", "Call in Saints", "Dismiss homies", "Homie limit" } },
-    { "Your look", "Who you are and what you're wearing.", { "Play as spawned person", "Back to yourself", "Saved look", "Character preset", "Hidden outfit", "Undo my look", "Take a look snapshot", "Customize character", "Prank yourself" } },
+    { "Your look", "Who you are and what you're wearing.", { "Play as spawned person", "Back to yourself", "Saved look", "Character preset", "Wear any outfit", "Hidden outfit", "Undo my look", "Take a look snapshot", "Customize character", "Prank yourself" } },
     { "Body beyond limits", "Past the sliders' ends. Only on screen: your save keeps your real body.", { "Body: muscle", "Body: fat", "Body: thin", "Body: chest", "Body: blend", "Face: head shape", "Face: eye size", "Face: nose size", "Face: mouth size", "Back to my real body" } },
     { "Money and progress", "XP, skill points, cash and prices.", { "Give XP", "Give skill points", "Add cash", "Free shopping", "Free ventures", "Start mission", "Insurance Fraud here" } },
     { "Unlocks", "Skills, perks, weapons, clothing and more. These stay in your save.", { "Unlock EVERYTHING", "Unlock fast travel points", "Own every weapon", "Unlock all skills", "Unlock all perks", "Unlock gang and homies", "Unlock all clothing", "Unlock everything in the stores", "Unlock all weapon skins", "Unlock all collectibles" } },
   } },
   { "Weapons", {
-    { "Gun tuning", "Fire rate, damage, recoil and the rest of how guns behave.", { "Fire rate", "Full auto", "Damage", "Magazine", "Reload speed", "No recoil", "Perfect aim", "Range", "Knockback", "Friendly fire", "Back shot damage", "No warm-up", "No overheat" } },
-    { "Special ammo", "What your shots do.", { "Special ammo", "Money gun" } },
+    { "Gun tuning", "Fire rate, damage, recoil and the rest of how guns behave.", { "Fire rate", "Full auto", "Damage", "Magazine", "Reload speed", "No recoil", "Perfect aim", "Range", "Knockback", "Blast radius", "Friendly fire", "Back shot damage", "No warm-up", "No overheat" } },
+    { "Special ammo", "What your shots and hits do.", { "Special ammo", "Rocket rounds", "Explosive punches", "Money gun" } },
     { "Get weapons", "Give, fill, upgrade or remove.", { "Give weapon", "Special weapon", "Refill all ammo", "Max every weapon's upgrades", "Prototype weapon", "Signature ability (this gun)", "All signature abilities", "Remove this weapon", "Remove test guns" } },
     "Weapons back to normal",
   } },
   { "Vehicles", {
-    { "Spawning", "Getting vehicles and getting rid of them.", { "Spawn vehicle", "Special vehicle", "Remove spawned vehicles", "Deliver to garage" } },
+    { "Spawning", "Getting vehicles and getting rid of them.", { "Spawn vehicle", "Special vehicle", "Any vehicle", "Variant", "Remove spawned vehicles", "Deliver to garage" } },
     { "Handling", "Power, grip and how it sits on the road.", { "Engine power", "Grip", "Steering", "Vehicle top speed", "Suspension", "Vehicle gravity", "Heavy vehicle" } },
     { "Toughness", "Keeping it in one piece, or not.", { "Vehicle god mode", "No collision damage", "Bulletproof tires", "Keep vehicle repaired", "Destroy this vehicle" } },
     { "Abilities and combat", "Vehicle abilities, rams and takedowns.", { "Vehicle ability", "Tow hook", "Boost now", "Effect on this car", "Launch this vehicle", "Jump this vehicle", "Surf nearest car", "Stop surfing", "Vehicle jump power", "No ability cooldowns", "Ram power", "Takedowns at any speed" } },
@@ -933,16 +963,16 @@ local LAYOUT = {
     "Go up", "Where am I",
   } },
   { "World", {
-    { "Time and weather", "The clock, the sky and pausing.", { "Game speed", "Weather (all)", "Freeze clock", "Clock speed", "Go to time", "Pause world" } },
+    { "Time and weather", "The clock, the sky and pausing.", { "Game speed", "Slow motion button", "Weather (all)", "Freeze clock", "Clock speed", "Go to time", "Pause world" } },
     { "Developer switches", "Left in the game by its developers. Most do unknown things.", { "Dev: never die", "Dev: never die, AI", "Dev: Shawn mode", "Dev: capture mode", "Dev: auto sprint", "Dev: infinite ammo", "Dev: infinite magazine", "Dev: radio on", "Dev: vehicle ramps", "Dev: weapon raycasts", "Dev: notoriety bubbles", "Dev: HQ mask off" } },
     { "Spawn people", "Who to spawn, and what they do.", { "Spawn person", "Special person", "Spawned people", "Spawn a crowd", "Spawn 10 random people", "Remove spawned people" } },
     { "Everyone near", "Everyone within 40 m.", { "Everyone near", "Status on everyone near", "Make everyone near follow you", "Everyone near dance", "Make everyone near friendly", "Make everyone near hostile", "Disarm everyone near", "Re-arm everyone near", "Stun everyone near", "Ragdoll everyone near", "Float everyone near", "Set everyone near on fire", "Dissolve everyone near", "Poison everyone near", "Kill everyone near", "Blow up cars near" } },
     { "Notoriety and gangs", "Who's after you, and whose side they're on.", { "Never wanted", "Enemy aim", "Send in a gang", "Stay in combat", "Notoriety forgets fast", "No reinforcements", "No roadblocks", "Can't lose them", "Gangs and police without guns", "Gang on your side", "Saints are enemies" } },
-    { "Gang war", "Gangs and people fighting each other.", { "Gang war", "NPC fight damage", "Pedestrians fight back", "Everyone battle ready" } },
-    { "Physics and explosions", "Gravity, blasts and sending things flying.", { "World gravity", "Explosion size", "Explosion force", "Explosion damage", "Hurting yourself", "Launch everyone near" } },
-    { "Population", "How busy the streets are.", { "Pedestrians", "Traffic", "Traffic pop-in", "Crowds in the rain" } },
-    { "Music", "Stations, songs and playing them anywhere.", { "Radio station", "Music anywhere", "Play song", "Skip track", "Pause or resume music", "Now playing" } },
-    { "Props and HQ", "Spawn props anywhere, or dress your headquarters.", { "Spawn prop", "Remove last prop", "Remove all props", "HQ spot", "HQ prop", "Clear this HQ spot" } },
+    { "Gang war", "Gangs and people fighting each other.", { "Gang war", "Zombie outbreak", "Riot", "Free for all", "Gang presence", "NPC fight damage", "Pedestrians fight back", "Everyone battle ready", "Downed, not dead" } },
+    { "Physics and explosions", "Gravity, blasts and sending things flying.", { "World gravity", "Explosion size", "Explosion force", "Explosion damage", "Hurting yourself", "Knocked over", "Launch everyone near" } },
+    { "Population", "How busy the streets are.", { "Pedestrians", "Traffic", "Rare traffic", "Traffic pop-in", "Crowds in the rain", "People panic", "No parked cars" } },
+    { "Music", "Stations, songs and playing them anywhere.", { "Radio station", "Music anywhere", "Play song", "Skip track", "Pause or resume music", "Now playing", "Newscast", "Stop newscast" } },
+    { "Props and HQ", "Spawn props anywhere, or dress your headquarters.", { "Spawn prop", "Remove last prop", "Remove all props", "HQ spot", "HQ prop", "Clear this HQ spot", "HQ room theme" } },
     { "Money and drops", "Cash and weapons on the ground.", { "Drop cash", "Drop weapon", "Money rain" } },
     { "Difficulty", "The pause menu's custom sliders.", { "Difficulty: player health", "Difficulty: player damage", "Difficulty: enemies", "Difficulty: vehicles", "Difficulty: notoriety", "Difficulty: ammo reserve", "Difficulty: timer speed" } },
     "Empty streets", "Show activities on the map",
@@ -1395,7 +1425,7 @@ local function step_unlock()
 end
 
 local CROWD = { ragdoll = { "ragdoll_near", "ragdolled" }, kill = { "kill_near", "killed" }, fire = { "fire_near", "set on fire" },
-  stun = { "stun_near", "stunned" }, launch = { "launch_near", "launched" }, follow = { "follow_near", "following you" }, float = { "float_near", "floating" }, dissolve = { "dissolve_near", "dissolving" }, toxic = { "toxic_near", "poisoned" }, dance = { "dance_near", "dancing" }, hostile = { "hostile_near", "turned on you" }, friendly = { "friendly_near", "on your side" } }
+  stun = { "stun_near", "stunned" }, launch = { "launch_near", "launched" }, zombies = { "zombies_near", "near an outbreak" }, riot = { "riot_near", "rioting" }, downed = { "downed_near", "won't die" }, follow = { "follow_near", "following you" }, float = { "float_near", "floating" }, dissolve = { "dissolve_near", "dissolving" }, toxic = { "toxic_near", "poisoned" }, dance = { "dance_near", "dancing" }, hostile = { "hostile_near", "turned on you" }, friendly = { "friendly_near", "on your side" } }
 local function select_row(row)
   wml.log("row: " .. tostring(row.label) .. (row.options and row.options[row.sel] and (" = " .. tostring(row.options[row.sel][1])) or ""))   -- so a crash log says what was last pressed
   if M.stash then M.stash[row] = nil end   -- changed while All tweaks is off: keep the new choice
@@ -1539,6 +1569,22 @@ local function select_row(row)
     local o = row.options[row.sel]
     P.look_first()
     say(P.console(0x13DE6D0, o[2]) == 0 and ("Wearing " .. o[1]) or "The game refused", "status")
+  elseif row.kind == "console_list" then
+    local o = row.options[row.sel]
+    if o then
+      if row.class == "char_cust_outfit" then P.look_first() end
+      say(P.console(row.handler, o[2]) == 0 and (row.what .. " " .. o[1]) or "The game refused", "status")
+    end
+  elseif row.kind == "game_list" then
+    local o = row.options[row.sel]
+    if o then
+      local ok, err = wml.game(string.format(row.code, o[2]))
+      say(ok and (o[1] .. ": on") or tostring(err), ok and "status" or "warn")
+    end
+  elseif row.kind == "hq_theme" then
+    local o = row.options[row.sel]
+    P.hq_theme(o[2])
+    say("HQ rooms: " .. o[1])
   elseif row.kind == "launch_car" then
     local o = row.options[row.sel]
     say(P.launch_car(o[2]) and (o[1] .. "!") or "No vehicle near", "status")
@@ -1552,7 +1598,7 @@ local function select_row(row)
   elseif row.kind == "proto_weapon" then
     local o = row.options[row.sel]
     if M.pending_confirm ~= row then M.pending_confirm = row; say(o[1] .. ": press again. Save first", "warn")
-    else M.pending_confirm = nil; say(P.give_prefab_weapon(o[2], o[3]) and (o[1] .. ": switch to that slot") or "The game refused", "status") end
+    else M.pending_confirm = nil; say(P.give_prefab_weapon(o[2], o[3]) and ("Loading " .. o[1] .. "...") or "Couldn't load that", "status") end
   elseif row.kind == "near_effect" then
     local o = row.options[row.sel]
     local n = P.near_effect(o[2], o[3], 40)
@@ -1574,6 +1620,12 @@ local function select_row(row)
   elseif row.kind == "special_person" then
     local o = row.options[row.sel]
     say(P.spawn_npc(o[2], 2, 4) and (o[1] .. " spawned") or "Couldn't spawn them right now", "status")
+  elseif row.kind == "any_vehicle" or row.kind == "any_variant" then
+    local v, w
+    for _, r in ipairs(all_rows()) do
+      if r.kind == "any_vehicle" then v = r.options[r.sel] elseif r.kind == "any_variant" then w = r.options[r.sel] end
+    end
+    select_row({ kind = "special_car", label = "Any vehicle", sel = 1, options = { { v[1] .. ": " .. w[2], v[2], w[2] } } })
   elseif row.kind == "special_car" then
     local o = row.options[row.sel]
     if not C.by_name.drop_car then say("Load into the game first", "warn") else
@@ -1853,7 +1905,7 @@ local function row_value(row)
   elseif row.kind == "mset" then
     local o = row.options[row.sel]
     return "<  " .. o[1] .. "  >", row.sel == 1 and "off" or "on"
-  elseif row.kind == "launch_car" or row.kind == "go_to_hour" or row.kind == "outfit_any" or row.kind == "car_effect" or row.kind == "proto_weapon" or row.kind == "song" or row.kind == "spawn_prop" or row.kind == "hq_spot" or row.kind == "hq_prop" or row.kind == "near_effect" or row.kind == "me_effect" or row.kind == "send_gang" or row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" or row.kind == "giveweapon" or row.kind == "voiceline" or row.kind == "gchoice" or row.kind == "weathernode" or row.kind == "cash_drop" or row.kind == "weapon_drop" or row.kind == "reaction" or row.kind == "map_place" or row.kind == "outfit" or row.kind == "look_preset" or row.kind == "call_saints" or row.kind == "prank" or row.kind == "car_ability" or row.kind == "special_person" or row.kind == "special_car" or row.kind == "mission" then
+  elseif row.kind == "any_vehicle" or row.kind == "any_variant" or row.kind == "console_list" or row.kind == "game_list" or row.kind == "hq_theme" or row.kind == "launch_car" or row.kind == "go_to_hour" or row.kind == "outfit_any" or row.kind == "car_effect" or row.kind == "proto_weapon" or row.kind == "song" or row.kind == "spawn_prop" or row.kind == "hq_spot" or row.kind == "hq_prop" or row.kind == "near_effect" or row.kind == "me_effect" or row.kind == "send_gang" or row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" or row.kind == "giveweapon" or row.kind == "voiceline" or row.kind == "gchoice" or row.kind == "weathernode" or row.kind == "cash_drop" or row.kind == "weapon_drop" or row.kind == "reaction" or row.kind == "map_place" or row.kind == "outfit" or row.kind == "look_preset" or row.kind == "call_saints" or row.kind == "prank" or row.kind == "car_ability" or row.kind == "special_person" or row.kind == "special_car" or row.kind == "mission" then
     local o = row.options[row.sel]
     return o and ("<  " .. o[1] .. "  >") or "none", o and "row" or "off"
   elseif row.kind == "gcall" then
@@ -2002,6 +2054,11 @@ end
 local function change_tab(delta) M.page = nil; M.tab = (M.tab - 1 + delta) % #TABS + 1 end
 local function adjust(delta)
   local row = view().rows[view_cursor()]
+  if row and row.options then
+    local n, o = #row.options, nil
+    if n > 0 then o = row.options[(row.sel - 1 + delta) % n + 1] end
+    if row.save_key or row.kind == "wdset" then wml.log("set: " .. tostring(row.label) .. " = " .. tostring(o and o[1])) end
+  end
   if row and M.stash then M.stash[row] = nil end
   if row and row.kind == "voiceline" and not row.loaded then load_voice_lines(row) end
   if row and row.kind == "mset" then M.adjust_mset(row, delta)
@@ -2019,6 +2076,9 @@ local function adjust(delta)
   elseif row and row.options then
     row.sel = (row.sel - 1 + delta) % #row.options + 1
     if row.apply then M.apply_row, M.apply_wait = row, 20 end
+    if row.kind == "any_vehicle" then
+      for _, r in ipairs(all_rows()) do if r.kind == "any_variant" then r.options, r.sel = any_variants(row.sel), 1 end end
+    end
   elseif row and row.kind == "opacity" then U.opacity = math.max(0, math.min(100, U.opacity + delta * 10)); M.save_tweaks() end
 end
 
@@ -2071,6 +2131,9 @@ local function ensure_ready()
       table.sort(r.options, function(a, b) return a[1] < b[1] end)
     elseif r.kind == "homie" and #r.options == 0 then
       for _, h in ipairs(names_of("homie_info")) do r.options[#r.options + 1] = { pretty((h:match('"(.*)"') or h):gsub("^homie_", "")), h } end
+    elseif (r.kind == "console_list" or r.kind == "game_list") and #r.options == 0 then
+      for _, w in ipairs(names_of(r.class)) do local n = w:match('"(.*)"') or w; r.options[#r.options + 1] = { pretty(n), n } end
+      table.sort(r.options, function(a, b) return a[1] < b[1] end)
     elseif r.kind == "giveweapon" and #r.options == 0 then
       for _, w in ipairs(names_of("inventory_weapon_info")) do r.options[#r.options + 1] = { pretty((w:match('"(.*)"') or w)), w } end
       table.sort(r.options, function(a, b) return a[1] < b[1] end)
@@ -2281,6 +2344,17 @@ function M.update()
   if P.prop_release_pending() then P.update_prop_release() end
   if C.loaded then WS.update_lift(P); WS.update_boost(P) end
   if C.loaded and frame % 60 == 49 and P.tunes_active() then P.update_tunes() end
+  if C.loaded and frame % 60 == 57 and P.ffa_active() then P.update_free_for_all() end
+  if C.loaded and frame % 120 == 58 and P.rare_active() then P.update_rare_traffic(VEH.rare) end
+  if C.loaded and P.explosive_melee and frame % 15 == 6 then P.update_explosive_melee() end
+  if C.loaded and P.slow_active() then P.update_slow_button(M.open) end
+  if C.loaded and frame % 30 == 26 then P.update_scaled(); P.update_parked() end
+  if C.loaded and frame % 60 == 3 and P.gangs_active() then P.update_gang_presence() end
+  if C.loaded and frame % 60 == 9 then P.fix_zero_damage(); P.log_state() end
+  if C.loaded and P.proto_pending() then
+    local r = P.update_proto()
+    if r then say(r == "ready" and "Prototype weapon ready: switch to that slot" or ("Prototype weapon " .. r), r == "ready" and "status" or "warn") end
+  end
   if C.loaded and (P.blast_size ~= M.bs_was or P.blast_force ~= M.bf_was or P.blast_damage ~= M.bd_was) then P.update_blast(); M.bs_was, M.bf_was, M.bd_was = P.blast_size, P.blast_force, P.blast_damage end
   if C.loaded and frame % 30 == 53 then P.update_switches(); P.update_enemy_aim() end
   if C.loaded and frame % 60 == 55 and P.war_active() then P.update_war() end
