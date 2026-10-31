@@ -50,36 +50,37 @@ in the menu.
 ### Player
 - **Health and survival:** God mode (the game's own health floor, not its cheat), Health (x2 to x10),
   Refill health, Health regen (none, fast, always full), No fall damage, No ragdoll, Bulletproof,
-  Explosion-proof, Crash-proof, Kill yourself
+  Explosion-proof, Crash-proof, No flinch, Dodge safe time, Get up, Kill yourself
 - **Movement:** Run speed (up to x5), Jump height (up to x10), Air control, Swim speed, Your gravity,
-  No clip (W A S D, Space, Ctrl, Shift), Movement style, Walk style
-- **Wingsuit:** Wingsuit boosts (every 2 s or unlimited), Wingsuit boost power, Wingsuit top speed,
-  Wingsuit glide (floaty, level, climb), Wingsuit from low down
-- **Flow and abilities:** All perks on, Unlimited Flow, Free skills, Flow gain, Extra Flow bars,
+  No clip (controller: left stick, RT up, LT down, click the stick for fast; keyboard: W A S D, Space, Ctrl, Shift), Movement style, Walk style
+- **Wingsuit:** Wingsuit boosts (the game gives one until you land: every 2 s or unlimited), Wingsuit boost power, Wingsuit top speed,
+  Wingsuit glide (floaty, level, climb: pull back to go up), Wingsuit from low down, Wingsuit now
+- **Flow and abilities:** All perks on, Effect on you (Berserker, Transfusion, Tough Mother and more), Unlimited Flow, Free skills, Flow gain, Extra Flow bars,
   Flow never drains, Rampage at full Flow, Takedown cooldown
 - **Emotes and voice:** D-pad emote 1 and D-pad emote 2 (swap the emotes on your D-pad, then use it as
-  usual), Play emote, Hidden emote (ones the game never lists), Repeat emote, Stop emote, Facial
+  usual), Play emote, Hidden emote (ones the game never lists), Repeat emote, Freeze emote, Stop emote, Facial
   expression, Your voice, Voice pitch, Say a line (the game's voice lines)
 - **Homies:** Summon homie, Call in Saints, Dismiss homies, Homie limit (up to 4)
 - **Your look:** Play as spawned person, Back to yourself, Saved look (a character you saved in the game:
-  body and outfit), Character preset, Customize character (anywhere), Prank yourself (bees, noodle arms,
+  body and outfit), Character preset, Hidden outfit (clothes the wardrobe doesn't list), Undo my look, Take a look snapshot, Customize character (anywhere), Prank yourself (bees, noodle arms,
   toilet, cactus and more)
+- **Body beyond limits:** muscle, fat, thin, chest, blend, head shape, eye, nose and mouth size past the sliders' ends, on screen only: your save keeps your real body. Back to my real body
 - **Money and progress:** Give XP, Give skill points, Add cash, Free shopping, Free ventures, Start
   mission (any, on a spare save), Insurance Fraud here
 - **Unlocks:** Unlock EVERYTHING (all of these at once), Unlock fast travel points, Own every weapon,
   Unlock all skills, Unlock all perks, Unlock gang and homies, Unlock all clothing, Unlock everything in
-  the stores, Unlock all collectibles (clothing, emotes, weapons, vehicles, HQ props). DLC and Boothill
+  the stores, Unlock all weapon skins, Unlock all collectibles (clothing, emotes, weapons, vehicles, HQ props). DLC and Boothill
   entries included; these stay in your save
 
 ### Weapons
 - **Gun tuning:** Fire rate (up to x8), Full auto (single-shot guns keep firing while you hold the
   trigger, mouse or RT), Damage (x2 to x10, or One-hit kill), Magazine (x2, x5, No reload: kept full,
   never reloads, launchers too), Reload speed (up to instant), No recoil, Perfect aim, Range, Knockback,
-  No warm-up, No overheat
+  Friendly fire (the game's shots do nothing to anyone friendly to you; Half or Full lets them hurt), Back shot damage, No warm-up, No overheat
 - **Special ammo:** Special ammo (fire, shock, chill, stun, bleed, disintegrate: the gun in your hands),
   Money gun
-- **Get weapons:** Give weapon (any of the game's), Special weapon (mission-only ones), Refill all ammo
-  (free), Max every weapon's upgrades, Remove this weapon
+- **Get weapons:** Give weapon (any of the game's), Special weapon (mission-only ones), Prototype weapon, Refill all ammo
+  (free), Max every weapon's upgrades, Signature ability (this gun), All signature abilities, Remove this weapon, Remove test guns (the dev guns Own every weapon adds)
 - Weapons back to normal
 
 ### Vehicles
@@ -89,27 +90,33 @@ in the menu.
 - **Toughness:** Vehicle god mode, No collision damage, Bulletproof tires, Keep vehicle repaired, Destroy
   this vehicle
 - **Abilities and combat:** Vehicle ability (jump, ball and chain, ejector seats, crab steering and more,
-  on any vehicle), Tow hook, Boost now, Jump this vehicle, Vehicle jump power, No ability cooldowns, Ram
+  on any vehicle), Tow hook, Boost now, Effect on this car (slippery, super grip, plow and more), Launch this vehicle, Jump this vehicle, Surf nearest car, Stop surfing, Vehicle jump power, No ability cooldowns, Ram
   power, Takedowns at any speed
 - **Look and camera:** Next paint, Brake lights stay on, Car camera resets after, Free camera in cars
 
 ### Teleport
-- Go to waypoint, Auto-teleport to waypoint, Store and Map place (what the map knows), Fast travel point
+- Go to waypoint, Auto-teleport to waypoint, Warp from map (the game's dev teleport on the big map), Store and Map place (what the map knows), Fast travel point
   (the game's 44)
 - **Saved places:** Save this spot, Go to, Delete that place
 - Go up (10 m to 3000 m), Where am I
 
 ### World
-- **Time and weather:** Weather (all: every weather the game has), Freeze clock, Clock speed, Pause world
+- **Time and weather:** Game speed (slow motion to x4), Weather (all: every weather the game has), Freeze clock, Clock speed, Go to time, Pause world
+- **Developer switches:** never die, Shawn mode, capture mode, auto sprint, infinite ammo and magazine and more, left in the game by its developers
 - **Spawn people:** Spawn person (any of the game's 834 characters), Special person (bosses, ghosts,
   skeletons, mascots, a coyote), Spawned people (passive, bodyguards or fight you), Spawn a crowd (ten
   around you), Spawn 10 random people, Remove spawned people
-- **Everyone near:** Everyone near (cheer, laugh, taunt and more), Make everyone near follow you, Everyone
+- **Everyone near:** Everyone near (cheer, laugh, taunt and more), Status on everyone near (flee, shock, panic, blind, chill and more), Make everyone near follow you, Everyone
   near dance, Make everyone near friendly or hostile, Disarm and Re-arm everyone near, Stun, Ragdoll,
   Float, Set on fire, Dissolve, Poison and Kill everyone near, Blow up cars near
-- **Notoriety and gangs:** Never wanted (by anyone, by police: no cops, or by gangs), Notoriety forgets
+- **Notoriety and gangs:** Never wanted (by anyone, by police: no cops, or by gangs), Enemy aim, Send in a gang, Stay in combat, Notoriety forgets
   fast, No reinforcements, No roadblocks, Can't lose them, Gangs and police without guns, Gang on your
   side, Saints are enemies
+- **Gang war:** Gang war (Panteros, Idols, Marshall and police fight each other), NPC fight damage, Pedestrians fight back, Everyone battle ready
+- **Physics and explosions:** World gravity, Explosion size, Explosion force, Explosion damage, Hurting yourself, Launch everyone near
+- **Population:** Pedestrians, Traffic, Traffic pop-in, Crowds in the rain
+- **Music:** Radio station (premium ones too), Music anywhere (on foot too), Play song (any song, three no station plays), Skip track, Pause or resume music, Now playing
+- **Props and HQ:** Spawn prop, Remove last prop, Remove all props, HQ spot, HQ prop (any prop, owned or not, on any spot in your headquarters, from anywhere), Clear this HQ spot
 - **Money and drops:** Drop cash, Drop weapon, Money rain
 - **Difficulty:** the custom difficulty sliders (player health, player damage, enemies, vehicles,
   notoriety, ammo reserve, timer speed)
@@ -118,7 +125,7 @@ in the menu.
 ### Visual
 - **Camera:** Field of view, Camera distance (first person to very far), Shoulder camera (centred, right,
   left), Turn speed (past the options' top), Camera shake, Looping camera shake, Camera bobbing, Photo
-  mode (the game's own free camera)
+  mode (the game's own free camera), Free camera (fly the camera while you stay put)
 - **Screen:** Brightness, Hide from view (sky, particles, shadows, far trees), Low health screen, Show
   only people, Letterbox, Hide HUD
 
@@ -134,7 +141,7 @@ The game's own phone cheats, all together.
 
 ### Settings
 - Save tweaks for next time
-- **Game:** Skip cutscene, Pause / resume cutscene, Quick save, Load last save, Tutorial popups
+- **Game:** Skip intro, Skip cutscene, Pause / resume cutscene, Quick save, Load last save, Tutorial popups
 - **Menu:** All tweaks (the master switch), Hold Back opens the menu, Keep my save clean, Menu opacity
 - What's on (every tweak and cheat that's on), Turn every cheat off, Everything back to normal, Forget
   saved tweaks, Close menu

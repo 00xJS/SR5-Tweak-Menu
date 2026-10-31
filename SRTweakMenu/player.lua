@@ -133,7 +133,8 @@ end
 -- the flags go back when it's off or you leave the vehicle.
 P.vgod = false
 local VH_MAX, VH_CUR, VH_FLAGS = 0x00, 0x78, 0x56
-local vgod_orig = {}   -- [health component] = original flags
+SR5TM_VGOD = SR5TM_VGOD or {}
+local vgod_orig = SR5TM_VGOD   -- [health component] = original flags
 function P.update_vehicle()
   local v = P.vgod and P.vehicle_object()
   local h = v and P.component(0x44, v)
@@ -339,10 +340,25 @@ end
 
 -- No clip: collision off (component message: +486CE0(entry, 0, 0x10, 0, &byte),
 -- as physics_enable_collision_node does), no gravity, the mode that takes the
--- requested velocity as it is (+0x4B2 = 1), and the extra velocity moved by
--- keys along where you face: W A S D, Space up, Ctrl down, Shift fast.
-local clip_on
-function P.update_clip()
+-- requested velocity as it is (+0x4B2 = 1), and the extra velocity moved along
+-- where the camera looks (the render camera's rows, +41E1AC0, laid out as an
+-- object's: the body turns to face its way, so its own rows would go sideways).
+-- W A S D or the left stick, Space or the right trigger up, Ctrl or the left trigger
+-- down (the triggers by how far they're pulled), Shift held or the left stick clicked
+-- fast. The triggers and the click don't reach the game meanwhile.
+local clip_on, clip_fast, clip_click
+local CLIP_PAD_FAST = 0x40
+local CAM_ROWS = 0x41E1AC0
+local function stick(v)
+  local dead = 7849
+  if not v or math.abs(v) < dead then return 0 end
+  return (v > 0 and 1 or -1) * (math.abs(v) - dead) / (32767 - dead)
+end
+local function trigger(v)
+  if not v or v <= 30 then return 0 end
+  return (v - 30) / 225
+end
+function P.update_clip(menu_open)
   local e = P.object()
   local c = e and P.component(0x10)
   if not c then return end
@@ -352,17 +368,25 @@ function P.update_clip()
     wml.call(wml.base + 0x486CE0, e, 0, 0x10, 0, buf)
     wml.write_u8(c + 0x4B2, P.no_clip and 1 or 0)
     clip_on = P.no_clip
+    clip_fast, clip_click = false, false
     P.update_gravity()
   end
+  if wml.pad_mask then wml.pad_mask(P.no_clip and CLIP_PAD_FAST or 0, P.no_clip) end
   if not P.no_clip then return end
   wml.write_f32(c + 0x2A8, 0)
-  local fx, fz, rx, rz = wml.read_f32(e + 0x20), wml.read_f32(e + 0x28), wml.read_f32(e + 0x00), wml.read_f32(e + 0x08)
-  local speed = wml.key_down("SHIFT") and 40 or 12
-  local f = (wml.key_down("W") and 1 or 0) - (wml.key_down("S") and 1 or 0)
-  local r = (wml.key_down("D") and 1 or 0) - (wml.key_down("A") and 1 or 0)
-  local u = (wml.key_down("SPACE") and 1 or 0) - (wml.key_down("CTRL") and 1 or 0)
+  local rows = wml.base + CAM_ROWS
+  local fx, fy, fz, rx, rz = wml.read_f32(rows + 0x20), wml.read_f32(rows + 0x24), wml.read_f32(rows + 0x28), wml.read_f32(rows), wml.read_f32(rows + 8)
+  local buttons, lt, rt, lx, ly = wml.pad()
+  if menu_open or not buttons then buttons = 0 end
+  local click = buttons & CLIP_PAD_FAST ~= 0
+  if click and not clip_click then clip_fast = not clip_fast end
+  clip_click = click
+  local speed = (wml.key_down("SHIFT") or clip_fast) and 40 or 12
+  local f = math.max(-1, math.min(1, (wml.key_down("W") and 1 or 0) - (wml.key_down("S") and 1 or 0) + stick(ly)))
+  local r = math.max(-1, math.min(1, (wml.key_down("D") and 1 or 0) - (wml.key_down("A") and 1 or 0) + stick(lx)))
+  local u = math.max(-1, math.min(1, (wml.key_down("SPACE") and 1 or 0) - (wml.key_down("CTRL") and 1 or 0) + trigger(rt) - trigger(lt)))
   wml.write_f32(c + 0x3A0, (fx * f + rx * r) * speed)
-  wml.write_f32(c + 0x3A4, u * speed)
+  wml.write_f32(c + 0x3A4, (fy * f + u) * speed)
   wml.write_f32(c + 0x3A8, (fz * f + rz * r) * speed)
 end
 function P.clip_active() return P.no_clip or clip_on end
@@ -510,18 +534,17 @@ local function set_side(a, b, d)
 end
 P.side_gang, P.saints_enemies = false, false
 local GANGS = { "idol", "panteros", "marshal", "police" }
-local side_was, enemies_was = false, false
 function P.update_sides()
-  if P.side_gang ~= side_was then
+  if P.side_gang ~= SR5TM_SIDE_WAS then
     for _, g in ipairs(GANGS) do
-      if side_was == g or side_was == "all" then set_side(g, "saints") end
+      if SR5TM_SIDE_WAS == g or SR5TM_SIDE_WAS == "all" then set_side(g, "saints") end
       if P.side_gang == g or P.side_gang == "all" then set_side(g, "saints", 5) end
     end
-    side_was = P.side_gang
+    SR5TM_SIDE_WAS = P.side_gang
   end
-  if P.saints_enemies ~= enemies_was then
+  if P.saints_enemies ~= SR5TM_ENEMIES_WAS then
     for _, f in ipairs({ "saints friendly", "saints_hq", "saints_hostile" }) do set_side(f, "saints", P.saints_enemies and 1 or nil) end
-    enemies_was = P.saints_enemies
+    SR5TM_ENEMIES_WAS = P.saints_enemies
   end
 end
 
@@ -645,7 +668,7 @@ local function comp_ref(ctype, entry)
   local pool = wml.read_u64(wml.base + 0x5CB3F70) + (h & 0xFF) * 0xD0
   return wml.read_u64(wml.read_u64(pool + 0x88) + ((h >> 8) & 0x1FFFF) * 8), wml.read_u32(entry + 0x58)
 end
-function P.effect_on(entry, name, secs)
+function P.effect_on(entry, name, secs, dir)
   local B = wml.base
   local cid, oid = comp_ref(0x7B, entry)
   if not cid then return false end
@@ -653,11 +676,12 @@ function P.effect_on(entry, name, secs)
   local buf = wml.buffer(0)
   for i = 0, 0x100, 8 do wml.write_u64(buf + i, 0) end
   wml.write_u64(buf, B + 0x29C71E8)
-  local vals = { { c = cid, o = oid }, { u = crc_of(name) }, { f = 1.0 }, { u = 0 }, { u = none }, { f = secs }, { u = me }, { u = me }, { u = 0 }, { f = 0.0 }, { u = none }, { u = none }, { u = 0 } }
+  local vals = { { c = cid, o = oid }, { u = crc_of(name) }, { f = 1.0 }, dir and { v = dir } or { u = 0 }, { u = none }, { f = secs }, { u = me }, { u = me }, { u = 0 }, { f = 0.0 }, { u = none }, { u = none }, { u = 0 } }
   for i, v in ipairs(vals) do
     local slot = buf + 0x400 + (i - 1) * 0x20
     wml.write_u64(buf + 0x18 + (i - 1) * 8, slot); wml.write_u64(slot, 0); wml.write_u64(slot + 8, 0)
     if v.c then wml.write_u64(slot, v.c); wml.write_u32(slot + 8, v.o)
+    elseif v.v then for j = 1, 3 do wml.write_f32(slot + (j - 1) * 4, v.v[j]) end
     elseif v.f then wml.write_f32(slot, v.f) else wml.write_u32(slot, v.u) end
   end
   wml.call(B + 0x76A6E0, buf)
@@ -871,9 +895,620 @@ end
 -- Disarm, kept up: everyone near every two seconds, as new people come along.
 P.no_guns = false
 function P.update_no_guns() P.near_arms(false, 60) end
-function P.float_near(radius) return each_near(radius, function(p) P.effect_on(p.entry, "lofted", 8) end) end
-function P.dissolve_near(radius) return each_near(radius, function(p) P.effect_on(p.entry, "disintegrate", 8) end) end
-function P.toxic_near(radius) return each_near(radius, function(p) P.effect_on(p.entry, "toxic_waste", 8) end) end
+-- lofted needs a direction: with none it goes "away from you" and they barely leave the
+-- ground (0.2 m); straight up they rose 14 m. disintegrate holds them, taking no damage,
+-- and they're gone the moment it ends: 2 s here. toxic_waste is looks only (its total
+-- damage input does nothing), so Poison adds a sixth of their health a second.
+function P.float_on(e) return P.effect_on(e, "lofted", 8, { 0, 1, 0 }) end
+function P.dissolve_on(e) return P.effect_on(e, "disintegrate", 2) end
+local poisoned = {}
+function P.poison_on(e)
+  P.effect_on(e, "toxic_waste", 8)
+  poisoned[#poisoned + 1] = { id = wml.read_u32(e + 0x58), ticks = 8 }
+  return true
+end
+function P.poison_active() return #poisoned > 0 end
+function P.update_poison()
+  local left = {}
+  for _, q in ipairs(poisoned) do
+    local e = P.entry_of(q.id)
+    local h = e and wml.read_u32(e + 0x58) == q.id and P.component(0x8D, e)
+    if h and wml.read_u8(h + 0x104) == 0 then
+      P.damage(e, wml.read_f32(h + MAX) / 6)
+      q.ticks = q.ticks - 1
+      if q.ticks > 0 then left[#left + 1] = q end
+    end
+  end
+  poisoned = left
+end
+-- Other status effects on everyone near, each with its own time; see P.effect_on.
+function P.near_effect(name, secs, radius)
+  return each_near(radius, function(p) P.effect_on(p.entry, name, secs) end)
+end
+-- Wingsuit now: the request the game makes when you press the key while falling,
+-- +15325A0(gail, &human_wing_suit, id, "CODE"). From the ground that leaves you stuck in
+-- the state, not moving, so you're put 40 m up first. The "falling" state can't be trusted to
+-- mean in the air: it stays on if asked for on the ground.
+local wing_wait
+function P.wing_pending() return wing_wait ~= nil end
+function P.wingsuit_now()
+  local e = P.object()
+  local gail = e and wml.call(wml.base + 0x1534D80, e)
+  if not gail or gail == 0 then return false end
+  local x, y, z = P.position()
+  P.teleport(x, y + 40, z)
+  wing_wait = 90
+  return true
+end
+function P.update_wing()
+  wing_wait = wing_wait - 1
+  local e = P.object()
+  local gail = e and wml.call(wml.base + 0x1534D80, e)
+  if not gail or gail == 0 or wing_wait <= 0 then wing_wait = nil; return end
+  -- once the teleport has landed you in the falling state
+  if wing_wait < 70 and wml.read_u32(gail + 0x324) == wml.read_u32(wml.base + 0x3C17678) then
+    wml.call(wml.base + 0x15325A0, gail, wml.base + 0x3C20F9C, e + 0x58, wml.base + 0x2999C7C)
+    wing_wait = nil
+  end
+end
+-- Send in a gang: notoriety_set_level_node (level, faction, 0), then
+-- notoriety_call_in_reinforcements_node (faction), which fails at level 0.
+function P.send_gang(hash, level)
+  P.node(0x7053A0, 0x29CBED8, { { u = level }, { u = hash }, { u = 0 } })
+  P.node(0x705DA0, 0x2988678, { { u = hash } })
+  return true
+end
+-- Surf: vehicle_surf_node (+7344A0), filled by hand: it keeps a listener on the block, so the
+-- block lives in a host buffer and +0x90 (the listener) keeps its old value, -1 at first.
+local SURF = { 0x299DC98, 0x7344A0 }
+function P.nearest_car(radius)
+  local px, py, pz = P.position()
+  local best, bd
+  for _, v in ipairs(objects_near(radius, 0x44)) do
+    if P.component(0x12, v.entry) then
+      local dx, dz = s32(wml.read_u32(v.entry + 0x30)) / 10000 - px, s32(wml.read_u32(v.entry + 0x38)) / 10000 - pz
+      local d = dx * dx + dz * dz
+      if not bd or d < bd then best, bd = v.entry, d end
+    end
+  end
+  return best
+end
+function P.surf_nearest()
+  local B, me = wml.base, P.object()
+  local car = me and P.nearest_car(15)
+  if not car then return false, "No vehicle within 15 m" end
+  if not P.component(0xC5, car) then return false, "That vehicle can't be surfed" end
+  local n = wml.buffer(12) + 0x800
+  local h = wml.read_u32(n + 0x90)
+  if wml.read_u64(n) ~= B + SURF[1] then h = 0xFFFFFFFF end
+  for i = 0, 0xC8, 8 do wml.write_u64(n + i, 0) end
+  wml.write_u64(n, B + SURF[1])
+  wml.write_u32(n + 0x90, h)
+  local vals = { wml.read_u32(me + 0x58), wml.read_u32(car + 0x58), 0, 1, 1, 1, 1, 1, 0, 0 }
+  for i, v in ipairs(vals) do
+    local c = n + 0x100 + (i - 1) * 8
+    wml.write_u64(c, 0); wml.write_u32(c, v)
+    wml.write_u64(n + 0x18 + (i - 1) * 8, c)
+  end
+  wml.call(B + SURF[2], n)
+  return true
+end
+-- Game speed: the frame step divides by this float (+2E80BC4, 1 is normal), so 4 is quarter
+-- speed and 0.25 is four times as fast. Nothing else writes it.
+P.game_speed = false
+function P.update_speed() wml.write_f32(wml.base + 0x2E80BC4, P.game_speed or 1.0) end
+-- Stay in combat: the combat state's own force byte.
+P.force_combat = false
+function P.update_force_combat() wml.write_u8(wml.base + 0x5BE37A4, P.force_combat and 1 or 0) end
+-- Go to a time: +76E490 says if time may move on now, +76E5E0(hour) goes to that hour of
+-- the clock (read live: not a number of hours to add, as the handler's name suggests).
+function P.go_to_hour(h)
+  if wml.call(wml.base + 0x76E490) & 0xFF == 0 then return false end
+  wml.callf(wml.base + 0x76E5E0, h + 0.0)
+  return true
+end
+-- Warp from map: the big map has a dev teleport behind gml_is_release_build(), ending in
+-- debug_teleport_player, a stub in C. Both are ordinary Lua globals, so they're replaced while this
+-- is on; the cursor's position comes back to us here, for the host side to teleport to, high up.
+P.warp_map = false
+local warp_on
+function P.update_warp()
+  if P.warp_map and not warp_on then
+    wml.game([[rawset(_G, "Sr5tm_release", rawget(_G, "Sr5tm_release") or gml_is_release_build)
+      gml_is_release_build = function() return false end
+      debug_teleport_player = function(x, z) rawset(_G, "Sr5tm_wx", x) rawset(_G, "Sr5tm_wz", z) end]])
+    warp_on = true
+  elseif not P.warp_map and warp_on then
+    wml.game([[if rawget(_G, "Sr5tm_release") then gml_is_release_build = rawget(_G, "Sr5tm_release") end]])
+    warp_on = false
+  end
+  if warp_on then
+    local ok, x, z = wml.game([[local x, z = rawget(_G, "Sr5tm_wx"), rawget(_G, "Sr5tm_wz") if x then rawset(_G, "Sr5tm_wx", nil) return x, z end]])
+    if ok and type(x) == "number" then P.teleport(x, 300, z) end
+  end
+end
+-- The console: 378 handlers survive with only their registration stripped. One goes in the
+-- empty table for one call of the game's parser, +E47A30, with the "ready" byte set, then it's all
+-- undone. Never call a handler directly: a bad argument longjmps through a stale buffer.
+function P.console(handler, line)
+  local B, b = wml.base, wml.buffer(14) + 0x800
+  if wml.read_u32(B + 0x4BA9930) ~= 3 then return nil end
+  local cmd, name, text = b, b + 0x40, b + 0x60
+  for i = 0, 0x20, 8 do wml.write_u64(cmd + i, 0) end
+  local function put(a, s)
+    for i = 1, #s do wml.write_u8(a + i - 1, s:byte(i)) end
+    wml.write_u8(a + #s, 0)
+  end
+  put(name, "tm")
+  put(text, "tm " .. (line or ""))
+  wml.write_u64(cmd, name)
+  wml.write_u64(cmd + 0x10, B + handler)
+  wml.write_u32(cmd + 0x20, 0)
+  wml.write_u8(cmd + 0x24, 1)
+  local n = wml.read_u32(B + 0x5BEB05C)
+  local slot = B + 0x4BA9E50 + n * 8
+  wml.write_u64(slot, cmd)
+  wml.write_u32(B + 0x5BEB05C, n + 1)
+  wml.write_u8(B + 0x5BEB094, 1)
+  local r = wml.call(B + 0xE47A30, text)
+  wml.write_u8(B + 0x5BEB094, 0)
+  wml.write_u32(B + 0x5BEB05C, n)
+  wml.write_u64(slot, 0)
+  return r & 0xFFFFFFFF
+end
+-- World tuning. Live config records and globals, each read when it's used, so a write takes at
+-- once: originals kept by address for the session. *(+5BE34A8) is damage_system_config: +0x98 AI vs AI
+-- damage, +0x60 back shot, +0x78 flinch cooldown, +0x7E your dodge's safe ms, +0x9C damage to yourself.
+-- *(+5BE7EC8) ambient config: +0x4C and +0x54 people and cars in bad weather. +2E7FB7C how far off
+-- traffic spawns (rewritten on a change of district, so kept up).
+local TUNES = {
+  fight_damage = { { ptr = 0x5BE34A8, off = 0x98 } }, back_stab = { { ptr = 0x5BE34A8, off = 0x60 } },
+  no_flinch = { { ptr = 0x5BE34A8, off = 0x78 } }, dodge_ms = { { ptr = 0x5BE34A8, off = 0x7E, u16 = true } },
+  own_blast = { { ptr = 0x5BE34A8, off = 0x9C } }, rain_crowd = { { ptr = 0x5BE7EC8, off = 0x4C }, { ptr = 0x5BE7EC8, off = 0x54 } },
+  traffic_far = { { addr = 0x2E7FB7C } },
+}
+SR5TM_ORIG = SR5TM_ORIG or {}
+local function tune_addr(t)
+  if t.addr then return wml.base + t.addr end
+  local base = wml.read_u64(wml.base + t.ptr)
+  return base ~= 0 and base + t.off or nil
+end
+function P.update_tunes()
+  for key, list in pairs(TUNES) do
+    for _, t in ipairs(list) do
+      local a = tune_addr(t)
+      if a then
+        local read = t.u16 and wml.read_u16 or wml.read_f32
+        local write = t.u16 and wml.write_u16 or wml.write_f32
+        if P[key] then
+          if SR5TM_ORIG[a] == nil then SR5TM_ORIG[a] = read(a) end
+          write(a, P[key])
+        elseif SR5TM_ORIG[a] ~= nil then
+          write(a, SR5TM_ORIG[a])
+          SR5TM_ORIG[a] = nil
+        end
+      end
+    end
+  end
+  -- World gravity: the physics world's own vector, *(+5CB4FF0) +0xA94 up. Never exactly 0: AI grenades skip then.
+  local world = wml.read_u64(wml.base + 0x5CB4FF0)
+  if world ~= 0 and (P.world_gravity or SR5TM_GRAVITY) then
+    local a = world + 0xA94
+    SR5TM_GRAVITY = SR5TM_GRAVITY or wml.read_f32(a)
+    wml.write_f32(a, SR5TM_GRAVITY * (P.world_gravity or 1))
+    if not P.world_gravity then SR5TM_GRAVITY = nil end
+  end
+  P.update_density()
+end
+-- Crowds and traffic: the district's active spawn limits, *(+314A9D0): group list +0x38, chosen by +314A9D8,
+-- 0x40 each: +0x04 people, +0x10 vehicles. Originals by address, since districts have their own record.
+P.peds, P.traffic = false, false
+SR5TM_DENSITY = SR5TM_DENSITY or {}
+function P.update_density()
+  local rec = wml.read_u64(wml.base + 0x314A9D0)
+  if rec == 0 then return end
+  local e = wml.read_u64(rec + 0x38) + wml.read_u32(wml.base + 0x314A9D8) * 0x40
+  for off, key in pairs({ [0x04] = "peds", [0x10] = "traffic" }) do
+    local a = e + off
+    if P[key] or SR5TM_DENSITY[a] then
+      SR5TM_DENSITY[a] = SR5TM_DENSITY[a] or wml.read_u32(a)
+      wml.write_u32(a, math.floor(SR5TM_DENSITY[a] * (P[key] or 1)))
+      if not P[key] then SR5TM_DENSITY[a] = nil end
+    end
+  end
+end
+function P.tunes_active()
+  for key in pairs(TUNES) do if P[key] then return true end end
+  return next(SR5TM_ORIG) ~= nil or P.world_gravity or SR5TM_GRAVITY or P.peds or P.traffic or next(SR5TM_DENSITY) ~= nil
+end
+-- Explosions: the host scales each one as it goes off.
+P.blast_size, P.blast_force, P.blast_damage = false, false, false
+function P.update_blast()
+  if wml.aoe_scale then return wml.aoe_scale(P.blast_size or 1, P.blast_force or 1, P.blast_damage or 1) end
+end
+-- Launches: physics_apply_impulse_node (object, impulse, cause), in kg m/s; for people
+-- physics_start_ragdoll_node (object, blend ms, impulse, 0, 1): 1500 sent one 124 m up, 500 is about 15.
+function P.launch_car(impulse)
+  local car = P.vehicle_object() or P.nearest_car(30)
+  if not car then return false end
+  P.node(0x192F2E0, 0x2AC6608, { { u = wml.read_u32(car + 0x58) }, { v = { 0, impulse, 0 } }, { u = wml.read_u32(P.object() + 0x58) } })
+  return true
+end
+function P.launch_near(radius)
+  return each_near(radius, function(p)
+    if P.component(2, p.entry) then
+      P.node(0x1932670, 0x2ACB760, { { u = id_of(p) }, { u = 200 }, { v = { 0, 500, 0 } }, { u = 0 }, { u = 1 } })
+    end
+  end)
+end
+-- Enemy aim: how far each kind of shot is meant to miss by, scaled on the game's own records.
+P.enemy_aim = false
+local aim_entries, aim_set
+local AIM_STATES = { "m_stationary", "m_crouching", "m_lateral_move", "m_dodging" }
+local AIM_FIELDS = { "m_min_horizontal_distance", "m_max_horizontal_distance", "m_max_height_distance", "m_max_depth_distance" }
+function P.update_enemy_aim()
+  if (P.enemy_aim or false) == (aim_set or false) then return end
+  if not aim_entries then
+    local fields = { { path = "m_minimum_miss_distance", what = "min" } }
+    for _, st in ipairs(AIM_STATES) do for _, f in ipairs(AIM_FIELDS) do fields[#fields + 1] = { path = st .. "." .. f, what = f } end end
+    aim_entries = require("vdata").collect("ai_reflected_miss_information", fields)
+  end
+  local V = require("vdata")
+  for _, e in ipairs(aim_entries) do V.write(e.addr, e.t, e.orig * (P.enemy_aim or 1)) end
+  aim_set = P.enemy_aim
+  return #aim_entries
+end
+-- Switches with no inputs, on a change: peds fight back, every AI in combat mode.
+P.combative_peds, P.ai_combat = false, false
+local switch_was = {}
+function P.update_switches()
+  local list = { { "combative_peds", 0xAE21A0, 0x29EB1F8, 0xAE21E0, 0x29DB5F0 }, { "ai_combat", 0xAE9C60, 0x29E8AB0, 0xAE9C80, 0x29EB238 } }
+  for _, s in ipairs(list) do
+    if (P[s[1]] or false) ~= (switch_was[s[1]] or false) then
+      if P[s[1]] then P.node(s[2], s[3], {}) else P.node(s[4], s[5], {}) end
+      switch_was[s[1]] = P[s[1]]
+    end
+  end
+end
+-- Gang war: a hostile override each way between the sides (+ADEC50, read live on every check, undone by
+-- +ADED00), plus a belief of the nearest enemy for those who haven't one (+ADE550): neutral people
+-- ignore shots at others, and how they spot each other by sight isn't known.
+P.gang_war = false
+SR5TM_WAR = SR5TM_WAR or {}
+local function war_side(a, b, on)
+  if on then
+    P.node(0xADEC50, 0x29E7320, { { u = a }, { u = b }, { u = 1 } })
+    P.node(0xADEC50, 0x29E7320, { { u = b }, { u = a }, { u = 1 } })
+  else
+    P.node(0xADED00, 0x29E2C00, { { u = a }, { u = b } })
+    P.node(0xADED00, 0x29E2C00, { { u = b }, { u = a } })
+  end
+end
+function P.war_active() return P.gang_war or SR5TM_WAR.pairs ~= nil end
+function P.update_war()
+  if P.gang_war ~= SR5TM_WAR.mode then
+    for _, s in ipairs(SR5TM_WAR.pairs or {}) do war_side(s[1], s[2], false) end
+    SR5TM_WAR.pairs, SR5TM_WAR.mode = P.gang_war or nil, P.gang_war
+    for _, s in ipairs(SR5TM_WAR.pairs or {}) do war_side(s[1], s[2], true) end
+  end
+  if not P.gang_war then return end
+  local enemies = {}
+  for _, s in ipairs(P.gang_war) do
+    enemies[s[1]] = enemies[s[1]] or {}; enemies[s[1]][s[2]] = true
+    enemies[s[2]] = enemies[s[2]] or {}; enemies[s[2]][s[1]] = true
+  end
+  local B, buf, all = wml.base, wml.buffer(13), {}
+  for _, p in ipairs(P.people_near(90)) do
+    local ai = wml.call(B + 0x48A760, p.entry)
+    if ai ~= 0 and wml.read_u8(p.health + 0x104) == 0 and wml.read_u32(ai + 0xF84) ~= 2 then
+      local fighter = wml.read_u32(ai + 0x1E68) & 2 ~= 0 or wml.read_u8(wml.call(B + 0x3207D0, ai) + 0x119) == 0
+      wml.call(B + 0x320030, ai, buf)
+      all[#all + 1] = { e = p.entry, ai = ai, f = wml.read_u32(buf), fighter = fighter, x = s32(wml.read_u32(p.entry + 0x30)), y = s32(wml.read_u32(p.entry + 0x34)), z = s32(wml.read_u32(p.entry + 0x38)) }
+    end
+  end
+  for _, a in ipairs(all) do
+    local want = a.fighter and enemies[a.f]
+    if want then
+      local best, bd
+      for _, t in ipairs(all) do
+        if want[t.f] then
+          local dx, dy, dz = (t.x - a.x) / 10000, (t.y - a.y) / 10000, (t.z - a.z) / 10000
+          local d = dx * dx + dy * dy + dz * dz
+          if not bd or d < bd then best, bd = t, d end
+        end
+      end
+      if best and wml.call(B + 0x2F9DA0, a.ai + 0x2B0, best.e + 0x58) & 0xFF == 0 then
+        P.node(0xADE550, 0x29EA3F8, { { u = wml.read_u32(a.e + 0x58) }, { u = wml.read_u32(best.e + 0x58) } })
+      end
+    end
+  end
+end
+-- Get up: the node co-op uses to bring back a downed player.
+function P.revive_me()
+  local e = P.object()
+  if not e then return false end
+  P.node(0xAEC2D0, 0x29DDE88, { { u = wml.read_u32(e + 0x58) } })
+  return true
+end
+-- Test guns: dev parents, vehicle mounts and skills' own guns. +988830(record, 0) disowns one
+-- silently; a slot holding one is emptied separately.
+local INTERNAL = { weapon_ability_quick_draw_pistol = 1, weapon_ability_death_blossom_smg = 1, weapon_sniper_ability_overwatch = 1,
+  larp_death_blossom_inventory = 1, larp_death_blossom_smg_inventory = 1, weapon_veh_frostlander_turret = 1 }
+function P.weapon_is_internal(name)
+  return INTERNAL[name] or name:find("^weapon_parent") or name:find("^weapon_vehicle_")
+end
+function P.disown_weapon(name)
+  local r = P.weapon_record(name)
+  if not r then return false end
+  if wml.call(wml.base + 0x988AA0, r) & 0xFF ~= 0 then wml.call(wml.base + 0x988830, r, 0) end
+  return true
+end
+function P.clear_internal_slots()
+  local _, active = wml.game("return player_local_inventory_get_active_slot()")
+  local n = 0
+  for s = 1, 12 do
+    local _, t = wml.game("return tostring(player_local_inventory_get_item_info(" .. s .. "))")
+    local name = type(t) == "string" and t:match('"(.-)"')
+    if name and P.weapon_is_internal(name) then
+      wml.game("weapon_clear_inventory_slot(" .. s .. ")")
+      n = n + 1
+      if s == active then wml.game("player_local_inventory_equip(0)") end
+    end
+  end
+  return n
+end
+-- Prototype weapons: no table names their prefabs, and weapon_inventory_set_slot_item_node refuses
+-- them for that reason. The console's give command doesn't look: a bare name, a 1-based slot, a loadout.
+function P.give_prefab_weapon(name, slot)
+  return P.console(0x989D90, name .. " " .. (slot + 1) .. " primary") == 0
+end
+-- Friendly fire: your shots do nothing to anyone friendly or allied to you (+3EDA50, a
+-- relation of 4 or 5): x0 while +5BE7E38 is 0, x0.5 at 1, full at anything else.
+P.friendly_fire = false
+function P.update_friendly_fire()
+  wml.write_u32(wml.base + 0x5BE7E38, P.friendly_fire or 0)
+end
+-- Undo my look: the game's own character capture and apply, as its prank and mission backups
+-- use, on a state in memory of our own: +4289E0 constructs it (needed), +1424500(cust, state)
+-- captures, +1422DF0(cust, state, body, outfit, 0x10) applies. Kept for the session.
+local function cust()
+  local o = P.object()
+  if not o then return nil end
+  local c = wml.call(wml.base + 0x496100, o)
+  return c ~= 0 and c or nil
+end
+function P.look_snapshot()
+  local B, c = wml.base, cust()
+  if not c or wml.read_u8(c + 0x34EE7) ~= 0 then return false end
+  if not SR5TM_LOOK_BUF then
+    local p = wml.call(wml.read_u64(B + 0x25832C0), 0, 0x10000, 0x3000, 4)   -- VirtualAlloc
+    if p == 0 then return false end
+    wml.call(B + 0x4289E0, p)
+    SR5TM_LOOK_BUF = p
+  end
+  wml.call(B + 0x1424500, c, SR5TM_LOOK_BUF)
+  SR5TM_LOOK_OK = true
+  return true
+end
+function P.look_first() if not SR5TM_LOOK_OK then return P.look_snapshot() end return true end
+function P.look_restore()
+  local c = cust()
+  if not c or not SR5TM_LOOK_OK then return false end
+  wml.call(wml.base + 0x1422DF0, c, SR5TM_LOOK_BUF, 1, 1, 0x10)
+  return true
+end
+-- Body past the sliders: a weight holds "customized" (+0xC, what's saved) and "current" (+0x10,
+-- what's drawn). +14227E0(cust, &crc, value, 0) writes current only, so the save never sees
+-- this. Nothing clamps. Kept up every 2 s: a load or respawn puts the saved values back.
+local BODY = { body_muscular = "muscular", body_large = "large", body_thin = "thin", body_gender = "gender", body_breasts = "breasts",
+  body_eyes = "eye size", body_nose = "nose size", body_mouth = "mouth size", body_head = "generic_feature_head" }
+local body_crc, body_on = {}, {}
+local function weight_of(c, crc_v)
+  for i = 0, wml.read_u32(c) - 1 do
+    local w = c + 8 + i * 0x20
+    if wml.read_u32(wml.read_u64(w) + 0x34) == crc_v then return w end
+  end
+end
+function P.update_body()
+  local c = cust()
+  if not c then return end
+  local b = wml.buffer(13)
+  for key, name in pairs(BODY) do
+    local v = P[key]
+    if v or body_on[key] then
+      body_crc[name] = body_crc[name] or crc_of(name)
+      local w = weight_of(c, body_crc[name])
+      if w then
+        local want = v or wml.read_f32(w + 0xC)
+        if math.abs(wml.read_f32(w + 0x10) - want) > 1e-3 then
+          wml.write_u32(b, body_crc[name])
+          wml.callf(wml.base + 0x14227E0, c, b, want + 0.0, 0)
+        end
+        body_on[key] = v and true or nil
+      end
+    end
+  end
+end
+function P.body_active()
+  if next(body_on) then return true end
+  for key in pairs(BODY) do if P[key] then return true end end
+  return false
+end
+function P.body_back()
+  for key in pairs(BODY) do if P[key] then P[key] = false; body_on[key] = true end end
+  P.update_body()
+end
+-- Radio: the station's entry from +381500(&hash); stopping its audio object (+FE0420)
+-- makes its own update pick the next track. The radio is the vehicle's (component 0x8F).
+function P.radio_skip()
+  local B = wml.base
+  local ok, played = wml.game("if playlist_is_playing() then playlist_skip_song() return true end return false")
+  if ok and played then return "Skipped" end
+  local o = wml.call(B + 0xB5F350, 0, 1, 0)
+  local c = o ~= 0 and wml.call(B + 0x5112C0, o) or 0
+  if c == 0 then return "Nothing playing" end
+  local st = wml.read_u32(c + 0xC)
+  local _, off = wml.game('return string_crc("off")')
+  if st == math.floor(off) & 0xFFFFFFFF then return "The radio's off" end
+  local b = wml.buffer(13)
+  wml.write_u32(b, st)
+  local entry = wml.call(B + 0x381500, b)
+  if entry == 0 then return "Nothing playing" end
+  wml.call(B + 0xFE0420, wml.read_u64(entry + 8))
+  return "Skipped"
+end
+-- Props. A prefab's id needs its full path and extension: a bare name has no resource, and spawning
+-- one crashes. +E8EA40 only records a name. The load is +E71120(name, 0x12, 0), once each for the
+-- .cprefab_pc and the .hprefab_pc, taking a reference; +E715E0 gives 2 loading, 3 finishing, 4 ready,
+-- 5 failed. Both 4, spawn; then +E71480(id, 0x12) drops our references (the object has its own).
+local PROP_DIRS = {
+  ["crib-placeable-electric-chicken_01a"] = "dlc_01", ["crib-placeable-fabulous-egg_01d"] = "dlc_01", ["prop_egg-golden_01a"] = "dlc_01",
+  ["crib-placeable-spooky-tree-haunted-hotel-evil_01b"] = "dlc_02", ["crib-placeable-giant-spider_01a"] = "dlc_02", ["crib-placeable-spooky-black-cauldron_01b"] = "dlc_02", ["crib-placeable-spooky-demonic-angel_01b"] = "dlc_02", ["crib-placeable-spooky-clown-painting_01b"] = "dlc_02",
+  ["crib-placeable-prop_xmas-tree_01"] = "dlc_03", ["crib-placeable-xmas-tree-pole_01a"] = "dlc_03", ["crib-placeable-dreidel_01a"] = "dlc_03", ["crib-placeable-hanukkah-candle_01a"] = "dlc_03", ["crib-placeable-kwanzaa-candle_01a"] = "dlc_03", ["crib-placeable-xmas-tree-twig_01a"] = "dlc_03",
+  ["crib-placeable-rabbit-statue_01a"] = "dlc_cny", ["crib-placeable-prop_shark-statue_01a"] = "dlc_dead",
+  ["crib-placeable-drone-marshall_01a"] = "dlc_exp_01_lucky", ["crib-placeable-prop_camera-movie_01a"] = "dlc_exp_01_lucky", ["crib-placeable-prop_statue_silver-siren_01a"] = "dlc_exp_01_lucky", ["crib-placeable-crown-reward_01a"] = "dlc_exp_01_lucky",
+  ["crib-placeable-dustfaire-paper-airplane_01a"] = "dlc_exp_02_dusty", ["crib-placeable-storm-giant-bones_01a"] = "dlc_exp_02_dusty", ["crib-placeable-saving-roll_01a"] = "dlc_exp_02_dusty", ["prop_lp02-paint-balloon_01a_spawnable"] = "dlc_exp_02_dusty", ["prop_speaker-large_01a_spawn"] = "dlc_exp_02_dusty",
+}
+local PROP_PATHS = {
+  boot_hill_act_doc_ketchum_stage = [[data\dlc_boothill\spawnables\gameplay\prefabs\activities\boot_hill\]],
+  heist_rodeo_stage_scene_01 = [[data\sr_city\spawnables\gameplay\prefabs\activities\heist\]],
+  laundromat_rodeo_ramp_01 = [[data\sr_city\spawnables\gameplay\prefabs\activities\laundromat\]],
+  roadblock_construction_ramp_01 = [[data\sr_city\spawnables\gameplay\prefabs\roadblocks\]],
+  roadblock_idols_ramp_01a = [[data\sr_city\spawnables\gameplay\prefabs\roadblocks\]],
+}
+local function prop_path(name)
+  if PROP_PATHS[name] then return PROP_PATHS[name] .. name end
+  local dir = PROP_DIRS[name] or (name:find("boot%-hill") and "dlc_boothill") or "sr_city"
+  return "data\\" .. dir .. "\\spawnables\\props\\prefabs\\" .. name
+end
+P.props = {}
+local prop_wait
+local prop_release = {}
+local PROP_GROUP = 0x12
+function P.prop_pending() return prop_wait ~= nil end
+function P.spawn_prop(name)
+  if prop_wait then return false end
+  local B, path = wml.base, prop_path(name)
+  local cid = wml.call(B + 0xE71120, wml.buffer(5, path .. ".cprefab_pc"), PROP_GROUP, 0)
+  local hid = wml.call(B + 0xE71120, wml.buffer(5, path .. ".hprefab_pc"), PROP_GROUP, 0)
+  if cid == 0 or hid == 0 then
+    if cid ~= 0 then wml.call(B + 0xE71480, cid, PROP_GROUP) end
+    if hid ~= 0 then wml.call(B + 0xE71480, hid, PROP_GROUP) end
+    return false
+  end
+  prop_wait = { path = path, cid = cid, hid = hid, ticks = 1800 }
+  return true
+end
+function P.update_prop()
+  local B, w = wml.base, prop_wait
+  local a, b = wml.call(B + 0xE715E0, w.cid) & 0xFFFFFFFF, wml.call(B + 0xE715E0, w.hid) & 0xFFFFFFFF
+  w.ticks = w.ticks - 1
+  local done
+  if a == 5 or b == 5 then done = "not found"
+  elseif a == 4 and b == 4 then
+    local e = P.object()
+    if e then
+      local obj = P.spawn_prefab(w.path .. ".cprefab_pc", 0, wml.read_f32(e + 0x20) * 6, wml.read_f32(e + 0x28) * 6)
+      done = obj and "spawned" or "refused"
+      if obj then P.props[#P.props + 1] = obj end
+    end
+  elseif w.ticks <= 0 then done = "still loading" end
+  if done then
+    -- Not yet: a spawn may still be populating on a worker thread. Dropped 10 s later.
+    prop_release[#prop_release + 1] = { cid = w.cid, hid = w.hid, ticks = 600 }
+    prop_wait = nil
+  end
+  return done
+end
+function P.update_prop_release()
+  local B, left = wml.base, {}
+  for _, r in ipairs(prop_release) do
+    r.ticks = r.ticks - 1
+    if r.ticks > 0 then left[#left + 1] = r
+    else
+      wml.call(B + 0xE71480, r.cid, PROP_GROUP)
+      wml.call(B + 0xE71480, r.hid, PROP_GROUP)
+    end
+  end
+  prop_release = left
+end
+function P.prop_release_pending() return #prop_release > 0 end
+function P.remove_prop(last)
+  local B, n = wml.base, 0
+  for i = #P.props, 1, -1 do
+    local e = wml.call(B + 0x1E69D0, P.props[i] + 0x70, 0)
+    if e ~= 0 then wml.call(B + 0x1E6920, e + 0x58); n = n + 1 end
+    table.remove(P.props, i)
+    if last then break end
+  end
+  return n
+end
+-- Off the car: its listener cancelled if it's still waiting, and the state you're
+-- normally in (660A9BAD, read live on foot).
+function P.surf_stop()
+  local B, e = wml.base, P.object()
+  local gail = e and wml.call(B + 0x1534D80, e)
+  if not gail or gail == 0 then return false end
+  local n = wml.buffer(12) + 0x800
+  local h = wml.read_u32(n + 0x90)
+  if wml.read_u64(n) == B + SURF[1] and h ~= 0xFFFFFFFF then wml.call(B + 0x15363C0, h); wml.write_u32(n + 0x90, 0xFFFFFFFF) end
+  local b = wml.buffer(13)
+  wml.write_u32(b, 0x660A9BAD)
+  wml.call(B + 0x15325A0, gail, b, e + 0x58, B + 0x2999C7C)
+  return true
+end
+-- Free camera: +1B42B40 sets the rendered camera from the gameplay camera's object, gated by byte
+-- +5CC7718. With it 0 we call what it ends in, +1505010(&pos, &rows), ourselves: pos 3 int32 at
+-- 1/10000 m. The rows still come from the camera object (id at the local player record's +0x1C),
+-- so turning the view works as usual. The left stick and keys stop reaching the game meanwhile.
+P.free_cam = false
+local fc
+local FC_GATE = 0x5CC7718
+function P.free_cam_active() return P.free_cam or fc ~= nil end
+function P.update_free_cam(menu_open)
+  local B = wml.base
+  local rec = wml.read_u64(B + 0x5BDF320)
+  local ce = rec ~= 0 and P.entry_of(wml.read_u32(rec + 0x1C))
+  if not P.free_cam or not ce then
+    if fc then
+      wml.write_u8(B + FC_GATE, 1)
+      fc = nil
+      if wml.pad_mask then wml.pad_mask(0) end
+      if wml.block_input and not menu_open then wml.block_input(false, false) end
+    end
+    return
+  end
+  if not fc then
+    fc = { s32(wml.read_u32(B + 0x41E1AB0)), s32(wml.read_u32(B + 0x41E1AB4)), s32(wml.read_u32(B + 0x41E1AB8)), wait = 0 }
+    wml.write_u8(B + FC_GATE, 0)
+  end
+  fc.wait = fc.wait - 1
+  if fc.wait <= 0 and not menu_open then
+    fc.wait = 30
+    if wml.pad_mask then wml.pad_mask(0, false, true) end
+    if wml.block_input then wml.block_input(true, false, "W", "A", "S", "D", "SPACE", "CTRL", "SHIFT") end
+  end
+  local buttons, lt, rt, lx, ly = wml.pad()
+  local function stick(v) if not v or math.abs(v) < 7849 then return 0 end return (v > 0 and 1 or -1) * (math.abs(v) - 7849) / 24918 end
+  local function pull(v) if not v or v <= 30 then return 0 end return (v - 30) / 225 end
+  local f, r, u = stick(ly), stick(lx), pull(rt) - pull(lt)
+  if not menu_open then
+    f = f + (wml.key_down("W") and 1 or 0) - (wml.key_down("S") and 1 or 0)
+    r = r + (wml.key_down("D") and 1 or 0) - (wml.key_down("A") and 1 or 0)
+    u = u + (wml.key_down("SPACE") and 1 or 0) - (wml.key_down("CTRL") and 1 or 0)
+  end
+  local step = ((wml.key_down("SHIFT") or (buttons and buttons & 0x40 ~= 0)) and 30 or 8) * 10000 / 60
+  fc[1] = fc[1] + (wml.read_f32(ce + 0x20) * f + wml.read_f32(ce) * r) * step
+  fc[2] = fc[2] + (wml.read_f32(ce + 0x24) * f + u) * step
+  fc[3] = fc[3] + (wml.read_f32(ce + 0x28) * f + wml.read_f32(ce + 8) * r) * step
+  local b = wml.buffer(12) + 0xC00
+  for i = 1, 3 do wml.write_u32(b + (i - 1) * 4, math.floor(fc[i]) & 0xFFFFFFFF) end
+  for i = 0, 0x2F, 4 do wml.write_u32(b + 0x10 + i, wml.read_u32(ce + i)) end
+  wml.call(B + 0x1505010, b, b + 0x10)
+end
+function P.float_near(radius) return each_near(radius, function(p) P.float_on(p.entry) end) end
+function P.dissolve_near(radius) return each_near(radius, function(p) P.dissolve_on(p.entry) end) end
+function P.toxic_near(radius) return each_near(radius, function(p) P.poison_on(p.entry) end) end
 function P.call_saints(n)
   local e = P.object()
   if not e then return false end
@@ -1462,6 +2097,7 @@ P.spawn_settle = spawn_settle
 -- start uses. The game then reports them as the local player. You go back the same way,
 -- and at once if that body disappears.
 local function become(id)
+  P.free_cam = false   -- with the camera taken over the game doesn't commit the switch
   local rec = wml.read_u64(wml.base + 0x5BDF320)
   local b = wml.buffer(13)
   wml.write_u32(b, id)
@@ -1516,6 +2152,7 @@ end
 -- +0x44 height, +0x48; +0x50 the layer id from +484F40(+4AA4328)+0x34),
 -- spawn (+4AE810). Returns the new object, or nil.
 function P.spawn_prefab(name, up, side, ahead)
+  if not name or not name:find("\\", 1, true) or not name:lower():find("%.cprefab") then return nil end   -- a bare name crashes
   local B = wml.base
   local player = P.object()
   if not player or not name then return nil end
