@@ -587,7 +587,22 @@ P.flow_gain, P.flow_bars, P.rampage, P.flow_no_decay = false, false, false, fals
 local PERKS = { flow_gain = "passive_mod_class_adrenaline_multiplier", flow_bars = "passive_mod_class_extra_adrenaline",
   rampage = "passive_mod_class_electrified", flow_no_decay = "passive_mod_class_adrenaline_no_decay" }
 local perk_set = {}
+-- Every perk's numbers at once, no slots: their classes and values from the game's table.
+-- (Not Flow Gambit or Blood and Guts: those cost you.)
+P.all_perks = false
+local ALL_PERKS = { { "passive_mod_class__smgs", 1 }, { "passive_mod_class_adrenaline_multiplier", 1.2 }, { "passive_mod_class_adrenaline_no_decay", 1 }, { "passive_mod_class_ammo_pickup_percentage", 0.5 }, { "passive_mod_class_ammo_pickup_scaler", 1.5 }, { "passive_mod_class_ammo_vaccuum", 1 }, { "passive_mod_class_cash_vaccuum", 1 }, { "passive_mod_class_chained_weakshot", 0.3 }, { "passive_mod_class_crouch_speed", 1 }, { "passive_mod_class_durable", 1.5 }, { "passive_mod_class_electrified", 0.35 }, { "passive_mod_class_faster_reload_after_crit_kill", 1 }, { "passive_mod_class_fine_aim_speed", 1 }, { "passive_mod_class_finisher_cooldown_on_headshot_kills", 0.5 }, { "passive_mod_class_finisher_cooldown_on_shove_kill", 0.5 }, { "passive_mod_class_finisher_health", 1 }, { "passive_mod_class_flanking", 1 }, { "passive_mod_class_health_regen_on_enemy_killed", 1 }, { "passive_mod_class_healthy", 1 }, { "passive_mod_class_hipfire_recoil_reduction", 1 }, { "passive_mod_class_hipfire_spread_scaler", 0.7 }, { "passive_mod_class_hipfire_spread_shotgun_scaler", 0.8 }, { "passive_mod_class_horror", 11 }, { "passive_mod_class_notoriety_scaler", -0.6 }, { "passive_mod_class_saints_melee_damage", 1 }, { "passive_mod_class_saints_weapon_damage", 1 }, { "passive_mod_class_saving_throw", 35 }, { "passive_mod_class_shove_damage", 15 }, { "passive_mod_class_skilled", 12 }, { "passive_mod_class_sprint_speed_low_health", 0.3 }, { "passive_mod_class_taser_on_enemy_melee_damage", 15 }, { "passive_mod_class_vehicle_boost_duration", 0.5 }, { "passive_mod_class_vehicle_boost_on_near_miss", 0.6 }, { "passive_mod_class_vehicle_health_on_vehicle_death", 0.5 }, { "passive_mod_class_vehicle_sideswipe_damage", 1 }, { "passive_mod_class_wingsuit_length", 0.5 }, { "passive_mod_class_wingsuit_lift", 0.5 }, { "passive_mod_class_xp_scaler", 0.15 } }
+local all_perks_set = false
+local perk_stats
 function P.update_perks()
+  -- a new stats object (a respawn or a reload) has none of what we added
+  local e = P.object()
+  local c = e and wml.call(wml.base + 0x4A17C0, e) or 0
+  local stats = c ~= 0 and wml.read_u64(c + 0x1050) or nil
+  if stats and stats ~= perk_stats then perk_stats, perk_set, all_perks_set = stats, {}, false end
+  if (P.all_perks or false) ~= all_perks_set then
+    for _, a in ipairs(ALL_PERKS) do perk(a[1], a[2], P.all_perks) end
+    all_perks_set = P.all_perks or false
+  end
   for key, class in pairs(PERKS) do
     local want = P[key] or false
     if want ~= (perk_set[key] or false) then
@@ -652,6 +667,7 @@ end
 P.no_call_ins, P.no_roadblocks, P.no_escape = false, false, false
 local NOTORIETY = { no_call_ins = { 0x705F00, 0x2991A30, 0x705F70, 0x29C9540 }, no_roadblocks = { 0x706130, 0x29958A0, 0x706160, 0x2993878 }, no_escape = { 0x7062F0, 0x29D1F08, 0x706310, 0x29CEB50 } }
 local notoriety_set = {}
+function P.notoriety_reset() notoriety_set = {} end
 function P.update_notoriety_nodes()
   for key, n in pairs(NOTORIETY) do
     local want = P[key] and true or false
@@ -710,6 +726,20 @@ function P.car_tow_hook()
   return true
 end
 
+-- Rows the game can quietly undo (a mission, a load, a respawn) and that are otherwise
+-- set only when changed: said again every few seconds while they're on, so a row that
+-- says On is on, with no need to switch it off and on.
+function P.reassert()
+  if P.flow then P.update_flow() end
+  if P.takedown then P.update_takedown() end
+  if P.walk_style then P.update_walk() end
+  if P.render_hide then P.update_render() end
+  if P.cam_delay then P.update_cam_delay() end
+  if P.forget_fast then P.update_forget() end
+  if P.free_skills then P.update_free_skills() end
+  if P.no_call_ins or P.no_roadblocks or P.no_escape then P.notoriety_reset() end
+end
+
 -- Mission characters (a minimum health) and the dead are left alone.
 local function each_near(radius, fn)
   local n = 0
@@ -738,7 +768,8 @@ function P.node(exec, vtable, inputs)
     wml.write_u64(buf + 0x18 + (i - 1) * 8, slot)
     wml.write_u64(slot, 0)
     wml.write_u64(slot + 8, 0)
-    if v.v then for j = 1, 3 do wml.write_f32(slot + (j - 1) * 4, v.v[j]) end
+    if v.p then wml.write_u64(slot, v.p)
+    elseif v.v then for j = 1, 3 do wml.write_f32(slot + (j - 1) * 4, v.v[j]) end
     elseif v.f then wml.write_f32(slot, v.f) else wml.write_u32(slot, v.u) end
   end
   return wml.call(wml.base + exec, buf)
@@ -759,6 +790,24 @@ function P.fire_near(radius)
 end
 function P.stun_near(radius)
   return each_near(radius, function(p) P.node(0xAE02E0, 0x29DB1B8, { { u = id_of(p) }, { u = 0 } }) end)
+end
+-- Bodyguards: spawned people carry a gang's goal set and walk off. Set the homie goal
+-- set (ai_set_goal_action_set +AE7BD0), the friendly faction and the order a homie gets
+-- (+AE5720: "assist player", you), and they stay with you. Either alone didn't do it.
+function P.make_follower(id)
+  local e = P.entry_of(id)
+  local me = P.object()
+  if not e or not me then return false end
+  local ai = wml.call(wml.base + 0x48A760, e)
+  if ai == 0 then return false end
+  P.node(0xAE7BD0, 0x29E8570, { { u = id }, { u = faction("homie") } })
+  P.node(0xADEB50, 0x29E6A58, { { u = id }, { u = faction("saints friendly") } })
+  P.node(0xAE5720, 0x29DD280, { { u = id }, { u = faction("assist player") }, { u = wml.read_u32(me + 0x58) } })
+  wml.write_u32(ai + 0x1E68, wml.read_u32(ai + 0x1E68) | 0xC000)
+  return true
+end
+function P.follow_near(radius)
+  return each_near(radius, function(p) P.make_follower(id_of(p)) end)
 end
 function P.make_hostile(id)
   P.node(0xADF210, 0x29D9488, { { u = id }, { u = faction("saints") }, { f = 3600 } })
@@ -792,6 +841,32 @@ function P.dance_near(radius)
       wml.call(B + 0x1532830, gail, b, b + 0x10, b + 0x30, b + 8, b + 4, b + 0x90)
     end
   end)
+end
+-- Movement style: animation_set_anim_group_node (object, pointer to the tag's text, force);
+-- animation_clear_anim_group_node (object). Weapons can set their own over it.
+P.move_style = false
+function P.update_move_style()
+  local e = P.object()
+  if not e then return end
+  local id = wml.read_u32(e + 0x58)
+  if P.move_style then
+    local s = wml.buffer(0) + 0xE00
+    cstr(s, P.move_style)
+    P.node(0x18EA2C0, 0x2ABE208, { { u = id }, { p = s }, { u = 1 } })
+  else
+    P.node(0x18EA440, 0x2ABCF20, { { u = id } })
+  end
+end
+-- Wingsuit from low down: the height it needs is copied once to +2E7FAE4, latched by the
+-- byte +5BE7498 (default 5 m). You still need to be falling and press the key.
+P.wingsuit_low = false
+function P.update_wingsuit_low()
+  local a = wml.base + 0x2E7FAE4
+  wml.write_u8(wml.base + 0x5BE7498, 1)
+  if P.wingsuit_low then
+    SR5TM_WING_H = SR5TM_WING_H or wml.read_f32(a)
+    wml.write_f32(a, 0.1)
+  elseif SR5TM_WING_H then wml.write_f32(a, SR5TM_WING_H) end
 end
 -- Disarm, kept up: everyone near every two seconds, as new people come along.
 P.no_guns = false
@@ -1014,6 +1089,18 @@ function P.update_recoil(force)
   elseif not P.no_recoil and recoil_orig[id] then
     for k, v in pairs(recoil_orig[id]) do set(k, v) end
     recoil_orig[id] = nil
+  elseif P.no_recoil then
+    -- already done for this id, but ids come back and a gun's values can be refilled
+    for section = 0, 1 do
+      local list, n = wml.read_u64(comp + section * 0x6A0 + 0x138), wml.read_u16(comp + section * 0x6A0 + 0x140)
+      if list ~= 0 and n <= 200 then
+        for i = 0, n - 1 do
+          local e = list + i * 24
+          local k = wml.read_u32(e)
+          if RECOIL[k] and wml.read_u32(e + 0x10) == 1 and wml.read_f32(e + 8) ~= 0 then set(k, 0) end
+        end
+      end
+    end
   end
   recoil_gun = id
 end
@@ -1127,7 +1214,8 @@ end
 -- (physics_set_gravity_factor_node). Each put back when turned off or when you change car.
 P.car_no_crash, P.car_heavy, P.car_gravity = false, false, 1
 local car_state = {}
-function P.car_active() return P.car_no_crash or P.car_heavy or P.car_gravity ~= 1 or next(car_state) ~= nil end
+P.car_brake_lights = false
+function P.car_active() return P.car_no_crash or P.car_heavy or P.car_brake_lights or P.car_gravity ~= 1 or next(car_state) ~= nil end
 function P.update_car_extras()
   local v = P.vehicle_object()
   local h, w = v and P.component(0x44, v), v and P.component(0x12, v)
@@ -1141,6 +1229,11 @@ function P.update_car_extras()
   if w and (P.car_heavy and true or false) ~= (st.heavy or false) then
     wml.call(wml.base + 0x5A4C40, v, 0, P.car_heavy and 0x0A or wml.read_u8(w + 0x2310))
     st.heavy = P.car_heavy and true or false
+  end
+  if (P.car_brake_lights or false) ~= (st.brake or false) then
+    local lc = P.component(0x4F, v)
+    if lc then wml.call(wml.base + 0x1BB22F0, lc, P.car_brake_lights and 1 or 0) end
+    st.brake = P.car_brake_lights or false
   end
   if P.car_gravity ~= (st.gravity or 1) then
     P.node(0x1931450, 0x2AC0B08, { { u = wml.read_u32(v + 0x58) }, { f = P.car_gravity } })
@@ -1297,9 +1390,13 @@ function P.update_refire(x)
   local c = held_gun()
   if not c then return end
   if x ~= 1 then
-    local o = SR5TM_REFIRE[c] or wml.read_u32(c + 0x7B8)
-    SR5TM_REFIRE[c] = o
-    -- -1 means the gun hasn't cached one (seen live): dividing it gave a delay of days.
+    -- -1 means the gun hasn't initialized its section yet: never keep that as the original
+    -- (dividing it gave a delay of days, and off wrote it back). Read again until it's real.
+    local o = SR5TM_REFIRE[c]
+    if not o or o >= 0x7FFFFFFF then
+      o = wml.read_u32(c + 0x7B8)
+      SR5TM_REFIRE[c] = o < 0x7FFFFFFF and o or nil
+    end
     -- No faster than 20 shots a second: the first floor, 16 ms, took the game down.
     if o < 0x7FFFFFFF then wml.write_u32(c + 0x7B8, math.max(50, math.floor(o / x))) end
     if P.refire_gate ~= false then wml.write_u8(c + 0x7C4, wml.read_u8(c + 0x7C4) | 0x20) end
@@ -1338,7 +1435,9 @@ function P.update_hostile()
   for _, h in ipairs(hostile_wait) do
     h.ticks = h.ticks - 1
     if h.ticks > 0 then left[#left + 1] = h
-    elseif P.entry_of(h.id) then P.make_hostile(h.id) end
+    elseif P.entry_of(h.id) then
+      if h.mode == "guard" then P.make_follower(h.id) else P.make_hostile(h.id) end
+    end
   end
   hostile_wait = left
 end
@@ -1351,7 +1450,7 @@ local function spawn_settle()
     local id = wml.read_u32(o + 0x70)
     if id ~= 0 and P.entry_of(id) then
       P.spawned[#P.spawned + 1] = id
-      if P.spawn_hostile then hostile_wait[#hostile_wait + 1] = { id = id, ticks = 3 } end
+      if P.spawn_hostile then hostile_wait[#hostile_wait + 1] = { id = id, ticks = 1, mode = P.spawn_hostile } end
     else left[#left + 1] = o end
   end
   spawn_pending = left
@@ -1362,7 +1461,6 @@ P.spawn_settle = spawn_settle
 -- +1B44BC0(record, &id, 1) sets who's next, +1B44800(record) commits: the path the world
 -- start uses. The game then reports them as the local player. You go back the same way,
 -- and at once if that body disappears.
-local my_id
 local function become(id)
   local rec = wml.read_u64(wml.base + 0x5BDF320)
   local b = wml.buffer(13)
@@ -1379,18 +1477,18 @@ function P.play_as_spawned()
     local t = P.entry_of(id)
     local h = t and t ~= e and P.component(0x8D, t)
     if h and wml.read_u8(h + 0x104) == 0 then
-      my_id = my_id or wml.read_u32(e + 0x58)
+      SR5TM_MY_ID = SR5TM_MY_ID or wml.read_u32(e + 0x58)
       become(id)
       return true
     end
   end
   return false
 end
-function P.playing_as() return my_id ~= nil end
+function P.playing_as() return SR5TM_MY_ID ~= nil end
 function P.back_to_self()
-  if not my_id or not P.entry_of(my_id) then my_id = nil; return false end
-  become(my_id)
-  my_id = nil
+  if not SR5TM_MY_ID or not P.entry_of(SR5TM_MY_ID) then SR5TM_MY_ID = nil; return false end
+  become(SR5TM_MY_ID)
+  SR5TM_MY_ID = nil
   return true
 end
 function P.check_body()

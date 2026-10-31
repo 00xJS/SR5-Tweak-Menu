@@ -87,6 +87,7 @@ local TABS = {
     { kind = "emote_slot", slot = "primary", label = "D-pad emote 1", help = "Left/Right picks the emote on your first D-pad emote; then use the D-pad as usual.", sel = 1, options = {}, apply = true },
     { kind = "emote_slot", slot = "secondary", label = "D-pad emote 2", help = "Left/Right picks the emote on your second D-pad emote; then use the D-pad as usual.", sel = 1, options = {}, apply = true },
     { kind = "emote", label = "Play emote", help = "Experimental: Left/Right picks one of the game's emotes, Enter plays it now.", sel = 1, options = {} },
+    gchoice("Hidden emote", "Experimental: Left/Right picks an emote the game never lists, Enter plays it.", { { "Walking Frankenstein", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "walking frankenstein")) return "Walking Frankenstein"]] }, { "Crab walk", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state crab walk")) return "Crab walk"]] }, { "Broom ride", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state broom ride side")) return "Broom ride"]] }, { "Spooky floating dance", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state spooky floating dance")) return "Spooky floating dance"]] }, { "Stoney scary", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state stoney scary")) return "Stoney scary"]] }, { "Skelly show", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state skelly show")) return "Skelly show"]] }, { "Pumpkin smash", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full action pumpkin smash")) return "Pumpkin smash"]] }, { "Pumpkin throw", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "partial state pumpkin throw")) return "Pumpkin throw"]] }, { "Roachburger dance", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full action roachburger dance")) return "Roachburger dance"]] }, { "Frost speech", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "emote frost speech 01")) return "Frost speech"]] }, { "Stretch", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full action stretch")) return "Stretch"]] }, { "Outfit inspect", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full action outfit inspect 1")) return "Outfit inspect"]] }, { "Phone use", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state phone use")) return "Phone use"]] }, { "Summoning", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state summoning")) return "Summoning"]] }, { "Detonate", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "partial action detonate")) return "Detonate"]] }, { "Phone call", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "partial action phone call")) return "Phone call"]] }, { "Injured phone", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "partial body injured phone")) return "Injured phone"]] }, { "Steam", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "partial state steam")) return "Steam"]] } }),
     { kind = "mset", key = "repeat_emote", label = "Repeat emote", help = "Plays the emote picked in Play emote again and again; Stop emote ends it.", options = { { "Off", false }, { "Every 3 s", 180 }, { "Every 6 s", 360 }, { "Every 12 s", 720 } }, sel = 1 },
     { kind = "emote_stop", label = "Stop emote", help = "Stops the emote you're playing (and Repeat emote)." },
     { kind = "gchoice", apply = true, label = "Facial expression", help = "Your face holds this expression until you pick Normal.", sel = 1, options = { { "Normal", "selfie_mode_facial_expression_clear() return 'Normal'" },
@@ -96,6 +97,8 @@ local TABS = {
       { "Sadness", "selfie_mode_facial_expression_play(vlib_info_object:get_object('gml_gail_mood_info', 'sadness')) return 'Sadness'" }, { "Surprise", "selfie_mode_facial_expression_play(vlib_info_object:get_object('gml_gail_mood_info', 'surprise')) return 'Surprise'" } } },
     { kind = "gchoice", apply = true, label = "Your voice", help = "The game's eight player voices (saved with your game; pick Say a line to hear it).", sel = 1, options = voices() },
     opt("Voice pitch", "Lower or higher than your voice (saved with your game).", "customization_get_avatar_voice_pitch()", "customization_set_avatar_voice_pitch(%s)", { { "-1", -1 }, { "-0.5", -0.5 }, { "0", 0 }, { "+0.5", 0.5 }, { "+1", 1 } }),
+    pset("move_style", "Movement style", "Experimental: walk and run as if holding this. Your gun can override it.", { { "Game's", false }, { "Fists ready", "fists ready" }, { "One-hand melee", "1h_melee_ready" }, { "Two-hand melee", "2h_melee_ready" }, { "Staff", "staff ready" }, { "Pistol", "pistol_ready" }, { "Rifle", "rifle_ready" }, { "Minigun", "minigun_ready" }, { "Dual wield", "dual_wield_ready" }, { "Riot shield", "riotshield_pistol_ready" } }),
+    pset("wingsuit_low", "Wingsuit from low down", "Experimental: the wingsuit opens from any height (you still need to be falling).", { { "Off", false }, { "On", true } }),
     pset("walk_style", "Walk style", "Experimental: replaces your walk, jog and sprint animations.", { { "Game's", false }, { "Forced walk", "default" }, { "Sad walk", "sad walk" } }),
     { kind = "voiceline", label = "Say a line", help = "Experimental: Left/Right picks one of the game's voice situations, Enter says it.", sel = 1, options = {} },
     gcall("Dismiss homies", "Sends away every homie who's following you.", [[
@@ -120,9 +123,10 @@ local TABS = {
     gchoice("Add cash", "Experimental: adds cash directly (it stays in your save).", award("cash", { { "$10,000", 10000 }, { "$100,000", 100000 }, { "$1,000,000", 1000000 } })),
     { kind = "play_as", back = false, label = "Play as spawned person", help = "Experimental: become the last person you spawned (World > Spawn person). Don't save while you're them." },
     { kind = "play_as", back = true, label = "Back to yourself", help = "Back to your own character. Remove spawned people does it too." },
-    { kind = "outfit", label = "Saved look", help = "Experimental: Left/Right picks a look you saved in the game, Enter wears its outfit.", sel = 1, options = {} },
-    { kind = "look_preset", label = "Character preset", help = "Experimental, press twice: replaces your whole character with the game's preset. Save a look first: there's no undo.", sel = 1, options = {} },
+    { kind = "outfit", label = "Saved look", help = "Experimental: Left/Right picks a character you saved in the game, Enter puts you back in it: body and outfit.", sel = 1, options = {} },
+    { kind = "look_preset", label = "Character preset", help = "Experimental, press twice: replaces your whole character with the game's preset. Only a look saved in the game brings you back (Saved look).", sel = 1, options = {} },
     gcall("Customize character", "Opens the game's character screen anywhere (through the phone). Esc back, Esc closes the phone.", [[gml_ui_gem_raise_event("ui_cell_phone_open", 1, "requested_screen", string_crci("cell_home_open_profile")) return "open: close this menu"]]),
+    pset("all_perks", "All perks on", "Experimental: every perk's effect at once, no slots (not the two that cost you).", { { "Off", false }, { "On", true } }),
     pset("flow", "Unlimited Flow", "Your ability meter stays full, as the game does in some missions.", { { "Off", false }, { "On", true } }),
     pset("free_skills", "Free skills", "Experimental: skills cost no Flow.", { { "Off", false }, { "On", true } }),
     pset("flow_gain", "Flow gain", "Experimental: how much faster your Flow fills.", { { "Game's", false }, { "+2", 2.0 }, { "+5", 5.0 }, { "+20", 20.0 } }),
@@ -135,6 +139,7 @@ local TABS = {
       { "Off", false }, { "Bees", 0xD1DEBF59 }, { "Cash", 0xF8960CDB }, { "Hearts", 0x9DC3DBAC }, { "On fire", 0xD2FD511D }, { "Radioactive", 0x2FC32EBC }, { "Snow", 0xC8AC4CD1 }, { "Stink", 0xA86F8869 },
       { "Noodle arms", 0xC150DD93 }, { "Upside down", 0x4B60380A }, { "Bow-legged", 0x462A02E2 }, { "Bounce", 0x0339330A }, { "Foam hat", 0xBEFF0993 },
       { "Toilet", 0x70E3C60A }, { "Vending machine", 0xCBD43B2C }, { "Mailbox", 0xDA4E96A4 }, { "Cactus", 0x473E4F01 }, { "Trash can", 0xBDEDFB4D }, { "Burning barrel", 0xEAB2B9D6 } } },
+    { kind = "mission", label = "Start mission", help = "Experimental, press twice, ON A SPARE SAVE: starts any mission or activity, in any order. It can wreck a save's story.", sel = 1, options = {} },
     gcall("Insurance Fraud here", "Experimental, press twice: starts the Insurance Fraud activity where you stand.", 'mission_request_start(vlib_info_object:get_object("mission_info", "insurance_fraud_anywhere")) return "Go"', true),
     pset("free_ventures", "Free ventures", "Experimental: Criminal Ventures cost nothing to build.", { { "Off", false }, { "On", true } }),
     { kind = "unlock", key = "everything", label = "Unlock EVERYTHING", help = "Press twice: every unlock row at once, DLC and all. Takes a minute or two (saved in your game)." },
@@ -156,6 +161,7 @@ local TABS = {
       { "Game's", 1 }, { "x2", 2 }, { "x5", 5 }, { "No reload", "no_reload" } }),
     pset("money_gun", "Money gun", "Experimental: every shot throws $50 out ahead of you (it stays in your save).", { { "Off", false }, { "On", true } }),
     gcall("Remove this weapon", "Press twice: takes the gun in your hands out of your inventory.", "weapon_clear_inventory_slot(player_local_inventory_get_active_slot()) return 'Removed'", true),
+    gchoice("Special weapon", "Experimental: Left/Right picks a mission-only weapon no store sells, Enter puts it in your inventory.", { { "Minigun", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_temporary_marshall_minigun") weapon_swap_to_inventory(w) return "Minigun"]] }, { "Riot shield", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_temporary_riot_shield") weapon_swap_to_inventory(w) return "Riot shield"]] }, { "DJ staff", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_temporary_djstaff") weapon_swap_to_inventory(w) return "DJ staff"]] }, { "Maul", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_temporary_panteros_maul") weapon_swap_to_inventory(w) return "Maul"]] }, { "Idols SMG", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_temporary_idols_smg") weapon_swap_to_inventory(w) return "Idols SMG"]] }, { "Heavy sword", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_2hand_heavy_sword_ct_icon") weapon_swap_to_inventory(w) return "Heavy sword"]] }, { "Toy hammer", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_2hand_toy_hammer_ct_icon") weapon_swap_to_inventory(w) return "Toy hammer"]] }, { "Nahualli knife", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_1hand_nahualli_knife") weapon_swap_to_inventory(w) return "Nahualli knife"]] }, { "Butterfly knife", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_1hand_nahualli_butterfly_knife") weapon_swap_to_inventory(w) return "Butterfly knife"]] }, { "Nahualli machete", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_nahualli_machete") weapon_swap_to_inventory(w) return "Nahualli machete"]] }, { "Dojo baton", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_1hand_dojo_baton") weapon_swap_to_inventory(w) return "Dojo baton"]] }, { "Dojo bat", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_2hand_dojo_bat") weapon_swap_to_inventory(w) return "Dojo bat"]] }, { "Dojo crutch", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_2hand_dojo_crutch") weapon_swap_to_inventory(w) return "Dojo crutch"]] }, { "Dojo sledgehammer", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_2hand_dojo_sledgehammer") weapon_swap_to_inventory(w) return "Dojo sledgehammer"]] }, { "Mime invisible pistol", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_pistol_wastelander_invisible") weapon_swap_to_inventory(w) return "Mime invisible pistol"]] }, { "NPC rocket launcher", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_launcher_rpg_npc") weapon_swap_to_inventory(w) return "NPC rocket launcher"]] }, { "Death Blossom", [[local w = vlib_info_object:get_object("inventory_weapon_info", "larp_death_blossom_inventory") weapon_swap_to_inventory(w) return "Death Blossom"]] }, { "Smokescreen", [[local w = vlib_info_object:get_object("inventory_weapon_info", "larp_smokescreen_inventory") weapon_swap_to_inventory(w) return "Smokescreen"]] }, { "Berserk", [[local w = vlib_info_object:get_object("inventory_weapon_info", "larp_berserk_inventory") weapon_swap_to_inventory(w) return "Berserk"]] }, { "Frost grenade", [[local w = vlib_info_object:get_object("inventory_weapon_info", "frostlander_grenade_inventory") weapon_swap_to_inventory(w) return "Frost grenade"]] }, { "Flashbang", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_grenade_flashbang") weapon_swap_to_inventory(w) return "Flashbang"]] }, { "Smoke grenade", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_grenade_smoke") weapon_swap_to_inventory(w) return "Smoke grenade"]] } }),
     { kind = "giveweapon", label = "Give weapon", help = "Experimental: Left/Right picks one of the game's weapons, Enter puts it in your inventory.", sel = 1, options = {} },
     { kind = "refill_ammo", label = "Refill all ammo", help = "Every weapon's magazine and reserve full, free (the game's infinite-ammo refill)." },
     toggle("infinite_ammo", "Infinite ammo", "Your reserve ammo never runs out (the game's cheat; your save stays clean)."),
@@ -199,6 +205,7 @@ local TABS = {
     { kind = "car_act", key = "boost", label = "Boost now", help = "Experimental: three seconds of boost (some vehicles refuse)." },
     { kind = "car_act", key = "jump", label = "Jump this vehicle", help = "Experimental: throws the vehicle you're in upward." },
     { kind = "car_act", key = "paint", label = "Next paint", help = "Experimental: each press changes the vehicle you're in to the next paint." },
+    { kind = "special_car", label = "Special vehicle", help = "Experimental: Left/Right picks a vehicle missing from the spawn list, Enter spawns it. Boats need water.", sel = 1, options = { { "Bus", "bus_01", "bus_01_ambient" }, { "Bus, roadblock", "bus_01", "bus_01_road_block" }, { "Tank", "tank_01", "tank_01_ambient" }, { "Police tank", "tank_01", "tank_01_police" }, { "Yacht", "boat_yacht_01", "boat_yacht_01_ambient" }, { "Sailboat", "boat_sail_01", "boat_sail_01_ambient" }, { "Jet ski", "jet_ski", "jet_ski_ambient" }, { "Fire truck", "fire_01", "fire_01_ambient" }, { "Hearse", "hearse_01", "hearse_01_ambient" }, { "ATV", "atv_01", "atv_01_ambient" }, { "Attack helicopter", "heli_fighter_01_nahualli", "heli_fighter_01_nahualli" }, { "VTOL", "vanguard_vtol_02", "vanguard_vtol_02_ambient" }, { "Armored muscle", "muscle_01_armored", "muscle_01_armored_panteros" }, { "Police car", "police_01", "police_01_police" }, { "SWAT car", "police_01", "police_01_swat" }, { "Marshall luxury", "luxury_04", "luxury_04_marshall" }, { "Hoverboard", "hoverboard_01", "hoverboard_01_ambient" } } },
     gcall("Deliver to garage", "Experimental, press twice: saves the vehicle you're in to your garage (saved in your game).", "return vehicle_save_vehicle_to_garage(enemy_get_occupied_vehicle(gml_get_local_player()))", true),
     { kind = "car_act", key = "remove", label = "Remove spawned vehicles", help = "Experimental: removes vehicles the menu spawned, except the one you're in." },
     pset("cam_delay", "Car camera resets after", "Experimental: how long the camera waits before swinging back behind the vehicle.", { { "Game's", false }, { "2 s", 2 }, { "10 s", 10 }, { "Never", 9999 } }),
@@ -211,6 +218,7 @@ local TABS = {
     pset("car_ability_cd", "No ability cooldowns", "Experimental: vehicle abilities are ready at once.", { { "Off", false }, { "On", true } }),
     pset("car_takedowns", "Takedowns at any speed", "Experimental: spinouts, T-bones and flips happen from 5 mph, not 40 to 50.", { { "Off", false }, { "On", true } }),
     pset("car_ram", "Ram power", "Experimental: how hard hitting things throws them.", { { "Game's", false }, { "x2", 2 }, { "x3", 3 }, { "x10", 10 } }),
+    pset("car_brake_lights", "Brake lights stay on", "Experimental: the vehicle you're in keeps its brake lights lit.", { { "Off", false }, { "On", true } }),
     pset("tires", "Bulletproof tires", "Experimental: the tires of the vehicle you're in can't be shot out.", { { "Off", false }, { "On", true } }),
     pset("spring", "Suspension", "Experimental: softer or stiffer springs on the vehicle you're in.", { { "Game's", 1 }, { "Bouncy", 0.25 }, { "Soft", 0.5 }, { "Stiff", 2 }, { "Rock hard", 4 } }),
     { kind = "destroy_car", label = "Destroy this vehicle", help = "Press twice. It blows up, and it can take you with it." },
@@ -247,7 +255,8 @@ local TABS = {
     { kind = "wdset", key = "clock_speed", label = "Clock speed", help = "How fast the time of day passes.", options = { { "Game's", 1 }, { "x0.5", 0.5 }, { "x2", 2 }, { "x5", 5 }, { "x10", 10 } }, sel = 1, save_key = "world.clock_speed" },
     { kind = "wdset", key = "pause", label = "Pause world", help = "Everything stops, you too (the game's own pause); the menu still works.", options = { { "Off", false }, { "On", true } }, sel = 1 },
     { kind = "person", label = "Spawn person", help = "Left/Right picks one of the game's characters, Enter spawns them beside you.", sel = 1, options = {} },
-    pset("spawn_hostile", "Spawned people", "Experimental. Fight you: people you spawn from now on turn on you. Passive: they just wander.", { { "Passive", false }, { "Fight you", true } }),
+    pset("spawn_hostile", "Spawned people", "Experimental. What people you spawn do from now on: wander off, stay with you as bodyguards, or fight you.", { { "Passive", false }, { "Bodyguards", "guard" }, { "Fight you", true } }),
+    { kind = "special_person", label = "Special person", help = "Left/Right picks a boss, ghost, skeleton, mascot or other hard-to-find character, Enter spawns them. Some may just stand there.", sel = 1, options = { { "Sergio, Panteros boss", 0xDCE51BE6 }, { "Atticus, Marshall boss", 0x034278F8 }, { "Atticus, formal", 0xAAA6FDA8 }, { "Gwen", 0x28A8EC7B }, { "Gwen, battle gear", 0x15908C61 }, { "Gwen, gala", 0xDC5AF17A }, { "Dust King", 0x1D515B0E }, { "Nahualli boss", 0x0C716465 }, { "Nahualli, prison", 0x7DA925AA }, { "Wally", 0x67B9A90C }, { "Frostlander Queen", 0xBC931455 }, { "Karl as Thegn", 0x5BCBA1B8 }, { "Myra Starr", 0x54F025E6 }, { "JimRob, Marshall", 0xD6942A10 }, { "Evil spirit", 0xB20AA33D }, { "Doc Ketchum", 0x6A6005F3 }, { "Genki", 0x7A86E560 }, { "Mr Big", 0x7755874D }, { "John Blande", 0x5237E8B8 }, { "Stab Lincoln", 0x1A53AAB9 }, { "Skeleton, red", 0x9DBA3030 }, { "Skeleton, blue", 0x14E5AF45 }, { "Skeleton, green", 0x077C1307 }, { "Shotdog", 0x54BEFCD2 }, { "Assassin, female", 0xA6B16C9D }, { "Assassin, male", 0x36EFBC36 }, { "Furloughed soldier", 0x8302786E }, { "Chicken", 0x14BECB08 }, { "Big chicken", 0x3D30397E }, { "Mime", 0x3AC8420F }, { "Grandma", 0x56B3FA95 }, { "Necromancer", 0x081D88E9 }, { "Thrall", 0x7FE1AE66 }, { "Panteros Gigante", 0x8046C9D3 }, { "Wrestler mascot", 0xC9EC39AC }, { "Thumper", 0xF20C6DB8 }, { "Idols enforcer, cop", 0x749A38DE }, { "Police tank crew", 0x53F6572A }, { "Ghost, businessman", 0x58421D8D }, { "Ghost, conductor", 0x6E8323A5 }, { "Ghost, girl", 0x7F26949D }, { "Ghost, prospector", 0xC05EF71E }, { "Ghost Saint", 0x9498E2CF }, { "Coyote", 0x7932AF07 }, { "Hotdog mascot", 0x9470E338 }, { "Hot sauce mascot", 0x02EC61BD }, { "Ketchup mascot", 0xEA958148 }, { "Bunny mascot", 0x2761093B }, { "Cat mascot", 0x795A97A1 }, { "Coyote mascot", 0x02A90DA4 }, { "Dog mascot", 0x32D42A32 }, { "Leopard mascot", 0xB6E229D9 }, { "Alien", 0x554C38BC }, { "Bodysuit", 0xB491B1CF }, { "Taco terror", 0x2109925B }, { "Furry Saint", 0x50F2C4B9 }, { "Hitman Saint", 0xFE75544E }, { "Nixon", 0x28CED4F9 }, { "Reagan", 0x1F2F0947 }, { "Mannequin", 0x19290B59 }, { "Hazmat", 0x109C2A4D }, { "GI", 0xBB62C8DB }, { "Scrubs", 0x0D7B17F6 }, { "Dancer", 0xFE77057A }, { "Sandy Kraken", 0x5FB8E1E8 } } },
     { kind = "crowd", label = "Spawn a crowd", help = "Ten of the character picked above, in a ring around you." },
     { kind = "random_people", label = "Spawn 10 random people", help = "Ten of the game's characters, picked at random, around you." },
     { kind = "despawn", label = "Remove spawned people", help = "Experimental: removes everyone the menu spawned." },
@@ -265,6 +274,7 @@ local TABS = {
     { kind = "crowd_act", key = "stun", label = "Stun everyone near", help = "Experimental: everyone within 40 m is stunned where they stand." },
     { kind = "crowd_act", key = "hostile", label = "Make everyone near hostile", help = "Experimental: everyone within 40 m turns on you for an hour." },
     { kind = "crowd_act", key = "friendly", label = "Make everyone near friendly", help = "Experimental: everyone within 40 m joins the Saints' side." },
+    { kind = "crowd_act", key = "follow", label = "Make everyone near follow you", help = "Experimental: everyone within 40 m joins your side and stays with you." },
     { kind = "crowd_act", key = "dance", label = "Everyone near dance", help = "Experimental: everyone within 40 m starts dancing." },
     pset("no_guns", "Gangs and police without guns", "Experimental: everyone near you keeps being disarmed, new arrivals too.", { { "Off", false }, { "On", true } }),
     pset("side_gang", "Gang on your side", "Experimental: this gang counts as your ally. Use Never wanted too, as notoriety still sends them after you.", { { "None", false }, { "Idols", "idol" }, { "Panteros", "panteros" }, { "Marshal", "marshal" }, { "Police", "police" }, { "All", "all" } }),
@@ -326,7 +336,8 @@ local TABS = {
     { kind = "active", label = "What's on", help = "Lists every tweak and cheat that's on right now." },
     { kind = "all_off", label = "Turn every cheat off", help = "Switches off every toggle cheat that's on." },
     { kind = "normal", label = "Everything back to normal", help = "Every menu tweak back to the game's (press twice). Cheats and game options stay." },
-    { kind = "forget", label = "Forget saved tweaks", help = "Settings are kept for next time as you change them; this starts fresh." },
+    { kind = "save_now", label = "Save tweaks for next time", help = "Your tweaks stay as you set them until you quit; this keeps them for the next start." },
+    { kind = "forget", label = "Forget saved tweaks", help = "Clears what Save keeps; this starts fresh." },
     { kind = "close", label = "Close menu", help = "F5, or hold RB and press D-pad Down, opens it again." },
   } },
 }
@@ -338,12 +349,119 @@ local TABS = {
 local APPLY_ON_PICK = { ["Weather"] = true, ["Time of day"] = true, ["Screen filter"] = true, ["Shoulder camera"] = true, ["Letterbox"] = true, ["Low health screen"] = true, ["Show only people"] = true }
 for _, t in ipairs(TABS) do for _, r in ipairs(t.rows) do if APPLY_ON_PICK[r.label] then r.apply = true end end end
 
+-- The rows grouped: each tab is a list of pages, then rows of its own. "Cheats" holds
+-- the game's own phone cheats. A row not named here stays at the end of its tab.
+local LAYOUT = {
+  { "Player", {
+    { "Health and survival", "God mode, health, and what can't hurt you.", { "God mode", "Health", "Refill health", "Health regen", "No fall damage", "No ragdoll", "Bulletproof", "Explosion-proof", "Crash-proof", "Kill yourself" } },
+    { "Movement", "How you run, jump and fall.", { "Run speed", "Jump height", "Air control", "Swim speed", "Your gravity", "No clip", "Movement style", "Walk style" } },
+    { "Wingsuit", "Boosts, power, speed and glide.", { "Wingsuit boosts", "Wingsuit boost power", "Wingsuit top speed", "Wingsuit glide", "Wingsuit from low down" } },
+    { "Flow and abilities", "Your ability meter, skills and takedowns.", { "All perks on", "Unlimited Flow", "Free skills", "Flow gain", "Extra Flow bars", "Flow never drains", "Rampage at full Flow", "Takedown cooldown" } },
+    { "Emotes and voice", "Emotes, expressions and how you sound.", { "D-pad emote 1", "D-pad emote 2", "Play emote", "Hidden emote", "Repeat emote", "Stop emote", "Facial expression", "Your voice", "Voice pitch", "Say a line" } },
+    { "Homies", "Who's with you.", { "Summon homie", "Call in Saints", "Dismiss homies", "Homie limit" } },
+    { "Your look", "Who you are and what you're wearing.", { "Play as spawned person", "Back to yourself", "Saved look", "Character preset", "Customize character", "Prank yourself" } },
+    { "Money and progress", "XP, skill points, cash and prices.", { "Give XP", "Give skill points", "Add cash", "Free shopping", "Free ventures", "Start mission", "Insurance Fraud here" } },
+    { "Unlocks", "Skills, perks, weapons, clothing and more. These stay in your save.", { "Unlock EVERYTHING", "Unlock fast travel points", "Own every weapon", "Unlock all skills", "Unlock all perks", "Unlock gang and homies", "Unlock all clothing", "Unlock everything in the stores", "Unlock all collectibles" } },
+  } },
+  { "Weapons", {
+    { "Gun tuning", "Fire rate, damage, recoil and the rest of how guns behave.", { "Fire rate", "Full auto", "Damage", "Magazine", "Reload speed", "No recoil", "Perfect aim", "Range", "Knockback", "No warm-up", "No overheat" } },
+    { "Special ammo", "What your shots do.", { "Special ammo", "Money gun" } },
+    { "Get weapons", "Give, fill, upgrade or remove.", { "Give weapon", "Special weapon", "Refill all ammo", "Max every weapon's upgrades", "Remove this weapon" } },
+    "Weapons back to normal",
+  } },
+  { "Vehicles", {
+    { "Spawning", "Getting vehicles and getting rid of them.", { "Spawn vehicle", "Special vehicle", "Remove spawned vehicles", "Deliver to garage" } },
+    { "Handling", "Power, grip and how it sits on the road.", { "Engine power", "Grip", "Steering", "Vehicle top speed", "Suspension", "Vehicle gravity", "Heavy vehicle" } },
+    { "Toughness", "Keeping it in one piece, or not.", { "Vehicle god mode", "No collision damage", "Bulletproof tires", "Keep vehicle repaired", "Destroy this vehicle" } },
+    { "Abilities and combat", "Vehicle abilities, rams and takedowns.", { "Vehicle ability", "Tow hook", "Boost now", "Jump this vehicle", "Vehicle jump power", "No ability cooldowns", "Ram power", "Takedowns at any speed" } },
+    { "Look and camera", "Paint, lights and the driving camera.", { "Next paint", "Brake lights stay on", "Car camera resets after", "Free camera in cars" } },
+  } },
+  { "Teleport", {
+    "Go to waypoint", "Auto-teleport to waypoint", "Store", "Map place", "Fast travel point",
+    { "Saved places", "Your own spots.", { "Save this spot", "Go to", "Delete that place" } },
+    "Go up", "Where am I",
+  } },
+  { "World", {
+    { "Time and weather", "The clock, the sky and pausing.", { "Weather (all)", "Freeze clock", "Clock speed", "Pause world" } },
+    { "Spawn people", "Who to spawn, and what they do.", { "Spawn person", "Special person", "Spawned people", "Spawn a crowd", "Spawn 10 random people", "Remove spawned people" } },
+    { "Everyone near", "Everyone within 40 m.", { "Everyone near", "Make everyone near follow you", "Everyone near dance", "Make everyone near friendly", "Make everyone near hostile", "Disarm everyone near", "Re-arm everyone near", "Stun everyone near", "Ragdoll everyone near", "Float everyone near", "Set everyone near on fire", "Dissolve everyone near", "Poison everyone near", "Kill everyone near", "Blow up cars near" } },
+    { "Notoriety and gangs", "Who's after you, and whose side they're on.", { "Never wanted", "Notoriety forgets fast", "No reinforcements", "No roadblocks", "Can't lose them", "Gangs and police without guns", "Gang on your side", "Saints are enemies" } },
+    { "Money and drops", "Cash and weapons on the ground.", { "Drop cash", "Drop weapon", "Money rain" } },
+    { "Difficulty", "The pause menu's custom sliders.", { "Difficulty: player health", "Difficulty: player damage", "Difficulty: enemies", "Difficulty: vehicles", "Difficulty: notoriety", "Difficulty: ammo reserve", "Difficulty: timer speed" } },
+    "Empty streets", "Show activities on the map",
+  } },
+  { "Visual", {
+    { "Camera", "Where the camera sits and how it moves.", { "Field of view", "Camera distance", "Shoulder camera", "Turn speed", "Camera shake", "Looping camera shake", "Camera bobbing", "Photo mode" } },
+    { "Screen", "What's drawn.", { "Brightness", "Hide from view", "Low health screen", "Show only people", "Letterbox", "Hide HUD" } },
+  } },
+  { "Cheats", {
+    { "Player", "The game's own phone cheats.", { "Invincibility (game's)", "Give cash", "Max level", "Super Saints", "Milk Bones", "Pratfall", "Heaven Bound" } },
+    { "Weapons", "The game's own phone cheats.", { "Infinite ammo", "Golden gun" } },
+    { "Vehicles", "The game's own phone cheats.", { "Repair vehicle", "Drop a car", "Infinite boost", "Infinite mass", "No traffic laws" } },
+    { "Traffic", "The game's own phone cheats: what's on the roads.", { "Monster truck traffic", "Luxury traffic", "Mascots" } },
+    { "World", "The game's own phone cheats.", { "Weather", "Time of day", "Screen filter", "Low gravity", "Angry pedestrians" } },
+    { "Notoriety", "The game's own phone cheats: raise, clear or max.", { "Police", "Idols", "Marshal", "Los Panteros" } },
+  } },
+  { "Settings", {
+    "Save tweaks for next time",
+    { "Game", "Cutscenes, saving and tutorials.", { "Skip cutscene", "Pause / resume cutscene", "Quick save", "Load last save", "Tutorial popups" } },
+    { "Menu", "How the menu looks and opens.", { "All tweaks", "Hold Back opens the menu", "Keep my save clean", "Menu opacity" } },
+    "What's on", "Turn every cheat off", "Everything back to normal", "Forget saved tweaks", "Close menu",
+  } },
+}
+do
+  local by_label, home = {}, {}
+  for _, t in ipairs(TABS) do
+    for _, r in ipairs(t.rows) do by_label[r.label] = r; home[r] = t.name end
+  end
+  local used, built = {}, {}
+  local function take(label)
+    local r = by_label[label]
+    if r and not used[r] then used[r] = true; return r end
+    return nil
+  end
+  for _, spec in ipairs(LAYOUT) do
+    local rows = {}
+    for _, item in ipairs(spec[2]) do
+      if type(item) == "string" then
+        local r = take(item)
+        if r then rows[#rows + 1] = r end
+      else
+        local page = { kind = "page", label = item[1], help = item[2], rows = {} }
+        for _, label in ipairs(item[3]) do
+          local r = take(label)
+          if r then page.rows[#page.rows + 1] = r end
+        end
+        if #page.rows > 0 then rows[#rows + 1] = page end
+      end
+    end
+    built[#built + 1] = { name = spec[1], rows = rows }
+  end
+  for _, t in ipairs(TABS) do
+    for _, r in ipairs(t.rows) do
+      if not used[r] then
+        wml.log("menu: row not in a page: " .. tostring(r.label))
+        for _, b in ipairs(built) do if b.name == home[r] then b.rows[#b.rows + 1] = r end end
+      end
+    end
+  end
+  TABS = built
+end
+
 -- Settings kept from last time (tweaks.lua).
 local function all_rows()
   local rows = {}
-  for _, t in ipairs(TABS) do for _, r in ipairs(t.rows) do rows[#rows + 1] = r end end
+  for _, t in ipairs(TABS) do
+    for _, r in ipairs(t.rows) do
+      if r.kind == "page" then for _, c in ipairs(r.rows) do rows[#rows + 1] = c end
+      else rows[#rows + 1] = r end
+    end
+  end
   return rows
 end
+-- What's on screen: the page you're in, or the tab.
+local function view() return M.page or TABS[M.tab] end
+local function view_cursor() if M.page then return M.page.cursor or 1 end return M.cursor[M.tab] or 1 end
 -- Puts a row's value where its module reads it.
 local function set_value(r, v)
   if r.kind == "wset" then W.set[r.key] = v elseif r.kind == "pset" then P[r.key] = v
@@ -366,18 +484,41 @@ local function apply_saved()
       set_value(row, row.options[i][2])
     end
   end
-  if T.saved.clean then M.clean = T.saved.clean == "on" end
-  if T.saved.opacity then U.opacity = tonumber(T.saved.opacity) or U.opacity end
+  local kept = SR5TM_SESSION or T.saved
+  if kept.clean then M.clean = kept.clean == "on" end
+  if kept.opacity then U.opacity = tonumber(kept.opacity) or U.opacity end
+  M.unsaved = SR5TM_UNSAVED
 end
-function M.save_tweaks()
+-- Changing a tweak keeps it for this session (and through a reload of these files); only
+-- Save writes the file. The menu used to reread the launch copy on a reload, which undid
+-- whatever had been set since.
+local function saveable()
   local rows = all_rows()
   rows[#rows + 1] = { save_key = "clean", options = { { M.clean and "on" or "off" } }, sel = 1 }
   rows[#rows + 1] = { save_key = "opacity", options = { { tostring(U.opacity) } }, sel = 1 }
   -- with All tweaks off, the tweaks put aside are what's kept
   local function swap() for r, sel in pairs(M.stash or {}) do r.sel, M.stash[r] = sel, r.sel end end
+  return rows, swap
+end
+function M.save_tweaks()
+  local rows, swap = saveable()
   swap()
-  T.save(rows)
+  local kept = {}
+  for _, row in ipairs(rows) do
+    if row.options and row.save_key and row.options[row.sel] then kept[row.save_key] = row.options[row.sel][1] end
+  end
   swap()
+  local differs = false
+  for k, v in pairs(kept) do if T.saved[k] ~= v then differs = true end end
+  SR5TM_SESSION, SR5TM_UNSAVED, M.unsaved = kept, differs, differs
+end
+function M.save_now()
+  local rows, swap = saveable()
+  swap()
+  local ok = T.save(rows)
+  swap()
+  if ok then T.load(); SR5TM_UNSAVED, M.unsaved = false, false end
+  return ok
 end
 
 -- All tweaks off: every menu tweak to the game's, the choices put aside;
@@ -403,10 +544,16 @@ apply_saved()
 
 -- Rows only for cheats this game has; options likewise.
 local function prune()
+  local lists = {}
   for _, tab in ipairs(TABS) do
+    lists[#lists + 1] = tab
+    for _, row in ipairs(tab.rows) do if row.kind == "page" then lists[#lists + 1] = row end end
+  end
+  for _, tab in ipairs(lists) do
     local kept = {}
     for _, row in ipairs(tab.rows) do
-      if row.cheat then
+      if row.kind == "page" then kept[#kept + 1] = row
+      elseif row.cheat then
         if C.by_name[row.cheat] then kept[#kept + 1] = row end
       elseif row.options and (row.kind == "choice" or row.kind == "filter") then   -- options that are cheats
         local opts = {}
@@ -678,7 +825,7 @@ local function step_unlock()
 end
 
 local CROWD = { ragdoll = { "ragdoll_near", "ragdolled" }, kill = { "kill_near", "killed" }, fire = { "fire_near", "set on fire" },
-  stun = { "stun_near", "stunned" }, float = { "float_near", "floating" }, dissolve = { "dissolve_near", "dissolving" }, toxic = { "toxic_near", "poisoned" }, dance = { "dance_near", "dancing" }, hostile = { "hostile_near", "turned on you" }, friendly = { "friendly_near", "on your side" } }
+  stun = { "stun_near", "stunned" }, follow = { "follow_near", "following you" }, float = { "float_near", "floating" }, dissolve = { "dissolve_near", "dissolving" }, toxic = { "toxic_near", "poisoned" }, dance = { "dance_near", "dancing" }, hostile = { "hostile_near", "turned on you" }, friendly = { "friendly_near", "on your side" } }
 local function select_row(row)
   if M.stash then M.stash[row] = nil end   -- changed while All tweaks is off: keep the new choice
   if row.kind == "toggle" or row.kind == "action" then
@@ -769,7 +916,7 @@ local function select_row(row)
     if not o then say("No saved looks", "warn") else
       local ok, err = wml.game([[local n, c = 0, gml_get_local_player():get_component_by_type("gml_component_character_customization")
         for _, p in vlib_info_data_object:ipairs("char_cust_player_saved_preset_data") do n = n + 1
-          if n == ]] .. o[2] .. [[ then gml_customization_apply_player_preset(c, p, false, true) return end end]])
+          if n == ]] .. o[2] .. [[ then gml_customization_apply_player_preset(c, p, true, true) return end end]])
       say(ok and ("Wearing " .. o[1]) or tostring(err), ok and "status" or "warn")
     end
   elseif row.kind == "look_preset" then
@@ -780,6 +927,36 @@ local function select_row(row)
       M.pending_confirm = nil
       local ok, err = wml.game([[gml_customization_apply_preset(gml_get_local_player():get_component_by_type("gml_component_character_customization"), vlib_info_object:get_object("char_cust_preset", ]] .. string.format("%q", o[2]) .. [[))]])
       say(ok and ("Now " .. o[1]) or tostring(err), ok and "status" or "warn")
+    end
+  elseif row.kind == "special_person" then
+    local o = row.options[row.sel]
+    say(P.spawn_npc(o[2], 2, 4) and (o[1] .. " spawned") or "Couldn't spawn them right now", "status")
+  elseif row.kind == "special_car" then
+    local o = row.options[row.sel]
+    if not C.by_name.drop_car then say("Load into the game first", "warn") else
+      -- one drop: the first garage entry points at this vehicle only for this call
+      local e = wml.read_u64(wml.base + 0x2F371F0)
+      local a, b = wml.read_u32(e + 0x10), wml.read_u32(e + 0x14)
+      local _, x = wml.game("return string_crc(" .. string.format("%q", o[2]) .. ")")
+      local _, y = wml.game("return string_crc(" .. string.format("%q", o[3]) .. ")")
+      wml.write_u32(e + 0x10, math.floor(x) & 0xFFFFFFFF)
+      wml.write_u32(e + 0x14, math.floor(y) & 0xFFFFFFFF)
+      wml.write_u32(wml.base + 0x3110E08, 0)
+      C.allow_spicy(); M.spicy_hold = 120
+      P.watch_spawned_car()
+      local ok = C.activate("drop_car")
+      wml.write_u32(e + 0x10, a)
+      wml.write_u32(e + 0x14, b)
+      say(ok and (o[1] .. " on its way") or "The game refused", ok and "status" or "warn")
+    end
+  elseif row.kind == "mission" then
+    local o = row.options[row.sel]
+    if not o then say("No missions listed", "warn")
+    elseif M.pending_confirm ~= row then M.pending_confirm = row; say(o[1] .. ": press again. Use a spare save.", "warn")
+    else
+      M.pending_confirm = nil
+      local ok, err = wml.game("mission_request_start(vlib_info_object:get_object('mission_info', " .. string.format("%q", o[2]) .. "))")
+      say(ok and ("Starting " .. o[1]) or tostring(err), ok and "status" or "warn")
     end
   elseif row.kind == "call_saints" then
     local o = row.options[row.sel]
@@ -861,7 +1038,7 @@ local function select_row(row)
     local x, y, z = P.position()
     say(x and string.format("You're at %.1f, %.1f, %.1f", x, y, z) or "No player right now")
   elseif row.kind == "weapons_reset" then
-    for _, t in ipairs(TABS) do for _, r in ipairs(t.rows) do if r.kind == "wset" then r.sel = 1; W.set[r.key] = r.options[1][2] end end end
+    for _, r in ipairs(all_rows()) do if r.kind == "wset" then r.sel = 1; W.set[r.key] = r.options[1][2] end end
     W.restore()
     M.gun_dirty = true
     M.save_tweaks()
@@ -974,8 +1151,15 @@ local function select_row(row)
       M.save_tweaks()
       say("Everything back to the game's own")
     end
+  elseif row.kind == "page" then
+    M.page = row
+    row.cursor = row.cursor or 1
+    M.pending_confirm = nil
+  elseif row.kind == "save_now" then
+    say(M.save_now() and "Saved: your tweaks will be back next start" or "Couldn't write the file", "status")
   elseif row.kind == "forget" then
     T.forget()
+    SR5TM_SESSION, SR5TM_UNSAVED, M.unsaved = nil, false, false
     say("Saved tweaks forgotten: next start is the game's own")
   elseif row.kind == "all_off" then
     local n = 0
@@ -1019,10 +1203,14 @@ local function row_value(row)
     return "Enter to load", "off"
   elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" or row.kind == "crowd_act" or row.kind == "arms" or row.kind == "destroy_car" or row.kind == "kill_self" or row.kind == "car_act" or row.kind == "play_as" then
     return "Enter", "off"
+  elseif row.kind == "page" then
+    return #row.rows .. "  >", "off"
+  elseif row.kind == "save_now" then
+    return M.unsaved and "Not saved" or "Saved", M.unsaved and "on" or "off"
   elseif row.kind == "mset" then
     local o = row.options[row.sel]
     return "<  " .. o[1] .. "  >", row.sel == 1 and "off" or "on"
-  elseif row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" or row.kind == "giveweapon" or row.kind == "voiceline" or row.kind == "gchoice" or row.kind == "weathernode" or row.kind == "cash_drop" or row.kind == "weapon_drop" or row.kind == "reaction" or row.kind == "map_place" or row.kind == "outfit" or row.kind == "look_preset" or row.kind == "call_saints" or row.kind == "prank" or row.kind == "car_ability" then
+  elseif row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" or row.kind == "giveweapon" or row.kind == "voiceline" or row.kind == "gchoice" or row.kind == "weathernode" or row.kind == "cash_drop" or row.kind == "weapon_drop" or row.kind == "reaction" or row.kind == "map_place" or row.kind == "outfit" or row.kind == "look_preset" or row.kind == "call_saints" or row.kind == "prank" or row.kind == "car_ability" or row.kind == "special_person" or row.kind == "special_car" or row.kind == "mission" then
     local o = row.options[row.sel]
     return o and ("<  " .. o[1] .. "  >") or "none", o and "row" or "off"
   elseif row.kind == "gcall" then
@@ -1038,13 +1226,13 @@ local function row_value(row)
 end
 
 local function render()
-  local tab = TABS[M.tab]
-  local cur = M.cursor[M.tab] or 1
+  local tab = view()
+  local cur = view_cursor()
   local lines = {}
   lines[1] = { label = "SR5 Tweak Menu", value = "Cash " .. C.money(M.cash), colour = "title", value_colour = "off" }
   local names = {}
   for i, t in ipairs(TABS) do names[#names + 1] = (i == M.tab) and t.name:upper() or t.name end
-  lines[2] = { label = table.concat(names, "   "), colour = "tabs" }
+  lines[2] = { label = M.page and (TABS[M.tab].name .. "  >  " .. M.page.label .. "     (Backspace goes back)") or table.concat(names, "   "), colour = "tabs" }
   local first = math.max(1, math.min(cur - math.floor(ROWS / 2), #tab.rows - ROWS + 1))
   for i = 0, ROWS - 1 do
     local row = tab.rows[first + i]
@@ -1060,6 +1248,7 @@ local function render()
   lines[ROWS + 3] = { label = help[1] or "", colour = "help" }
   lines[ROWS + 4] = { label = help[2] or "", colour = "help" }
   if M.status_frames > 0 then lines[ROWS + 5] = { label = M.status, colour = M.status_kind }
+  elseif M.unsaved then lines[ROWS + 5] = { label = "Tweaks changed: Settings > Save tweaks keeps them for next start", colour = "off" }
   else lines[ROWS + 5] = { label = M.clean and "* spicy: your save stays clean (Settings)" or "* spicy: these mark your save", colour = "off" } end
   U.show(lines)
   -- fit again every 10 frames: the game's measure can lag behind new text
@@ -1160,15 +1349,16 @@ function M.adjust_hud(row, delta)
 end
 
 local function move(delta)
-  local tab = TABS[M.tab]
+  local tab = view()
   local n = #tab.rows
   if n == 0 then return end
-  M.cursor[M.tab] = ((M.cursor[M.tab] or 1) - 1 + delta) % n + 1
+  local c = (view_cursor() - 1 + delta) % n + 1
+  if M.page then M.page.cursor = c else M.cursor[M.tab] = c end
   M.pending_confirm = nil
 end
-local function change_tab(delta) M.tab = (M.tab - 1 + delta) % #TABS + 1 end
+local function change_tab(delta) M.page = nil; M.tab = (M.tab - 1 + delta) % #TABS + 1 end
 local function adjust(delta)
-  local row = TABS[M.tab].rows[M.cursor[M.tab] or 1]
+  local row = view().rows[view_cursor()]
   if row and M.stash then M.stash[row] = nil end
   if row and row.kind == "voiceline" and not row.loaded then load_voice_lines(row) end
   if row and row.kind == "mset" then M.adjust_mset(row, delta)
@@ -1252,7 +1442,7 @@ local function ensure_ready()
       -- the weathers themselves, not the overlays (critters, blowing trash) or transitions
       for _, w in ipairs(names_of("gml_weather_state_node_settings")) do
         local name = w:match('"(.*)"') or w
-        if not (name:find("critters") or name:find("trash") or name:find("transition") or name:find("cinematic")) then
+        do
           r.options[#r.options + 1] = { pretty((name:gsub("^wsn_", ""))), name }
         end
       end
@@ -1274,10 +1464,17 @@ local function ensure_ready()
   end
   -- the game's fast travel points (city_warp_point), once
   for _, r in ipairs(all_rows()) do
+    if r.kind == "mission" and #r.options == 0 then
+      for _, w in ipairs(names_of("mission_info")) do
+        local name = w:match('"(.*)"') or w
+        r.options[#r.options + 1] = { pretty(name), name }
+      end
+      table.sort(r.options, function(a, b) return a[1] < b[1] end)
+    end
     if r.kind == "outfit" then
       r.options = {}
       local res = table.pack(wml.game([[local o, n = {}, 0 for _, p in vlib_info_data_object:ipairs("char_cust_player_saved_preset_data") do n = n + 1 o[n] = p.title:get_string() if n == 20 then break end end return unpack(o)]]))
-      if res[1] then for j = 2, res.n do r.options[#r.options + 1] = { tostring(res[j]), j - 1 } end end
+      if res[1] then for j = 2, res.n do r.options[#r.options + 1] = { (tostring(res[j]):gsub("^%[raw%]", "")), j - 1 } end end
       if r.sel > #r.options then r.sel = 1 end
     elseif r.kind == "look_preset" and #r.options == 0 then
       for _, w in ipairs(names_of("char_cust_preset")) do
@@ -1389,8 +1586,10 @@ function M.update()
   local auto = P.full_auto and true or false
   if W.set.full_auto ~= auto then W.set.full_auto = auto; M.gun_dirty = true; if C.loaded then W.apply() end end
   -- weapon tweaks on the gun in hand (each new copy, or a changed setting)
-  if C.loaded and frame % 5 == 1 and W.gun_active() then W.update_gun(M.gun_dirty); M.gun_dirty = false end
-  if C.loaded and frame % 5 == 4 and P.recoil_active() then P.update_recoil(P.no_recoil ~= M.recoil_was) M.recoil_was = P.no_recoil end
+  -- every half second, not only for a new gun: the game can fill a gun's values in after
+  -- our first write, and the row would still say On (seen live: x8 and No reload not there)
+  if C.loaded and frame % 5 == 1 and W.gun_active() then W.update_gun(M.gun_dirty or frame % 30 == 1); M.gun_dirty = false end
+  if C.loaded and frame % 5 == 4 and P.recoil_active() then P.update_recoil(P.no_recoil ~= M.recoil_was or (P.no_recoil and frame % 60 == 4)) M.recoil_was = P.no_recoil end
   if C.loaded and frame % 60 == 35 and P.fall_active() then P.update_fall() end
   if C.loaded and frame % 60 == 45 and P.homies_active() then P.update_homies() end
   -- God mode: back up within 2.5 s of a knockdown (you don't get up by yourself with it on)
@@ -1400,6 +1599,9 @@ function M.update()
   if C.loaded then P.update_refire(W.set.fire_rate); P.update_car_watch() end
   if C.loaded and P.money_gun then P.update_money_gun() end
   if C.loaded and frame % 60 == 31 then P.update_sides() end
+  if C.loaded and P.move_style ~= (M.move_style_was or false) then P.update_move_style(); M.move_style_was = P.move_style end
+  if C.loaded and P.wingsuit_low ~= (M.wing_low_was or false) then P.update_wingsuit_low(); M.wing_low_was = P.wingsuit_low end
+  if C.loaded and frame % 300 == 57 then P.reassert() end
   if C.loaded and frame % 60 == 37 then P.update_perks(); P.update_notoriety_nodes(); P.update_ventures() end
   if C.loaded and P.flow ~= (M.flow_was or false) then P.update_flow(); M.flow_was = P.flow end
   if C.loaded and P.takedown ~= (M.takedown_was or false) then P.update_takedown(); M.takedown_was = P.takedown end
@@ -1436,7 +1638,7 @@ function M.update()
   end
   -- special ammo: on a change, the gun in your hands; then any new gun
   if C.loaded and frame % 5 == 2 and (P.ammo or M.ammo_was) then
-    P.update_ammo(P.ammo ~= M.ammo_was)
+    P.update_ammo(P.ammo ~= M.ammo_was or (P.ammo and frame % 120 == 2))
     M.ammo_was = P.ammo
   end
   if M.unlock and C.loaded and frame % 6 == 0 then step_unlock() end
@@ -1543,10 +1745,12 @@ function M.update()
   if wml.key_pressed("PAGEUP") or (pressed & PAD.LB ~= 0) then change_tab(-1) end
   if wml.key_pressed("PAGEDOWN") or (rb_released and not rb_used) then change_tab(1) end
   if wml.key_pressed("ENTER") or (pressed & PAD.A ~= 0) then
-    local row = TABS[M.tab].rows[M.cursor[M.tab] or 1]
+    local row = view().rows[view_cursor()]
     if row then select_row(row) end
   end
-  if wml.key_pressed("BACKSPACE") or (pressed & PAD.B ~= 0) then M.open = false end
+  if wml.key_pressed("BACKSPACE") or (pressed & PAD.B ~= 0) then
+    if M.page then M.page = nil else M.open = false end
+  end
 
   if frame % 30 == 0 then C.refresh(); M.cash = C.cash() end
   if M.cash_check then
