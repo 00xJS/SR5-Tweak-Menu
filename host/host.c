@@ -438,6 +438,7 @@ static DWORD WINAPI my_game_xget(DWORD user, xstate_t *st)
 }
 
 // auto_fire(on [, ms]): pulse the fire button while it's held (ms per half-pulse).
+static void rearm_crash_logger(void);
 static int l_auto_fire(lua_State *s)
 {
     g_autofire = lua_toboolean(s, 1);
@@ -603,7 +604,12 @@ static void start_lua(void)
 static void on_frame(void)
 {
     if (g_lua_failed) return;
-    if (!L) { hlog("first frame (thread %lu): starting Lua", GetCurrentThreadId()); start_lua(); if (g_lua_failed) return; }
+    if (!L) {
+        hlog("first frame (thread %lu): starting Lua", GetCurrentThreadId());
+        rearm_crash_logger();
+        start_lua();
+        if (g_lua_failed) return;
+    }
     poll_keys();
     lua_getfield(L, LUA_REGISTRYINDEX, "wml_frames");
     lua_Integer n = (lua_Integer)lua_rawlen(L, -1);
@@ -765,6 +771,33 @@ static LONG CALLBACK crash_logger(EXCEPTION_POINTERS *e)
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
+// The game registers its own handler (+E3BFC0, which ends in TerminateProcess) after we
+// load, and the last one registered at the front runs first, so ours has to go back in
+// front of it once the game is up. Its way out is logged too.
+static PVOID g_crash_handle;
+static void rearm_crash_logger(void)
+{
+    if (g_crash_handle) RemoveVectoredExceptionHandler(g_crash_handle);
+    g_crash_handle = AddVectoredExceptionHandler(1, crash_logger);
+}
+typedef BOOL (WINAPI *terminate_t)(HANDLE, UINT);
+static terminate_t g_terminate;
+static BOOL WINAPI my_terminate(HANDLE h, UINT code)
+{
+    if (h == GetCurrentProcess()) {
+        void *frames[16];
+        USHORT n = RtlCaptureStackBackTrace(0, 16, frames, NULL);
+        char line[1200] = "", one[160];
+        for (USHORT i = 0; i < n; i++) {
+            where(frames[i], one, sizeof one);
+            strcat_s(line, sizeof line, " ");
+            strcat_s(line, sizeof line, one);
+        }
+        hlog("TerminateProcess(self, %u), thread %lu, stack:%s", code, GetCurrentThreadId(), line);
+    }
+    return g_terminate(h, code);
+}
+
 // ------------------------------------------------------------------ entry
 BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID unused)
 {
@@ -814,7 +847,9 @@ BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID unused)
         return TRUE;
     }
     g_main_thread = GetCurrentThreadId();
-    AddVectoredExceptionHandler(1, crash_logger);
+    rearm_crash_logger();
+    g_terminate = (terminate_t)hook_import("KERNEL32.dll", "TerminateProcess", (void *)my_terminate);
+    if (!g_terminate) g_terminate = TerminateProcess;
     install_hooks();
     install_input_hooks();
     return TRUE;
