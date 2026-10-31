@@ -80,7 +80,7 @@ in the menu.
   never reloads, launchers too), Reload speed (up to instant), No recoil, Perfect aim, Range, Melee lunge (none by default), Rocket speed, Hide my gun, More satchels, Rare ammo drops, Aim anywhere, Knockback,
   Friendly fire (the game's shots do nothing to anyone friendly to you; Half or Full lets them hurt), Back shot damage, Blast radius, No warm-up, No overheat
 - **Special ammo:** Special ammo (fire, shock, chill, stun, bleed, disintegrate, flee, panic, blind and more: the gun in your hands),
-  Rocket rounds, Explosive punches, Money gun
+  Special rounds (any gun fires the thruster football, RPG, boomerang poi, pinata, anvil, tank shell and 25 more), Round blast (any of 47), Rounds stick, Rounds arc, Signature effects on any gun, Explosive punches (any blast), Money gun
 - **Get weapons:** Give weapon (any of the game's), Special weapon (mission-only ones), Prototype weapon, Refill all ammo
   (free), Max every weapon's upgrades, Put that gun in slot, Weapon skin, Random gun colours, Signature ability (this gun), All signature abilities, Remove this weapon, Remove test guns (the dev guns Own every weapon adds)
 - Weapons back to normal
@@ -88,11 +88,14 @@ in the menu.
 ### Vehicles
 - **Spawning:** Spawn vehicle (any of the game's 90 ready-to-drive vehicles, next to you), Special vehicle
   (bus, tank, yacht, VTOL, hoverboard and more), Any vehicle and Variant (all 624 versions in the game's tables, rare and reward ones too), Remove spawned vehicles, Deliver to garage
-- **Handling:** Engine power, Grip, Steering, Vehicle top speed, Suspension, Ride height, Twitchy chassis, Downforce, Vehicle gravity, Heavy vehicle
+- **Handling:** Engine power, Grip, Steering, Vehicle top speed, Suspension, Ride height, Tank steering, Twitchy chassis, Downforce, Vehicle gravity, Heavy vehicle
 - **Toughness:** Vehicle god mode, No collision damage, Bulletproof tires, Keep vehicle repaired, Destroy
   this vehicle
+- **Aircraft and boats:** Aircraft speed, VTOL boost, Helicopter agility, Boat speed
+- **Upgrades and parts:** Vehicle upgrade and Upgrade level, Rims, Tires, Any paint, Underglow colour and brightness, Off-road kit anywhere
+- **Hover vehicles:** Hover rise and lower (on the Prototype RTP: hold B to rise, X to lower), Hover top speed, Hover height, Hover jump, Hover guns (hold RT to fire)
 - **Abilities and combat:** Vehicle ability (jump, ball and chain, ejector seats, crab steering and more,
-  on any vehicle), Tow hook, Boost now, Launch start, Stick nearest car on me, Unstick car, Back on the road, Effect on this car (slippery, super grip, plow and more), Launch this vehicle, Jump this vehicle, Surf nearest car, Stop surfing, Surf faster cars, Surf autopilot, Surfing is safe, Hoverboard slam, Vehicle jump power, No ability cooldowns, Ram
+  on most vehicles), Fire, Stop and Remove that ability, Tow hook, Drop tow hook, Make nearest car towable, Crab steering, Air control and Honk blast strength, Bowelrod launch, Windshield launch, Boost now, Launch start, Stick nearest car on me, Unstick car, Back on the road, Effect on this car (slippery, super grip, plow and more), Launch this vehicle, Jump this vehicle, Surf nearest car, Stop surfing, Surf faster cars, Surf autopilot, Surfing is safe, Hoverboard slam, Vehicle jump power, No ability cooldowns, Ram
   power, Crusher, Takedowns at any speed, Ejector cannon, Cowcatcher launch
 - **Look and camera:** Next paint, Brake lights stay on, Wheel size, Underglow, Headlights on, Any horn, Any engine sound, Always tire marks, Always tire smoke, Car camera resets after, Free camera in cars, Car camera follows the nose, Car camera field of view
 
@@ -215,6 +218,7 @@ opacity and Keep my save clean. Restart the game after changing them.
 | `sky.lua` | The game's time-of-day settings and ranges, generated |
 | `anims.lua` | The game's animation tags in always-loaded sets, generated |
 | `clothes.lua` | The game's wearables with a model, by slot, generated |
+| `rounds.lua` | Projectiles any gun can fire and every blast, generated |
 | `gameui.lua` | Draws the menu with the game's interface (vint text objects) |
 | `luadump.lua` | Development: reads a game Lua function's constants from memory |
 
