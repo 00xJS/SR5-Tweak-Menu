@@ -544,6 +544,17 @@ local function any_variants(i)
   return out
 end
 local PERK_LIST = require("perks")
+-- Animations and clothes, generated.
+local ANIM_LIST = {}
+for _, a in ipairs(require("anims")) do ANIM_LIST[#ANIM_LIST + 1] = { a[1] .. (a[4] == 1 and " (never used)" or ""), a[1], a[2], a[3] } end
+local CLOTHES = require("clothes")
+local CLOTH_SLOTS = {}
+for i, c in ipairs(CLOTHES) do CLOTH_SLOTS[i] = { c[1]:gsub("_", " "), c[1], i } end
+local function cloth_items(i)
+  local out = {}
+  for j, n in ipairs(CLOTHES[i][2]) do out[j] = { (n:gsub("^clo_", ""):gsub("_", " ")), n } end
+  return out
+end
 local SKY_LIST = require("sky")
 local SOUND_LIST = {}
 for _, n in ipairs(require("sounds")) do SOUND_LIST[#SOUND_LIST + 1] = { n, n } end
@@ -578,7 +589,7 @@ local TABS = {
     opt("Voice pitch", "Lower or higher than your voice (saved with your game).", "customization_get_avatar_voice_pitch()", "customization_set_avatar_voice_pitch(%s)", { { "-1", -1 }, { "-0.5", -0.5 }, { "0", 0 }, { "+0.5", 0.5 }, { "+1", 1 } }),
     pset("move_style", "Movement style", "Experimental: walk and run as if holding this. Your gun can override it.", { { "Game's", false }, { "Fists ready", "fists ready" }, { "One-hand melee", "1h_melee_ready" }, { "Two-hand melee", "2h_melee_ready" }, { "Staff", "staff ready" }, { "Pistol", "pistol_ready" }, { "Rifle", "rifle_ready" }, { "Minigun", "minigun_ready" }, { "Dual wield", "dual_wield_ready" }, { "Riot shield", "riotshield_pistol_ready" } }),
     pset("wingsuit_low", "Wingsuit from low down", "Experimental: the wingsuit opens from any height (you still need to be falling).", { { "Off", false }, { "On", true } }),
-    pset("walk_style", "Walk style", "Experimental: replaces your walk, jog and sprint animations.", { { "Game's", false }, { "Forced walk", "default" }, { "Sad walk", "sad walk" } }),
+    pset("walk_style", "Walk style", "Experimental: replaces your walk, jog and sprint animations.", { { "Game's", false }, { "Forced walk", "default" }, { "Sad walk", "sad walk" }, { "Coffee walk", "coffee walk" }, { "Drunk walk", "drunk walk" }, { "Fancy walk", "fancy walk" }, { "Phone walk", "phone walk" } }),
     { kind = "voiceline", label = "Say a line", help = "Experimental: Left/Right picks one of the game's voice situations, Enter says it.", sel = 1, options = {} },
     gcall("Dismiss homies", "Sends away every homie who's following you.", [[
       local n = 0
@@ -896,6 +907,29 @@ local TABS = {
     pset("audio_ctx_8", "Volume: Gore", "Experimental: the game's own sound mix. Changes your audio setting while it's on.", { { "Game's", false }, { "Mute", "mute" }, { "25%", 0.25 }, { "50%", 0.5 }, { "Full", 1 } }),
     pset("audio_ctx_9", "Volume: Voices", "Experimental: the game's own sound mix. Changes your audio setting while it's on.", { { "Game's", false }, { "Mute", "mute" }, { "25%", 0.25 }, { "50%", 0.5 }, { "Full", 1 } }),
     pset("audio_ctx_10", "Volume: Pedestrian voices", "Experimental: the game's own sound mix. Changes your audio setting while it's on.", { { "Game's", false }, { "Mute", "mute" }, { "25%", 0.25 }, { "50%", 0.5 }, { "Full", 1 } }),
+    { kind = "cloth_slot", label = "Clothing slot", help = "Left/Right picks a slot: hat, glasses, hair, shoes and so on. Clothing item then lists what fits.", sel = 1, options = CLOTH_SLOTS },
+    { kind = "cloth_item", label = "Clothing item", help = "Experimental: Left/Right picks an item, owned or not, hidden or cut too; Enter wears it. Your save keeps it. Undo my look puts you back.", sel = 1, options = cloth_items(1) },
+    { kind = "cloth_off", label = "Take off this slot", help = "Experimental: empties the slot picked on Clothing slot. Eyes, teeth and face parts may leave a gap." },
+    { kind = "cloth_now", label = "What's on this slot", help = "Shows what's worn in the slot picked on Clothing slot." },
+    { kind = "console_list", class = "char_cust_wearable_info", handler = 0x13DE6D0, what = "Wearing", label = "Any wearable", help = "Experimental: every one of the game's 2,686 items, tattoos, makeup and tans too. Left/Right picks, Enter wears it.", sel = 1, options = {} },
+    { kind = "look_colour", cloth = true, label = "Item colour", help = "Experimental: Left/Right picks, Enter colours the part on Colour part of what's in Clothing slot. Your save keeps it.", sel = 1, options = { { "Red", { 220, 20, 20 } }, { "Orange", { 240, 120, 20 } }, { "Yellow", { 240, 220, 30 } }, { "Green", { 30, 190, 40 } }, { "Teal", { 20, 190, 190 } }, { "Blue", { 20, 60, 220 } }, { "Purple", { 130, 30, 200 } }, { "Pink", { 240, 90, 180 } }, { "White", { 245, 245, 245 } }, { "Grey", { 120, 120, 120 } }, { "Black", { 10, 10, 10 } }, { "Brown", { 90, 55, 30 } }, { "Blond", { 220, 190, 120 } }, { "Ginger", { 180, 80, 30 } } } },
+    pset("colour_part", "Colour part", "Which colour of an item Item colour changes: most items have up to three.", { { "First", false }, { "Second", "color_2" }, { "Third", "color_3" } }),
+    { kind = "look_colour", slot = "hair", part = "color_1", label = "Hair colour", help = "Experimental: Left/Right picks, Enter colours your hair. Your save keeps it.", sel = 1, options = { { "Red", { 220, 20, 20 } }, { "Orange", { 240, 120, 20 } }, { "Yellow", { 240, 220, 30 } }, { "Green", { 30, 190, 40 } }, { "Teal", { 20, 190, 190 } }, { "Blue", { 20, 60, 220 } }, { "Purple", { 130, 30, 200 } }, { "Pink", { 240, 90, 180 } }, { "White", { 245, 245, 245 } }, { "Grey", { 120, 120, 120 } }, { "Black", { 10, 10, 10 } }, { "Brown", { 90, 55, 30 } }, { "Blond", { 220, 190, 120 } }, { "Ginger", { 180, 80, 30 } } } },
+    { kind = "look_colour", slot = "facial_hair", part = "hair_color", label = "Beard colour", help = "Experimental: Left/Right picks, Enter colours your beard. Your save keeps it.", sel = 1, options = { { "Red", { 220, 20, 20 } }, { "Orange", { 240, 120, 20 } }, { "Yellow", { 240, 220, 30 } }, { "Green", { 30, 190, 40 } }, { "Teal", { 20, 190, 190 } }, { "Blue", { 20, 60, 220 } }, { "Purple", { 130, 30, 200 } }, { "Pink", { 240, 90, 180 } }, { "White", { 245, 245, 245 } }, { "Grey", { 120, 120, 120 } }, { "Black", { 10, 10, 10 } }, { "Brown", { 90, 55, 30 } }, { "Blond", { 220, 190, 120 } }, { "Ginger", { 180, 80, 30 } } } },
+    { kind = "look_colour", slot = "eyes", part = "iris_outer", label = "Eye colour", help = "Experimental: Left/Right picks, Enter colours your eyes. Your save keeps it.", sel = 1, options = { { "Red", { 220, 20, 20 } }, { "Orange", { 240, 120, 20 } }, { "Yellow", { 240, 220, 30 } }, { "Green", { 30, 190, 40 } }, { "Teal", { 20, 190, 190 } }, { "Blue", { 20, 60, 220 } }, { "Purple", { 130, 30, 200 } }, { "Pink", { 240, 90, 180 } }, { "White", { 245, 245, 245 } }, { "Grey", { 120, 120, 120 } }, { "Black", { 10, 10, 10 } }, { "Brown", { 90, 55, 30 } }, { "Blond", { 220, 190, 120 } }, { "Ginger", { 180, 80, 30 } } } },
+    { kind = "game_list", look = true, class = "char_cust_skin_shader_info", label = "Skin type", help = "Experimental: Left/Right picks a skin, Enter puts it on. Your save keeps it. Undo my look puts you back.", sel = 1, options = {}, code = [[gml_customization_set_shader(gml_get_local_player():get_component_by_type("gml_component_character_customization"), vlib_info_object:get_object("char_cust_skin_shader_info", "%s"))]] },
+    { kind = "game_list", look = true, class = "ui_char_cust_skin_shader_value_set", label = "Skin set", help = "Experimental: Left/Right picks one of the game's skin looks, Enter puts it on. Your save keeps it.", sel = 1, options = {}, code = [[gml_customization_apply_skin_shader_preset(gml_get_local_player():get_component_by_type("gml_component_character_customization"), vlib_info_object:get_object("ui_char_cust_skin_shader_value_set", "%s"))]] },
+    { kind = "game_list", class = "gml_persona", label = "Any voice", help = "Experimental: Left/Right picks any of the 495 voices, Enter speaks with it. Silent if that voice isn't loaded.", sel = 1, options = {}, code = [[customization_set_override_avatar_persona(vlib_info_object:get_object("gml_persona", "%s"))]] },
+    { kind = "play_as_pick", from = "person", label = "Play as pick", help = "Experimental: spawns who's picked on Spawn person and makes you them, in one press. Back to yourself returns. Don't save while you're them." },
+    { kind = "play_as_pick", from = "special_person", label = "Play as special pick", help = "Experimental: the same with who's picked on Special person. The coyote can't: it isn't built like a person." },
+    { kind = "any_anim", label = "Any animation", help = "Experimental: Left/Right picks from over 1,000 of the game's animations, never-used ones marked; Enter plays it. Some only fit certain poses.", sel = 1, options = ANIM_LIST },
+    pset("anim_mode", "Animation mode", "Experimental: loop it, play it once, or hold it as your whole body's pose, which may stick you in place.", { { "Loop", false }, { "Once", "once" }, { "Hold", "hold" } }),
+    { kind = "pfn", fn = "stop_anim", label = "Stop animation", help = "Ends Any animation, Hold and Move like." },
+    { kind = "anim_near", label = "Everyone near plays it", help = "Experimental: everyone within 40 m plays what's picked on Any animation." },
+    { kind = "pfn_list", fn = "move_like", label = "Move like", help = "Experimental: Left/Right picks how you move: the game's pedestrian animations.", sel = 1, options = { { "Drunk", "ped_drunk" }, { "Fancy", "ped_fancy" }, { "Old", "ped_oldman" }, { "Pimp", "ped_pimp" }, { "Sad", "ped_sad" }, { "Angry", "ped_angry" }, { "Athletic", "ped_athletic" }, { "With coffee", "ped_coffee" }, { "On the phone", "ped_phone" }, { "Cowboy", "ped_cowboy" }, { "Homeless", "ped_homeless" }, { "Gut wound", "ped_wounded_gut" }, { "With a bag", "ped_bag" }, { "Back to yours", "off" } } },
+    { kind = "pfn_list", class = "gml_gail_state_info", fn = "gail_state", label = "Force state", help = "Experimental: Left/Right picks a body state: stagger, wall run and so on. CAN LEAVE YOU STUCK: Back on foot is the way out.", sel = 1, options = {} },
+    { kind = "pfn", fn = "gail_foot", label = "Back on foot", help = "Experimental: asks your body to return to normal." },
+    { kind = "pfn_list", fn = "cinematic", label = "Play cinematic", help = "Experimental: plays one of the game's cutscene timelines. SAVE FIRST: it can break missions and may need its scene loaded.", sel = 1, options = { { "Announce screenshot 01", "cin3d_announce_screenshot_01" }, { "Beep test", "cin3d_beep_test" }, { "Boothill binkcontainer", "cin3d_boothill_binkcontainer" }, { "Ct bond in", "cin3d_ct_bond_in" }, { "Ct bond mid 01 bink container", "cin3d_ct_bond_mid_01_bink_container" }, { "Ct bond out", "cin3d_ct_bond_out" }, { "Ct bond out pt1", "cin3d_ct_bond_out_pt1" }, { "Ct bond out pt2", "cin3d_ct_bond_out_pt2" }, { "Ct build in", "cin3d_ct_build_in" }, { "Ct city in", "cin3d_ct_city_in" }, { "Ct cold open", "cin3d_ct_cold_open" }, { "Ct cold open bink", "cin3d_ct_cold_open_bink" }, { "Ct cold open bink church", "cin3d_ct_cold_open_bink_church" }, { "Ct cold open bink container", "cin3d_ct_cold_open_bink_container" }, { "Ct cold open laughs", "cin3d_ct_cold_open_laughs" }, { "Ct cold open lineup", "cin3d_ct_cold_open_lineup" }, { "Ct cold open moneyfight", "cin3d_ct_cold_open_moneyfight" }, { "Ct cust", "cin3d_ct_cust" }, { "Ct dead in", "cin3d_ct_dead_in" }, { "Ct dead in pt1", "cin3d_ct_dead_in_pt1" }, { "Ct dead in pt2", "cin3d_ct_dead_in_pt2" }, { "Ct dead mid 01", "cin3d_ct_dead_mid_01" }, { "Ct dead mid 01 pt1", "cin3d_ct_dead_mid_01_pt1" }, { "Ct dead mid 01 pt2", "cin3d_ct_dead_mid_01_pt2" }, { "Ct dead out", "cin3d_ct_dead_out" }, { "Ct dead out nahualli", "cin3d_ct_dead_out_nahualli" }, { "Ct epilogue", "cin3d_ct_epilogue" }, { "Ct epilogue antonio bink", "cin3d_ct_epilogue_antonio_bink" }, { "Ct epilogue boardroom bink", "cin3d_ct_epilogue_boardroom_bink" }, { "Ct epilogue coyote bink", "cin3d_ct_epilogue_coyote_bink" }, { "Ct epilogue highway bink", "cin3d_ct_epilogue_highway_bink" }, { "Ct epilogue pt1", "cin3d_ct_epilogue_pt1" }, { "Ct epilogue pt2", "cin3d_ct_epilogue_pt2" }, { "Ct epilogue thunderpump bink", "cin3d_ct_epilogue_thunderpump_bink" }, { "Ct guard mid 01", "cin3d_ct_guard_mid_01" }, { "Ct guard out", "cin3d_ct_guard_out" }, { "Ct heist in", "cin3d_ct_heist_in" }, { "Ct heist mid 01", "cin3d_ct_heist_mid_01" }, { "Ct heist mid 02", "cin3d_ct_heist_mid_02" }, { "Ct heist mid 03", "cin3d_ct_heist_mid_03" }, { "Ct heist out", "cin3d_ct_heist_out" }, { "Ct hq in", "cin3d_ct_hq_in" }, { "Ct hq out", "cin3d_ct_hq_out" }, { "Ct hunt in", "cin3d_ct_hunt_in" }, { "Ct hunt mid 01", "cin3d_ct_hunt_mid_01" }, { "Ct hunt mid 02", "cin3d_ct_hunt_mid_02" }, { "Ct hunt out", "cin3d_ct_hunt_out" }, { "Ct icon mid 01 bink container", "cin3d_ct_icon_mid_01_bink_container" }, { "Ct icon mid 02 bink container", "cin3d_ct_icon_mid_02_bink_container" }, { "Ct icon out", "cin3d_ct_icon_out" }, { "Ct idols in", "cin3d_ct_idols_in" }, { "Ct idols mid 01 bink container", "cin3d_ct_idols_mid_01_bink_container" }, { "Ct idols out", "cin3d_ct_idols_out" }, { "Ct jail in", "cin3d_ct_jail_in" }, { "Ct jail in bink container", "cin3d_ct_jail_in_bink_container" }, { "Ct jail out", "cin3d_ct_jail_out" }, { "Ct marsh in apc", "cin3d_ct_marsh_in_apc" }, { "Ct marsh in atticus", "cin3d_ct_marsh_in_atticus" }, { "Ct marsh in celebrate", "cin3d_ct_marsh_in_celebrate" }, { "Ct marsh in savior", "cin3d_ct_marsh_in_savior" }, { "Ct marsh in training", "cin3d_ct_marsh_in_training" }, { "Ct marsh in training pt1", "cin3d_ct_marsh_in_training_pt1" }, { "Ct marsh in training pt2", "cin3d_ct_marsh_in_training_pt2" }, { "Ct marsh in training pt3", "cin3d_ct_marsh_in_training_pt3" }, { "Ct marsh mid 01", "cin3d_ct_marsh_mid_01" }, { "Ct marsh mid 01 02", "cin3d_ct_marsh_mid_01_02" }, { "Ct marsh mid 02", "cin3d_ct_marsh_mid_02" }, { "Ct marsh mid 03", "cin3d_ct_marsh_mid_03" }, { "Ct marsh mid 03 04", "cin3d_ct_marsh_mid_03_04" }, { "Ct marsh mid 04 pt1", "cin3d_ct_marsh_mid_04_pt1" }, { "Ct marsh mid 04 pt2", "cin3d_ct_marsh_mid_04_pt2" }, { "Ct marsh mid hang", "cin3d_ct_marsh_mid_hang" }, { "Ct marsh mid nah", "cin3d_ct_marsh_mid_nah" }, { "Ct marsh out", "cin3d_ct_marsh_out" }, { "Ct pals mid 01", "cin3d_ct_pals_mid_01" }, { "Ct pals mid 01 channel", "cin3d_ct_pals_mid_01_channel" }, { "Ct pals mid 01 couch", "cin3d_ct_pals_mid_01_couch" }, { "Ct pals mid 01 knives", "cin3d_ct_pals_mid_01_knives" }, { "Ct pals mid 01 party", "cin3d_ct_pals_mid_01_party" }, { "Ct pals mid 02", "cin3d_ct_pals_mid_02" }, { "Ct pals out", "cin3d_ct_pals_out" }, { "Ct road in", "cin3d_ct_road_in" }, { "Ct road mid 01", "cin3d_ct_road_mid_01" }, { "Ct road mid serge", "cin3d_ct_road_mid_serge" }, { "Ct road out", "cin3d_ct_road_out" }, { "Ct steal mid 01", "cin3d_ct_steal_mid_01" }, { "Ct steal out", "cin3d_ct_steal_out" }, { "Ct steal out lastshot", "cin3d_ct_steal_out_lastshot" }, { "Ct trap in", "cin3d_ct_trap_in" }, { "Ct trap in pt1", "cin3d_ct_trap_in_pt1" }, { "Ct trap in pt2", "cin3d_ct_trap_in_pt2" }, { "Ct trap out", "cin3d_ct_trap_out" }, { "Cto enforcer01", "cin3d_cto_enforcer01" }, { "Id potty in", "cin3d_id_potty_in" }, { "Id potty mid 01", "cin3d_id_potty_mid_01" }, { "Id potty mid 02", "cin3d_id_potty_mid_02" }, { "Mh exec in", "cin3d_mh_exec_in" }, { "Mh exec out", "cin3d_mh_exec_out" }, { "Mh pay out", "cin3d_mh_pay_out" }, { "Mh pay out pt2", "cin3d_mh_pay_out_pt2" }, { "Mh pay out pt3", "cin3d_mh_pay_out_pt3" }, { "Mh pay out pt4", "cin3d_mh_pay_out_pt4" }, { "Mh pay out qte", "cin3d_mh_pay_out_qte" }, { "Ms boothill docketchum explains bink container", "cin3d_ms_boothill_docketchum_explains_bink_container" }, { "Ms boothill docketchum intro consuela bink container", "cin3d_ms_boothill_docketchum_intro_consuela_bink_container" }, { "Ms boothill docketchum intro danielli bink container", "cin3d_ms_boothill_docketchum_intro_danielli_bink_container" }, { "Ms boothill docketchum intro hunter bink container", "cin3d_ms_boothill_docketchum_intro_hunter_bink_container" }, { "Ms boothill docketchum intro justice bink container", "cin3d_ms_boothill_docketchum_intro_justice_bink_container" }, { "Ms boothill sizzle bink container", "cin3d_ms_boothill_sizzle_bink_container" }, { "Ms caper in walk", "cin3d_ms_caper_in_walk" }, { "Ms caper out", "cin3d_ms_caper_out" }, { "Ms queen mid 01 bink container", "cin3d_ms_queen_mid_01_bink_container" }, { "Ms queen out", "cin3d_ms_queen_out" }, { "Ms stiff mid 01", "cin3d_ms_stiff_mid_01" }, { "Ms wed in battle", "cin3d_ms_wed_in_battle" }, { "Ms wed in ceremony", "cin3d_ms_wed_in_ceremony" }, { "Ms wed out", "cin3d_ms_wed_out" }, { "Pn break out", "cin3d_pn_break_out" }, { "Pn forge mid 01", "cin3d_pn_forge_mid_01" }, { "Pn forge out bink container", "cin3d_pn_forge_out_bink_container" }, { "Sm side bink container", "cin3d_sm_side_bink_container" }, { "Vs bar showdown", "cin3d_vs_bar_showdown" }, { "Vs potty01", "cin3d_vs_potty01" }, { "Wl siege in", "cin3d_wl_siege_in" }, { "Wl siege out", "cin3d_wl_siege_out" } } },
     wset("range", "Range", "How far every gun reaches. Melee has its own row.", { { "Game's", 1 }, { "x2", 2 }, { "x4", 4 } }),
     pset("melee_lunge", "Melee lunge", "How far you dash at a swing. None: everyone swings from where they stand. Far: x4 when no one's in reach.", { { "None", "none" }, { "Game's", "game" }, { "Far", "far" } }),
     wset("knockback", "Knockback", "How hard hits push people and things.", { { "Game's", 1 }, { "x3", 3 }, { "x10", 10 } }),
@@ -959,6 +993,7 @@ local TABS = {
     { kind = "map_place", stores = true, label = "Store", help = "Experimental: Left/Right picks a store the map knows, Enter takes you there.", sel = 1, options = {} },
     { kind = "map_place", stores = false, label = "Map place", help = "Experimental: Left/Right picks an activity or place the map knows, Enter takes you there.", sel = 1, options = {} },
     { kind = "warp", label = "Fast travel point", help = "Left/Right picks one of the game's 44 travel points, Enter takes you there.", sel = 1, options = {} },
+    pset("teleport_style", "Teleport style", "Experimental: Instant moves you straight there, in your vehicle too, with no loading screen. Game's is the old way, with one.", { { "Instant", false }, { "Game's, loading screen", "game" } }),
     { kind = "place_save", label = "Save this spot", help = "Saves where you stand to your places (TweakMenu, saved_places.txt)." },
     { kind = "places", label = "Go to", help = "Left/Right picks one of your places, Enter takes you there.", sel = 1 },
     { kind = "place_delete", label = "Delete that place", help = "Removes the place picked above." },
@@ -1184,7 +1219,9 @@ local LAYOUT = {
     { "Flow and abilities", "Your ability meter, skills and takedowns.", { "All perks on", "Equip any skill", "Effect on you", "Immune to", "Unlimited Flow", "Free skills", "Flow gain", "Extra Flow bars", "Flow never drains", "Rampage at full Flow", "Takedown cooldown", "Takedown ready now", "Grenade takedown", "Takedowns always kill", "Short takedowns only", "No takedowns", "Dustlander takedowns", "Skills recharge at once", "Any perk", "Perk strength", "My perks off" } },
     { "Emotes and voice", "Emotes, expressions and how you sound.", { "D-pad emote 1", "D-pad emote 2", "Play emote", "Hidden emote", "Repeat emote", "Freeze emote", "Stop emote", "Facial expression", "Your voice", "Voice pitch", "Say a line", "Radio call from" } },
     { "Homies", "Who's with you.", { "Summon homie", "Call in Saints", "Dismiss homies", "Homie limit", "Quiet homies", "Next homie outfit" } },
-    { "Your look", "Who you are and what you're wearing.", { "Play as spawned person", "Back to yourself", "You are invisible", "You look on fire", "Saved look", "Saved look: outfit only", "No wind on clothes", "Character preset", "Wear any outfit", "Hidden outfit", "Face part", "Face amount", "Random face", "Long legs", "Skin effect on you", "Stop skin effects", "Undo my look", "Take a look snapshot", "Customize character", "Prank yourself" } },
+    { "Clothes and items", "One item at a time, and colours.", { "Clothing slot", "Clothing item", "Take off this slot", "What's on this slot", "Any wearable", "Item colour", "Colour part", "Hair colour", "Beard colour", "Eye colour", "Skin type", "Skin set", "Any voice" } },
+    { "Animations", "Any of the game's animations, used or not.", { "Any animation", "Animation mode", "Stop animation", "Everyone near plays it", "Move like", "Force state", "Back on foot", "Play cinematic" } },
+    { "Your look", "Who you are and what you're wearing.", { "Play as spawned person", "Play as pick", "Play as special pick", "Back to yourself", "You are invisible", "You look on fire", "Saved look", "Saved look: outfit only", "No wind on clothes", "Character preset", "Wear any outfit", "Hidden outfit", "Face part", "Face amount", "Random face", "Long legs", "Skin effect on you", "Stop skin effects", "Undo my look", "Take a look snapshot", "Customize character", "Prank yourself" } },
     { "Body beyond limits", "Past the sliders' ends. Only on screen: your save keeps your real body.", { "Body: muscle", "Body: fat", "Body: thin", "Body: chest", "Body: blend", "Face: head shape", "Face: eye size", "Face: nose size", "Face: mouth size", "Body: groin", "Body: squeezed", "Face: eye spacing", "Face: mouth width", "Back to my real body" } },
     { "Money and progress", "XP, skill points, cash and prices.", { "Give XP", "Give skill points", "Add cash", "Free shopping", "Free ventures", "Start mission", "Insurance Fraud here" } },
     { "Unlocks", "Skills, perks, weapons, clothing and more. These stay in your save.", { "Unlock EVERYTHING", "Unlock fast travel points", "Own every weapon", "Unlock all skills", "Unlock all perks", "Unlock gang and homies", "Unlock all clothing", "Unlock everything in the stores", "Unlock all weapon skins", "Unlock all collectibles" } },
@@ -1203,7 +1240,7 @@ local LAYOUT = {
     { "Look and camera", "Paint, lights and the driving camera.", { "Next paint", "Brake lights stay on", "Car camera resets after", "Wheel size", "Underglow", "Headlights on", "Any horn", "Any engine sound", "Always tire marks", "Always tire smoke", "Free camera in cars", "Car camera follows the nose", "Car camera field of view" } },
   } },
   { "Teleport", {
-    "Go to waypoint", "Auto-teleport to waypoint", "Warp from map", "Store", "Map place", "Fast travel point",
+    "Go to waypoint", "Auto-teleport to waypoint", "Warp from map", "Store", "Map place", "Fast travel point", "Teleport style",
     { "Saved places", "Your own spots.", { "Save this spot", "Go to", "Delete that place" } },
     "Go up", "Where am I",
   } },
@@ -1815,6 +1852,51 @@ local function select_row(row)
     end
   elseif row.kind == "near_act" then
     say(P.near_act(row.key), "status")
+  elseif row.kind == "cloth_item" then
+    local o = row.options[row.sel]
+    if o then
+      P.look_first()
+      say(P.console(0x13DE6D0, o[2]) == 0 and ("Wearing " .. o[1]) or "The game refused", "status")
+    end
+  elseif row.kind == "cloth_off" or row.kind == "cloth_now" then
+    local slot
+    for _, r in ipairs(all_rows()) do if r.kind == "cloth_slot" then slot = r.options[r.sel] end end
+    if row.kind == "cloth_off" then
+      P.look_first()
+      say(P.console(0x13DE8C0, slot[2]) == 0 and (slot[1] .. ": off") or "The game refused", "status")
+    else
+      local ok, s = wml.game(string.format([[return tostring(gml_customization_get_slotted_wearable(gml_get_local_player():get_component_by_type("gml_component_character_customization"), %q))]], slot[2]))
+      say(slot[1] .. ": " .. (ok and (tostring(s):match('"(.*)"') or "nothing") or tostring(s)), "status")
+    end
+  elseif row.kind == "look_colour" then
+    local c, slot, part = row.options[row.sel][2], row.slot, row.part
+    if row.cloth then
+      for _, r in ipairs(all_rows()) do if r.kind == "cloth_slot" then slot = r.options[r.sel][2] end end
+      part = P.colour_part or "color_1"
+    end
+    P.look_first()
+    local ok, n = wml.game(string.format([[local c = gml_get_local_player():get_component_by_type("gml_component_character_customization")
+      local i = gml_customization_get_slot_index(c, vlib_info_object:get_object("char_cust_slot", %q))
+      local v = gml_customization_get_shader_params(c, i)
+      local n = 0
+      for _, e in ipairs(v) do
+        if e.param_name == %q then gml_customization_set_shader_param_value(c, i, e.material, %q, { R = %d, G = %d, B = %d }); n = n + 1 end
+      end
+      return n]], slot, part, part, c[1], c[2], c[3]))
+    say(not ok and tostring(n) or (n == 0 and ("That has no " .. part) or (row.label .. ": " .. row.options[row.sel][1])), ok and "status" or "warn")
+  elseif row.kind == "any_anim" then
+    local o = row.options[row.sel]
+    if o then say(P.play_anim(o), "status") end
+  elseif row.kind == "anim_near" then
+    local o
+    for _, r in ipairs(all_rows()) do if r.kind == "any_anim" then o = r.options[r.sel] end end
+    if o then say(P.anim_near(o), "status") end
+  elseif row.kind == "play_as_pick" then
+    local pick
+    for _, r in ipairs(all_rows()) do if r.kind == row.from then pick = r.options[r.sel] end end
+    if not pick then say("Pick someone on Spawn person first", "warn")
+    elseif not P.spawn_npc(pick[2], 0, 2) then say("Couldn't spawn them right now", "warn")
+    else M.play_as_wait = 300; say("Becoming " .. pick[1] .. "...") end
   elseif row.kind == "weather_now" then
     local pick
     for _, r in ipairs(all_rows()) do if r.kind == "weathernode" then pick = r.options[r.sel] end end
@@ -1940,12 +2022,13 @@ local function select_row(row)
   elseif row.kind == "console_list" then
     local o = row.options[row.sel]
     if o then
-      if row.class == "char_cust_outfit" then P.look_first() end
+      if row.class == "char_cust_outfit" or row.class == "char_cust_wearable_info" then P.look_first() end
       say(P.console(row.handler, o[2]) == 0 and (row.what .. " " .. o[1]) or "The game refused", "status")
     end
   elseif row.kind == "game_list" then
     local o = row.options[row.sel]
     if o then
+      if row.look then P.look_first() end
       local ok, err = wml.game(string.format(row.code, o[2]))
       say(ok and (o[1] .. ": on") or tostring(err), ok and "status" or "warn")
     end
@@ -2108,7 +2191,7 @@ local function select_row(row)
   elseif row.kind == "lift" then
     local x, y, z = P.position()
     local up = row.options[row.sel][2]
-    if x and P.teleport(x, y + up, z) then say("Up " .. up .. " m") else say("No player right now", "warn") end
+    if x and P.teleport(x, y + up, z, true) then say("Up " .. up .. " m") else say("No player right now", "warn") end
   elseif row.kind == "where" then
     local x, y, z = P.position()
     say(x and string.format("You're at %.1f, %.1f, %.1f", x, y, z) or "No player right now")
@@ -2181,9 +2264,15 @@ local function select_row(row)
     local w = row.options[row.sel]
     if not w then say("No travel points (load into the game first)", "warn")
     else
-      local ok, err = wml.game([[for _, w in vlib_info_object:ipairs("city_warp_point") do
-        if tostring(w) == ]] .. string.format("%q", w[2]) .. [[ then player_local_teleport_to_warp_point(w) return end end]])
-      say(ok and ("Off to " .. w[1]) or ("Travel: " .. tostring(err)), ok and "status" or "warn")
+      if P.teleport_style == "game" then
+        local ok, err = wml.game([[for _, w in vlib_info_object:ipairs("city_warp_point") do
+          if tostring(w) == ]] .. string.format("%q", w[2]) .. [[ then player_local_teleport_to_warp_point(w) return end end]])
+        say(ok and ("Off to " .. w[1]) or ("Travel: " .. tostring(err)), ok and "status" or "warn")
+      else
+        local x, y, z = P.warp_position(w[2]:match('"(.*)"') or w[2])
+        if x and P.teleport(x, y + 1, z) then say("Off to " .. w[1])
+        else say("That point isn't loaded here: Teleport style can use the game's, with its loading screen", "warn") end
+      end
     end
   elseif row.kind == "emote" then
     local o = row.options[row.sel]
@@ -2276,7 +2365,7 @@ local function row_value(row)
     return "Enter", "off"
   elseif row.kind == "voiceline" and not row.loaded then
     return "Enter to load", "off"
-  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" or row.kind == "crowd_act" or row.kind == "arms" or row.kind == "destroy_car" or row.kind == "kill_self" or row.kind == "car_act" or row.kind == "play_as" or row.kind == "revive_me" or row.kind == "console_row" or row.kind == "look_undo" or row.kind == "look_snap" or row.kind == "body_back" or row.kind == "wing_now" or row.kind == "surf" or row.kind == "surf_stop" or row.kind == "skip_track" or row.kind == "remove_prop" or row.kind == "hq_clear" or row.kind == "pfn" or row.kind == "outfit_only" or row.kind == "near_act" or row.kind == "weather_now" then
+  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" or row.kind == "crowd_act" or row.kind == "arms" or row.kind == "destroy_car" or row.kind == "kill_self" or row.kind == "car_act" or row.kind == "play_as" or row.kind == "revive_me" or row.kind == "console_row" or row.kind == "look_undo" or row.kind == "look_snap" or row.kind == "body_back" or row.kind == "wing_now" or row.kind == "surf" or row.kind == "surf_stop" or row.kind == "skip_track" or row.kind == "remove_prop" or row.kind == "hq_clear" or row.kind == "pfn" or row.kind == "outfit_only" or row.kind == "near_act" or row.kind == "weather_now" or row.kind == "cloth_off" or row.kind == "cloth_now" or row.kind == "anim_near" or row.kind == "play_as_pick" then
     return "Enter", "off"
   elseif row.kind == "page" then
     return #row.rows .. "  >", "off"
@@ -2285,7 +2374,7 @@ local function row_value(row)
   elseif row.kind == "mset" then
     local o = row.options[row.sel]
     return "<  " .. o[1] .. "  >", row.sel == 1 and "off" or "on"
-  elseif row.kind == "any_perk" or row.kind == "pfn_list" or row.kind == "hq_fill" or row.kind == "sky_any" or row.kind == "venture_lot" or row.kind == "venture_build" or row.kind == "immune" or row.kind == "face_part" or row.kind == "gun_slot" or row.kind == "radio_line" or row.kind == "hq_save" or row.kind == "hq_load" or row.kind == "any_vehicle" or row.kind == "any_variant" or row.kind == "console_list" or row.kind == "game_list" or row.kind == "hq_theme" or row.kind == "launch_car" or row.kind == "go_to_hour" or row.kind == "outfit_any" or row.kind == "car_effect" or row.kind == "proto_weapon" or row.kind == "song" or row.kind == "spawn_prop" or row.kind == "hq_spot" or row.kind == "hq_prop" or row.kind == "near_effect" or row.kind == "me_effect" or row.kind == "send_gang" or row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" or row.kind == "giveweapon" or row.kind == "voiceline" or row.kind == "gchoice" or row.kind == "weathernode" or row.kind == "cash_drop" or row.kind == "weapon_drop" or row.kind == "reaction" or row.kind == "map_place" or row.kind == "outfit" or row.kind == "look_preset" or row.kind == "call_saints" or row.kind == "prank" or row.kind == "car_ability" or row.kind == "special_person" or row.kind == "special_car" or row.kind == "mission" then
+  elseif row.kind == "any_perk" or row.kind == "pfn_list" or row.kind == "hq_fill" or row.kind == "cloth_slot" or row.kind == "cloth_item" or row.kind == "look_colour" or row.kind == "any_anim" or row.kind == "sky_any" or row.kind == "venture_lot" or row.kind == "venture_build" or row.kind == "immune" or row.kind == "face_part" or row.kind == "gun_slot" or row.kind == "radio_line" or row.kind == "hq_save" or row.kind == "hq_load" or row.kind == "any_vehicle" or row.kind == "any_variant" or row.kind == "console_list" or row.kind == "game_list" or row.kind == "hq_theme" or row.kind == "launch_car" or row.kind == "go_to_hour" or row.kind == "outfit_any" or row.kind == "car_effect" or row.kind == "proto_weapon" or row.kind == "song" or row.kind == "spawn_prop" or row.kind == "hq_spot" or row.kind == "hq_prop" or row.kind == "near_effect" or row.kind == "me_effect" or row.kind == "send_gang" or row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" or row.kind == "giveweapon" or row.kind == "voiceline" or row.kind == "gchoice" or row.kind == "weathernode" or row.kind == "cash_drop" or row.kind == "weapon_drop" or row.kind == "reaction" or row.kind == "map_place" or row.kind == "outfit" or row.kind == "look_preset" or row.kind == "call_saints" or row.kind == "prank" or row.kind == "car_ability" or row.kind == "special_person" or row.kind == "special_car" or row.kind == "mission" then
     local o = row.options[row.sel]
     return o and ("<  " .. o[1] .. "  >") or "none", o and "row" or "off"
   elseif row.kind == "gcall" then
@@ -2456,6 +2545,9 @@ local function adjust(delta)
   elseif row and row.options then
     row.sel = (row.sel - 1 + delta) % #row.options + 1
     if row.apply then M.apply_row, M.apply_wait = row, 20 end
+    if row.kind == "cloth_slot" then
+      for _, r in ipairs(all_rows()) do if r.kind == "cloth_item" then r.options, r.sel = cloth_items(row.sel), 1 end end
+    end
     if row.kind == "any_vehicle" then
       for _, r in ipairs(all_rows()) do if r.kind == "any_variant" then r.options, r.sel = any_variants(row.sel), 1 end end
     end
@@ -2516,6 +2608,7 @@ local function ensure_ready()
         if q.kind == "near_effect" then for _, o in ipairs(q.options) do r.options[#r.options + 1] = { o[1], o[2] } end end
       end
     elseif (r.kind == "console_list" or r.kind == "game_list" or r.kind == "face_part" or r.kind == "radio_line" or r.kind == "venture_build" or (r.kind == "pfn_list" and r.class)) and #r.options == 0 then
+      -- names_of keeps the game's text; lists with a class are sorted by label
       for _, w in ipairs(names_of(r.class)) do local n = w:match('"(.*)"') or w; r.options[#r.options + 1] = { pretty(n), n } end
       table.sort(r.options, function(a, b) return a[1] < b[1] end)
     elseif r.kind == "giveweapon" and #r.options == 0 then
@@ -2735,6 +2828,17 @@ function M.update()
   if C.loaded and P.explosive_melee and frame % 15 == 6 then P.update_explosive_melee() end
   if C.loaded and frame % 30 == 27 then P.update_melee_lunge(); P.update_extras() end
   if C.loaded and P.wind then P.update_wind() end
+  if C.loaded and P.tp_holding() then P.update_tp_hold() end
+  if C.loaded and M.play_as_wait then
+    M.play_as_wait = M.play_as_wait - 1
+    if not P.spawned_pending() and P.play_as_spawned() then
+      M.play_as_wait = nil
+      say("You're them now: Back to yourself returns")
+    elseif M.play_as_wait <= 0 then
+      M.play_as_wait = nil
+      say("They didn't arrive in time", "warn")
+    end
+  end
   if C.loaded and P.sky_active() then P.update_sky(frame % 600 == 300) end
   if C.loaded and (P.sun_height or M.sun_was) then P.update_sun(); M.sun_was = P.sun_height end
   if C.loaded and P.cam_look_active() then P.update_cam_look() end

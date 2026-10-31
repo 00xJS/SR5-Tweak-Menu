@@ -61,7 +61,9 @@ in the menu.
   usual), Play emote, Hidden emote (ones the game never lists), Repeat emote, Freeze emote, Stop emote, Facial
   expression, Your voice, Voice pitch, Say a line (the game's voice lines), Radio call from (495 voices)
 - **Homies:** Summon homie, Call in Saints, Dismiss homies, Homie limit (up to 4), Quiet homies, Next homie outfit
-- **Your look:** Play as spawned person, Back to yourself, You are invisible, You look on fire, Saved look (a character you saved in the game:
+- **Clothes and items:** Clothing slot and Clothing item (one item at a time, hats, glasses, hair, shoes and all, hidden and cut ones too), Take off this slot, What's on this slot, Any wearable (all of the game's, tattoos and makeup too), Item colour, Colour part, Hair colour, Beard colour, Eye colour, Skin type, Skin set, Any voice
+- **Animations:** Any animation (over 1,000, the ones the game never uses marked), Animation mode (loop, once, hold), Stop animation, Everyone near plays it, Move like, Force state, Back on foot, Play cinematic
+- **Your look:** Play as spawned person, Play as pick and Play as special pick (any character in one press), Back to yourself, You are invisible, You look on fire, Saved look (a character you saved in the game:
   body and outfit), Saved look: outfit only, No wind on clothes, Character preset, Wear any outfit, Hidden outfit (clothes the wardrobe doesn't list), Face part and Face amount (50 parts, past the sliders), Random face, Long legs, Skin effect on you, Stop skin effects, Undo my look, Take a look snapshot, Customize character (anywhere), Prank yourself (bees, noodle arms,
   toilet, cactus and more)
 - **Body beyond limits:** muscle, fat, thin, chest, blend, head shape, eye, nose and mouth size plus groin, squeezed, eye spacing and mouth width past the sliders' ends, on screen only: your save keeps your real body. Back to my real body
@@ -96,7 +98,7 @@ in the menu.
 
 ### Teleport
 - Go to waypoint, Auto-teleport to waypoint, Warp from map (the game's dev teleport on the big map), Store and Map place (what the map knows), Fast travel point
-  (the game's 44)
+  (the game's 44), Teleport style (Instant, with no loading screen, or the game's)
 - **Saved places:** Save this spot, Go to, Delete that place
 - Go up (10 m to 3000 m), Where am I
 
@@ -211,6 +213,8 @@ opacity and Keep my save clean. Restart the game after changing them.
 | `perks.lua` | The game's perk classes that its code reads, generated |
 | `sounds.lua` | Sound event names from the game's audio tables, generated |
 | `sky.lua` | The game's time-of-day settings and ranges, generated |
+| `anims.lua` | The game's animation tags in always-loaded sets, generated |
+| `clothes.lua` | The game's wearables with a model, by slot, generated |
 | `gameui.lua` | Draws the menu with the game's interface (vint text objects) |
 | `luadump.lua` | Development: reads a game Lua function's constants from memory |
 

@@ -46,10 +46,56 @@ function P.position()
   return s32(wml.read_u32(p + 0x30)) / 10000, s32(wml.read_u32(p + 0x34)) / 10000, s32(wml.read_u32(p + 0x38)) / 10000
 end
 
--- The game's own teleport (its UI uses it for fast travel to a position).
-function P.teleport(x, y, z)
-  local ok, r = wml.game(string.format("return player_local_teleport_to_position(%.4f, %.4f, %.4f)", x, y, z))
-  return ok
+-- Teleport. object_set_position (+192A6D0: object, position in world ints, sync flags) moves you, or the vehicle you're
+-- in, at once, with no fast travel and no loading screen. Where you land may not be loaded yet, so you're held there
+-- until the navmesh answers, or 6 s. `free`: no hold, for going up high on purpose. Teleport style can bring back the
+-- game's own, player_local_teleport_to_position, which has the loading screen.
+P.teleport_style = false
+local tp_hold
+function P.teleport(x, y, z, free)
+  if P.teleport_style == "game" then
+    local ok = wml.game(string.format("return player_local_teleport_to_position(%.4f, %.4f, %.4f)", x, y, z))
+    return ok
+  end
+  local e = P.object()
+  if not e then return false end
+  local o = P.vehicle_object() or e
+  local at = { math.floor(x * 10000) & 0xFFFFFFFF, math.floor(y * 10000) & 0xFFFFFFFF, math.floor(z * 10000) & 0xFFFFFFFF }
+  local id = wml.read_u32(o + 0x58)
+  P.node(0x192A6D0, 0x2AC1258, { { u = id }, { i = at }, { u = 0 } })
+  tp_hold = not free and { id = id, at = at, on_foot = o == e, ticks = 360 } or nil
+  return true
+end
+function P.tp_holding() return tp_hold ~= nil end
+-- Navmesh here? +1856E10(out, query), false until it's loaded.
+local function ground_ready(at)
+  local q = wml.buffer(14)
+  for i = 1, 3 do wml.write_u32(q + (i - 1) * 4, at[i]) end
+  wml.write_u64(q + 0xC, 0xFFFFFFFFFFFFFFFF); wml.write_u32(q + 0x14, 0)
+  wml.write_f32(q + 0x18, 30.0); wml.write_u32(q + 0x1C, 0x6600); wml.write_u32(q + 0x20, 0)
+  return wml.call(wml.base + 0x1856E10, q + 0x80, q) & 0xFF ~= 0
+end
+function P.update_tp_hold()
+  local h = tp_hold
+  h.ticks = h.ticks - 1
+  P.node(0x192A6D0, 0x2AC1258, { { u = h.id }, { i = h.at }, { u = 0 } })
+  if h.on_foot then
+    local c = P.component(0x10)
+    if c then
+      wml.write_f32(c + 0x2A8, 0)
+      for i = 0, 8, 4 do wml.write_f32(c + 0x3A0 + i, 0) end
+    end
+  end
+  if h.ticks <= 0 or (h.ticks % 15 == 0 and h.ticks < 340 and ground_ready(h.at)) then tp_hold = nil end
+end
+-- A travel point's real place: city_warp_find_object (+66A200: point, out object). Only found if that object exists now.
+function P.warp_position(name)
+  local _, h = wml.game("return string_crc(" .. string.format("%q", name) .. ")")
+  P.node(0x66A200, 0x29CB760, { { u = math.floor(h) & 0xFFFFFFFF }, { u = 0 } })
+  local e = P.entry_of(wml.read_u32(wml.buffer(0) + 0x420))
+  if not e then return nil end
+  local function s32(v) return v >= 0x80000000 and v - 0x100000000 or v end
+  return s32(wml.read_u32(e + 0x30)) / 10000, s32(wml.read_u32(e + 0x34)) / 10000, s32(wml.read_u32(e + 0x38)) / 10000
 end
 
 -- Every frame: god mode and the health multiplier.
@@ -945,6 +991,7 @@ function P.dance_near(radius)
     local gail = wml.call(B + 0x1534D80, p.entry)
     if gail ~= 0 then
       P.node(0xAE04C0, 0x2A02F18, { { u = id_of(p) }, { u = 0 } })
+      P.second_set(p.entry, "character_base_emotes")   -- a person's own sets don't hold these
       cstr(b + 0x30, DANCES[math.random(#DANCES)])
       wml.write_u32(b + 8, id_of(p))
       wml.call(B + 0x1532830, gail, b, b + 0x10, b + 0x30, b + 8, b + 4, b + 0x90)
@@ -1021,7 +1068,7 @@ function P.wingsuit_now()
   local gail = e and wml.call(wml.base + 0x1534D80, e)
   if not gail or gail == 0 then return false end
   local x, y, z = P.position()
-  P.teleport(x, y + 40, z)
+  P.teleport(x, y + 40, z, true)
   wing_wait = 90
   return true
 end
@@ -1109,7 +1156,7 @@ function P.update_warp()
   end
   if warp_on then
     local ok, x, z = wml.game([[local x, z = rawget(_G, "Sr5tm_wx"), rawget(_G, "Sr5tm_wz") if x then rawset(_G, "Sr5tm_wx", nil) return x, z end]])
-    if ok and type(x) == "number" then P.teleport(x, 300, z) end
+    if ok and type(x) == "number" then P.teleport(x, 300, z, true) end
   end
 end
 -- The console: 378 handlers survive with only their registration stripped. One goes in the
@@ -2186,6 +2233,107 @@ function P.homie_outfit(name)
     homie_wear_outfit(m, list[i])
     return i .. " of " .. #list]], name, homie_step[name]))
   return ok and (name .. ": outfit " .. tostring(r)) or tostring(r)
+end
+-- Any animation. +F54BB0 finds a set if it's loaded (0 if not, nothing happens). A person's anim state (component 2
+-- +0xF8) looks a tag up in its +0x38 set, then +0x30, so +0x38 is free for a second set; +F75EB0 marks the change.
+function P.second_set(e, name)
+  local B = wml.base
+  local a = P.component(2, e)
+  local st = a and wml.read_u64(a + 0xF8) or 0
+  if st == 0 then return false end
+  local s = 0
+  if name then
+    s = wml.call(B + 0xF54BB0, wml.buffer(5, name))
+    if s == 0 then return false end
+  end
+  wml.write_u64(st + 0x38, s)
+  local r = wml.call(B + 0xF75EB0, wml.read_u32(st + 0x24))
+  if r ~= 0 then wml.write_u8(r + 4, wml.read_u8(r + 4) | 2) end
+  return true
+end
+local function own_set(set) return set:find("^character_base") or set:find("^dlc_.*_emotes$") or set:find("^dlc_.*character_base$") end
+P.anim_mode = false
+local anim_group
+-- entry: { label, tag, set, group }
+function P.play_anim(o)
+  local B, e = wml.base, P.object()
+  if not e then return "Not now" end
+  local id = wml.read_u32(e + 0x58)
+  local tag, set, group = o[2], o[3], o[4]
+  if not own_set(set) and not P.second_set(e, set) then return "That animation's set isn't loaded here" end
+  if group ~= "default" and not group:find("^default_") then
+    P.node(0x18EA2C0, 0x2ABE208, { { u = id }, { p = wml.buffer(5, group) }, { u = 1 } })
+    anim_group = true
+  end
+  if P.anim_mode == "hold" then
+    local a = P.component(2, e)
+    if not a then return "Not now" end
+    wml.write_u32(a + 0x2C8, wml.call(B + 0xF558C0, wml.buffer(5, tag)))
+    wml.write_f32(a + 0x2CC, 0.3)
+    return "Holding: " .. tag
+  end
+  local ok, err = wml.game(string.format('gml_anim_request_action(gml_get_local_player(), "human_emote", %q, %q, "emote_priority")', P.anim_mode == "once" and "taunt" or "looping taunt", tag))
+  return ok and ("Playing: " .. tag) or tostring(err)
+end
+function P.stop_anim()
+  local e = P.object()
+  if not e then return "Not now" end
+  wml.game("emote_attempt_stop()")
+  local a = P.component(2, e)
+  if a then wml.write_u32(a + 0x2C8, 0xFFFFFFFF); wml.write_f32(a + 0x2CC, 0.3) end
+  P.second_set(e, nil)
+  if anim_group then P.node(0x18EA440, 0x2ABCF20, { { u = wml.read_u32(e + 0x58) } }); anim_group = nil end
+  return "Stopped"
+end
+-- On everyone near, as the dance. Their chain doesn't hold the emotes, so the tag's set goes in +0x38.
+function P.anim_near(o)
+  local B = wml.base
+  local b = wml.buffer(0) + 0x800
+  local function put(a, s)
+    for i = 1, #s do wml.write_u8(a + i - 1, s:byte(i)) end
+    wml.write_u8(a + #s, 0)
+  end
+  local n = 0
+  for _, p in ipairs(P.people_near(40)) do
+    if p.entry ~= P.object() then
+      local gail = wml.call(B + 0x1534D80, p.entry)
+      if gail ~= 0 and (o[3] == "ped" or o[3] == "ai_character_base" or o[3] == "character_base" or P.second_set(p.entry, o[3])) then
+        local id = wml.read_u32(p.entry + 0x58)
+        P.node(0xAE04C0, 0x2A02F18, { { u = id }, { u = 0 } })
+        wml.write_u32(b, crc_of("human_emote")); wml.write_u32(b + 4, crc_of("emote_priority"))
+        put(b + 0x10, P.anim_mode == "once" and "taunt" or "looping taunt")
+        put(b + 0x90, "sr5_tweak_menu")
+        put(b + 0x30, o[2])
+        wml.write_u32(b + 8, id)
+        wml.call(B + 0x1532830, gail, b, b + 0x10, b + 0x30, b + 8, b + 4, b + 0x90)
+        n = n + 1
+      end
+    end
+  end
+  return n == 0 and "Nobody near" or (n .. (n == 1 and " person: " or " people: ") .. o[2])
+end
+function P.move_like(name)
+  local e = P.object()
+  if not e then return "Not now" end
+  if name == "off" then P.second_set(e, nil); return "Back to your own moves" end
+  return P.second_set(e, name) and ("Moving like " .. name) or "That set isn't loaded here"
+end
+-- A GAIL state by name (+15325A0, as the wingsuit does). Some can leave you stuck: Back on foot is the way out.
+function P.gail_state(name)
+  local B, e = wml.base, P.object()
+  if not e then return "Not now" end
+  local gail = wml.call(B + 0x1534D80, e)
+  if gail == 0 then return "Not now" end
+  local b = wml.buffer(13)
+  wml.write_u32(b, crc_of(name))
+  wml.call(B + 0x15325A0, gail, b, e + 0x58, B + 0x2999C7C)
+  return "State: " .. name
+end
+function P.gail_foot() return P.gail_state("on foot") end
+function P.cinematic(name)
+  if P.console(0x3A2B80, name) ~= 0 then return "The game refused" end
+  P.console(0x3A2C40, name)
+  return "Cinematic: " .. name
 end
 -- Spawned people take orders once they're followers: ai_issue_enter_vehicle_orders (+AE6180: person, vehicle,
 -- seat and a second int, -1 for any, 8 as the game's default), ai_issue_orders (+AE5720) "go to run" with a
