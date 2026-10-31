@@ -52,7 +52,7 @@ in the menu.
   Refill health, Health regen (none, fast, always full), No fall damage, No ragdoll, Bulletproof,
   Explosion-proof, Crash-proof, No flinch, Dodge safe time, Get up, Kill yourself
 - **Movement:** Run speed (up to x5), Jump height (up to x10), Air control, Swim speed, Your gravity,
-  No clip (controller: left stick, RT up, LT down, click the stick for fast; keyboard: W A S D, Space, Ctrl, Shift), Movement style, Walk style, Wounded walk, Swim on land, Always crouch, Wind, No shoving
+  No clip (controller: left stick, RT up, LT down, click the stick for fast; keyboard: W A S D, Space, Ctrl, Shift), Movement style, Walk style, Wounded walk, Swim on land, Always crouch, Wind, No shoving, Double jump, Jetpack, Air dash, Ice floor, Air momentum, Ragdoll yourself, Your size, Moon mode
 - **Wingsuit:** Wingsuit boosts (the game gives one until you land: every 2 s or unlimited), Wingsuit boost power, Wingsuit top speed,
   Wingsuit glide (floaty, level, climb: pull back to go up), Wingsuit from low down, Wingsuit bounce, Glide to nearest car, Wingsuit now
 - **Flow and abilities:** All perks on, Equip any skill, Effect on you (Berserker, Transfusion, Tough Mother and more), Unlimited Flow, Free skills, Flow gain, Extra Flow bars,
@@ -61,7 +61,7 @@ in the menu.
   usual), Play emote, Hidden emote (ones the game never lists), Repeat emote, Freeze emote, Stop emote, Facial
   expression, Your voice, Voice pitch, Say a line (the game's voice lines), Radio call from (495 voices)
 - **Homies:** Summon homie, Call in Saints, Dismiss homies, Homie limit (up to 4), Quiet homies, Next homie outfit
-- **Clothes and items:** Clothing slot and Clothing item (one item at a time, hats, glasses, hair, shoes and all, hidden and cut ones too), Take off this slot, What's on this slot, Any wearable (all of the game's, tattoos and makeup too), Item colour, Colour part, Hair colour, Beard colour, Eye colour, Skin type, Skin set, Any voice
+- **Clothes and items:** Clothing slot and Clothing item (one item at a time, hats, glasses, hair, shoes and all, hidden and cut ones too), Take off this slot, What's on this slot, Any wearable (all of the game's, tattoos and makeup too), Stack that item (two hats, a suit over a suit), Item colour, Colour part, Item gloss, Eye glow, Hair colour, Beard colour, Eye colour, Skin type, Skin set, Any voice
 - **Animations:** Any animation (over 1,000, the ones the game never uses marked), Animation mode (loop, once, hold), Stop animation, Everyone near plays it, Move like, Force state, Back on foot, Play cinematic
 - **Your look:** Play as spawned person, Play as pick and Play as special pick (any character in one press), Back to yourself, You are invisible, You look on fire, Saved look (a character you saved in the game:
   body and outfit), Saved look: outfit only, No wind on clothes, Character preset, Wear any outfit, Hidden outfit (clothes the wardrobe doesn't list), Face part and Face amount (50 parts, past the sliders), Random face, Long legs, Skin effect on you, Stop skin effects, Undo my look, Take a look snapshot, Customize character (anywhere), Prank yourself (bees, noodle arms,
@@ -80,24 +80,25 @@ in the menu.
   never reloads, launchers too), Reload speed (up to instant), No recoil, Perfect aim, Range, Melee lunge (none by default), Rocket speed, Hide my gun, More satchels, Rare ammo drops, Aim anywhere, Knockback,
   Friendly fire (the game's shots do nothing to anyone friendly to you; Half or Full lets them hurt), Back shot damage, Blast radius, No warm-up, No overheat
 - **Special ammo:** Special ammo (fire, shock, chill, stun, bleed, disintegrate, flee, panic, blind and more: the gun in your hands),
-  Special rounds (any gun fires the thruster football, RPG, boomerang poi, pinata, anvil, tank shell and 25 more), Round blast (any of 47), Rounds stick, Rounds arc, Signature effects on any gun, Explosive punches (any blast), Money gun
+  Car damage, People damage scale, Shield damage, Pellets, Spread, Hip fire like aiming, Recoil recovery, Shots stagger, Ragdoll on kill, Damage type, Impact effects, Fuse, Wide swings, Tracer, Muzzle flash, Shell casing, Firing shake, Special rounds (any gun fires the thruster football, RPG, boomerang poi, pinata, anvil, tank shell and 25 more), Round blast (any of 47), Rounds stick, Rounds arc, Signature effects on any gun, Explosive punches (any blast), Money gun
 - **Get weapons:** Give weapon (any of the game's), Special weapon (mission-only ones), Prototype weapon, Refill all ammo
   (free), Max every weapon's upgrades, Put that gun in slot, Weapon skin, Random gun colours, Signature ability (this gun), All signature abilities, Remove this weapon, Remove test guns (the dev guns Own every weapon adds)
 - Weapons back to normal
 
 ### Vehicles
-- **Spawning:** Spawn vehicle (any of the game's 90 ready-to-drive vehicles, next to you), Special vehicle
+- **Spawning:** From my garage (any car you own, with your paint and parts, no mechanic), Spawn vehicle (any of the game's 90 ready-to-drive vehicles, next to you), Special vehicle
   (bus, tank, yacht, VTOL, hoverboard and more), Any vehicle and Variant (all 624 versions in the game's tables, rare and reward ones too), Remove spawned vehicles, Deliver to garage
-- **Handling:** Engine power, Grip, Steering, Vehicle top speed, Suspension, Ride height, Tank steering, Twitchy chassis, Downforce, Vehicle gravity, Heavy vehicle
+- **Handling:** Engine power, Grip, Steering, Vehicle top speed, Suspension, Ride height, Front grip, Rear grip, Drift angle, Burnout, Bike lean, Auto-flip, Ice body, Vehicle size, Tank steering, Twitchy chassis, Downforce, Vehicle gravity, Heavy vehicle
 - **Toughness:** Vehicle god mode, No collision damage, Bulletproof tires, Keep vehicle repaired, Destroy
   this vehicle
-- **Aircraft and boats:** Aircraft speed, VTOL boost, Helicopter agility, Boat speed
+- **Aircraft and boats:** Aircraft speed, VTOL boost, Helicopter agility, Helicopter lift, Boat speed, Floats on water, Never sink
+- **Boost and damage:** Boost tank, Boost refill, Boost power, Launch strength, Engine fire at, Fire burn speed, World crash scale, Stay on bike
 - **Upgrades and parts:** Vehicle upgrade and Upgrade level, Rims, Tires, Any paint, Underglow colour and brightness, Off-road kit anywhere
 - **Hover vehicles:** Hover rise and lower (on the Prototype RTP: hold B to rise, X to lower), Hover top speed, Hover height, Hover jump, Hover guns (hold RT to fire)
 - **Abilities and combat:** Vehicle ability (jump, ball and chain, ejector seats, crab steering and more,
   on most vehicles), Fire, Stop and Remove that ability, Tow hook, Drop tow hook, Make nearest car towable, Crab steering, Air control and Honk blast strength, Bowelrod launch, Windshield launch, Boost now, Launch start, Stick nearest car on me, Unstick car, Back on the road, Effect on this car (slippery, super grip, plow and more), Launch this vehicle, Jump this vehicle, Surf nearest car, Stop surfing, Surf faster cars, Surf autopilot, Surfing is safe, Hoverboard slam, Vehicle jump power, No ability cooldowns, Ram
   power, Crusher, Takedowns at any speed, Ejector cannon, Cowcatcher launch
-- **Look and camera:** Next paint, Brake lights stay on, Wheel size, Underglow, Headlights on, Any horn, Any engine sound, Always tire marks, Always tire smoke, Car camera resets after, Free camera in cars, Car camera follows the nose, Car camera field of view
+- **Look and camera:** Next paint, Brake lights stay on, Wheel size, Underglow, Headlights on, Any horn, Any engine sound, Always tire marks, Always tire smoke, Car camera resets after, Free camera in cars, Car camera follows the nose, Car camera field of view, Car camera far, Camera through walls
 
 ### Teleport
 - Go to waypoint, Auto-teleport to waypoint, Warp from map (the game's dev teleport on the big map), Store and Map place (what the map knows), Fast travel point
@@ -116,15 +117,16 @@ in the menu.
   Float, Set on fire, Dissolve, Poison and Kill everyone near, Stop fights near, Revive everyone near, Strip shields near, Make everyone near tough,
   Everyone near staggers easily, Fade out and back in, Everyone near says it, Order everyone near (any of the game's 129 AI orders), Face on everyone near, Statues and back, Flaming look near, Put out everyone near, Blow up cars near, Set off car alarms, Sirens on near, Spin cars near, Everyone out of their cars, Cars near floor it
 - **Notoriety and gangs:** Never wanted (by anyone, by police: no cops, or by gangs), Enemy aim, Send in a gang, Stay in combat, Notoriety forgets
-  fast, Wanted climbs fast, Escape radius, No reinforcements, No roadblocks, Roadblock mania, Pursuit cars, Enemies arrive, Call-in speed, No ramming, Chase speed, Unseen by AI, Enemy sight, Notoriety at least, Notoriety at most, No notoriety cap, Can't lose them, Gangs and police without guns, Gang on your
+  fast, Wanted climbs fast, Escape radius, No reinforcements, No roadblocks, Roadblock mania, Pursuit cars, Enemies arrive, Call-in speed, No ramming, Chase speed, Enemies always find you, Enemies flee fights, Non-lethal enemies, Riot shields for all, Enemies use smoke, Swarm, Unseen by AI, Enemy sight, Notoriety at least, Notoriety at most, No notoriety cap, Can't lose them, Gangs and police without guns, Gang on your
   side, Saints are enemies
 - **Gang war:** Gang war (Panteros, Idols, Marshall and police fight each other), Zombie outbreak, Riot, Free for all, Gang presence, Downed, not dead, NPC fight damage, Pedestrians fight back, Everyone battle ready, Downed timer, Instant revive, Guardian angel, Spawned people can't die
-- **Physics and explosions:** No world boundary, World gravity, Explosion here, Explosion size, Explosion force, Explosion damage, Hurting yourself, Knocked over, Launch everyone near
-- **Population:** Pedestrians, Traffic, Rare traffic, Traffic mood, Traffic light here, Long trains, No trains, Traffic pop-in, People appear, Quiet streets, Crowds in the rain, People panic, No parked cars
+- **Physics and explosions:** No world boundary, World gravity, Explosion here, Blast at waypoint, Airstrike, Size of everything near, Explosion size, Explosion force, Explosion damage, Hurting yourself, Knocked over, Launch everyone near
+- **Population:** Pedestrians, Traffic, Rare traffic, Traffic mood, Traffic light here, Any district's crowd, Traffic spacing, Corpses stay, Long trains, No trains, Traffic pop-in, People appear, Quiet streets, Crowds in the rain, People panic, No parked cars
 - **Music:** Radio station (premium ones too), Music anywhere (on foot too), Play song (any song, three no station plays), Next and Previous station, Unlock radio in missions, Radios in cars near me, Radio on foot, Shuffle playlists, Master, Music, Effects and Voice volume, a volume for each of the game's 11 sound groups, City panic noise, Play sound (the game's sound events), Skip track, Pause or resume music, Now playing, Newscast, Stop newscast
 - **Props and HQ:** Spawn prop, Remove last prop, Remove all props, HQ spot, HQ prop (any prop, owned or not, on any spot in your headquarters, from anywhere), Clear this HQ spot, Fill the HQ, Save HQ layout, Load HQ layout, HQ room theme
-- **Side jobs:** Start diversion, Hermit juice, Insurance Fraud launch, Venture lot, Build venture here, Load and Unload hidden place
-- **People near, more:** People speed, Gravity near, Drop through the ground, Fake noise, Drivers bolt, Crowd around me, Taunt them, Shoot at me (each with a stop), Cars near pull over, Drivers weave, Drivers stay in, Off and Back on the minimap, Outline people near, Clear outlines, Skin effect near, Reeling near, Take down nearest, Delete everyone near
+- **Engine values:** Engine system, class, record and field (about 1,200 of the game's numbers across 236 classes), Engine amount, Change this record, Change all records, Undo all engine changes
+- **Side jobs:** Start diversion, Hermit juice, Insurance Fraud launch, Fraud scoring, Give reward, Fast travel off, Venture lot, Build venture here, Load and Unload hidden place
+- **People near, more:** People speed, Gravity near, Drop through the ground, Fake noise, Drivers bolt, Any goal set near, Hunted, Crowd around me, Taunt them, Shoot at me (each with a stop), Cars near pull over, Drivers weave, Drivers stay in, Off and Back on the minimap, Outline people near, Clear outlines, Skin effect near, Reeling near, Take down nearest, Delete everyone near
 - **Cars near:** Freeze and Unfreeze cars near, Launch cars near, Pop tires near, Stall engines near, Engines back on, Cars near do (J-turn, hairpin, ram, ramp mode), Cars near back to normal, Hazards near, Lock and Unlock cars near, Pop trunks near, Crush cars near, Tip bikes near, Ghost through cars near, Solid cars near, Delete nearest car
 - **Money and drops:** Drop cash, Drop weapon, Money rain, Pedestrians always pay, Venture income
 - **Difficulty:** the custom difficulty sliders (player health, player damage, enemies, vehicles,
@@ -219,6 +221,8 @@ opacity and Keep my save clean. Restart the game after changing them.
 | `anims.lua` | The game's animation tags in always-loaded sets, generated |
 | `clothes.lua` | The game's wearables with a model, by slot, generated |
 | `rounds.lua` | Projectiles any gun can fire and every blast, generated |
+| `browser.lua` | The game's records and numeric fields by system, for Engine values, generated |
+| `extras.lua` | Name lists for the weapon swaps and world rows, generated |
 | `gameui.lua` | Draws the menu with the game's interface (vint text objects) |
 | `luadump.lua` | Development: reads a game Lua function's constants from memory |
 

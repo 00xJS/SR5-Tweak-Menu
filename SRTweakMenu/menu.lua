@@ -544,6 +544,38 @@ local function any_variants(i)
   return out
 end
 local PERK_LIST = require("perks")
+-- Engine values: the game's records by system, generated.
+local BROWSER = require("browser")
+local ENGINE_SYSTEMS, ENGINE_SEEN = {}, {}
+for _, c in ipairs(BROWSER) do
+  if #c[2] > 0 and not ENGINE_SEEN[c.system] then ENGINE_SEEN[c.system] = true; ENGINE_SYSTEMS[#ENGINE_SYSTEMS + 1] = { c.system, c.system } end
+end
+table.sort(ENGINE_SYSTEMS, function(a, b) return a[1] < b[1] end)
+local function engine_classes(i)
+  local out = {}
+  for _, c in ipairs(BROWSER) do
+    if c.system == ENGINE_SYSTEMS[i][1] and #c[2] > 0 then out[#out + 1] = { (c[1]:gsub("_", " ")), c[1], c } end
+  end
+  return out
+end
+local function engine_fields(c)
+  local out, ints = {}, {}
+  for _, n in ipairs(c.ints or {}) do ints[n] = true end
+  for j, path in ipairs(c[2]) do out[j] = { (path:gsub("m_", ""):gsub("_", " ")), path, ints[j] or ints[j - 1] or false } end
+  return out
+end
+local EXTRAS = require("extras")
+local function name_list(t)
+  local out = {}
+  for i, n in ipairs(t) do out[i] = { (n:gsub("_", " ")), n } end
+  return out
+end
+local function swap_options(t)
+  local out = { { "Game's", false } }
+  for _, path in ipairs(t) do out[#out + 1] = { (path:match("[^\\]+$"):gsub("^vfx%-[a-z]+_", ""):gsub("^vfx_", ""):gsub("_", " ")), path } end
+  return out
+end
+local GOAL_LIST, PROFILE_LIST, REWARD_LIST = name_list(EXTRAS.goal_sets), name_list(EXTRAS.spawn_profiles), name_list(EXTRAS.rewards)
 -- Special rounds and blasts, generated. The first row of each keeps its own explosion or RPG's.
 local ROUNDS = require("rounds")
 local ROUND_OPTIONS, BLAST_OPTIONS, ROUND_BLASTS = { { "Off", false } }, { { "Off", false }, { "RPG explosion", [[data\sr_vanguard\spawnables\weapons\launcher\weapon_launcher_rpg_explosion]] } }, { { "The round's own", false } }
@@ -888,7 +920,7 @@ local TABS = {
     pset("shift_view", "Shift view", "Experimental: the picture moves off centre.", { { "Off", false }, { "Left", { -0.3, 0.0 } }, { "Right", { 0.3, 0.0 } }, { "Up", { 0.0, 0.3 } }, { "Down", { 0.0, -0.3 } } }),
     { kind = "pfn_list", fn = "colour_filter", label = "Colour vision filter", help = "Experimental: the game's colour blindness filters. May be subtle.", sel = 1, options = { { "None", "none" }, { "Protanopia", "protanopia" }, { "Deuteranopia", "deuteranopia" }, { "Tritanopia", "tritanopia" } } },
     { kind = "pfn", fn = "explosion_here", label = "Explosion here", help = "Experimental: an RPG explosion 8 m ahead of you. The first press loads it. Save first." },
-    { kind = "pfn_list", fn = "gravity_near", label = "Gravity near", help = "Experimental: Left/Right picks, Enter: everyone and every car within 40 m.", sel = 1, options = { { "None", 0.0 }, { "x0.2", 0.2 }, { "Normal", 1.0 }, { "x3", 3.0 }, { "x10", 10.0 } } },
+    { kind = "pfn_list", fn = "gravity_near", label = "Gravity near", help = "Experimental: Left/Right picks, Enter: everyone and every car within 40 m.", sel = 1, options = { { "Float up", -0.3 }, { "None", 0.0 }, { "x0.2", 0.2 }, { "Normal", 1.0 }, { "x3", 3.0 }, { "x10", 10.0 } } },
     { kind = "pfn_list", fn = "fake_noise", label = "Fake noise", help = "Experimental: Left/Right picks, Enter: everyone around reacts as if they heard it.", sel = 1, options = { { "Car alarm", "car alarm" }, { "Far explosion", "explosion - far" }, { "Player death", "player death" }, { "Oh snap", "oh snap" }, { "Prank bees", "prank bees" } } },
     { kind = "pfn_list", fn = "homie_outfit", label = "Next homie outfit", help = "Experimental: Left/Right picks a homie, each Enter puts them in their next outfit. Saved with your game.", sel = 1, options = { { "Eli", "eli" }, { "Kevin", "kev" }, { "Nahualli", "nahualli" }, { "Neenah", "neenah" } } },
     pset("tire_smoke", "Always tire smoke", "Experimental: the vehicle you're in smokes its tires as if doing this.", { { "Off", false }, { "Rolling", 2 }, { "Skidding", 3 }, { "Burning out", 4 } }),
@@ -935,11 +967,11 @@ local TABS = {
     { kind = "pfn_list", class = "gml_gail_state_info", fn = "gail_state", label = "Force state", help = "Experimental: Left/Right picks a body state: stagger, wall run and so on. CAN LEAVE YOU STUCK: Back on foot is the way out.", sel = 1, options = {} },
     { kind = "pfn", fn = "gail_foot", label = "Back on foot", help = "Experimental: asks your body to return to normal." },
     { kind = "pfn_list", fn = "cinematic", label = "Play cinematic", help = "Experimental: plays one of the game's cutscene timelines. SAVE FIRST: it can break missions and may need its scene loaded.", sel = 1, options = { { "Announce screenshot 01", "cin3d_announce_screenshot_01" }, { "Beep test", "cin3d_beep_test" }, { "Boothill binkcontainer", "cin3d_boothill_binkcontainer" }, { "Ct bond in", "cin3d_ct_bond_in" }, { "Ct bond mid 01 bink container", "cin3d_ct_bond_mid_01_bink_container" }, { "Ct bond out", "cin3d_ct_bond_out" }, { "Ct bond out pt1", "cin3d_ct_bond_out_pt1" }, { "Ct bond out pt2", "cin3d_ct_bond_out_pt2" }, { "Ct build in", "cin3d_ct_build_in" }, { "Ct city in", "cin3d_ct_city_in" }, { "Ct cold open", "cin3d_ct_cold_open" }, { "Ct cold open bink", "cin3d_ct_cold_open_bink" }, { "Ct cold open bink church", "cin3d_ct_cold_open_bink_church" }, { "Ct cold open bink container", "cin3d_ct_cold_open_bink_container" }, { "Ct cold open laughs", "cin3d_ct_cold_open_laughs" }, { "Ct cold open lineup", "cin3d_ct_cold_open_lineup" }, { "Ct cold open moneyfight", "cin3d_ct_cold_open_moneyfight" }, { "Ct cust", "cin3d_ct_cust" }, { "Ct dead in", "cin3d_ct_dead_in" }, { "Ct dead in pt1", "cin3d_ct_dead_in_pt1" }, { "Ct dead in pt2", "cin3d_ct_dead_in_pt2" }, { "Ct dead mid 01", "cin3d_ct_dead_mid_01" }, { "Ct dead mid 01 pt1", "cin3d_ct_dead_mid_01_pt1" }, { "Ct dead mid 01 pt2", "cin3d_ct_dead_mid_01_pt2" }, { "Ct dead out", "cin3d_ct_dead_out" }, { "Ct dead out nahualli", "cin3d_ct_dead_out_nahualli" }, { "Ct epilogue", "cin3d_ct_epilogue" }, { "Ct epilogue antonio bink", "cin3d_ct_epilogue_antonio_bink" }, { "Ct epilogue boardroom bink", "cin3d_ct_epilogue_boardroom_bink" }, { "Ct epilogue coyote bink", "cin3d_ct_epilogue_coyote_bink" }, { "Ct epilogue highway bink", "cin3d_ct_epilogue_highway_bink" }, { "Ct epilogue pt1", "cin3d_ct_epilogue_pt1" }, { "Ct epilogue pt2", "cin3d_ct_epilogue_pt2" }, { "Ct epilogue thunderpump bink", "cin3d_ct_epilogue_thunderpump_bink" }, { "Ct guard mid 01", "cin3d_ct_guard_mid_01" }, { "Ct guard out", "cin3d_ct_guard_out" }, { "Ct heist in", "cin3d_ct_heist_in" }, { "Ct heist mid 01", "cin3d_ct_heist_mid_01" }, { "Ct heist mid 02", "cin3d_ct_heist_mid_02" }, { "Ct heist mid 03", "cin3d_ct_heist_mid_03" }, { "Ct heist out", "cin3d_ct_heist_out" }, { "Ct hq in", "cin3d_ct_hq_in" }, { "Ct hq out", "cin3d_ct_hq_out" }, { "Ct hunt in", "cin3d_ct_hunt_in" }, { "Ct hunt mid 01", "cin3d_ct_hunt_mid_01" }, { "Ct hunt mid 02", "cin3d_ct_hunt_mid_02" }, { "Ct hunt out", "cin3d_ct_hunt_out" }, { "Ct icon mid 01 bink container", "cin3d_ct_icon_mid_01_bink_container" }, { "Ct icon mid 02 bink container", "cin3d_ct_icon_mid_02_bink_container" }, { "Ct icon out", "cin3d_ct_icon_out" }, { "Ct idols in", "cin3d_ct_idols_in" }, { "Ct idols mid 01 bink container", "cin3d_ct_idols_mid_01_bink_container" }, { "Ct idols out", "cin3d_ct_idols_out" }, { "Ct jail in", "cin3d_ct_jail_in" }, { "Ct jail in bink container", "cin3d_ct_jail_in_bink_container" }, { "Ct jail out", "cin3d_ct_jail_out" }, { "Ct marsh in apc", "cin3d_ct_marsh_in_apc" }, { "Ct marsh in atticus", "cin3d_ct_marsh_in_atticus" }, { "Ct marsh in celebrate", "cin3d_ct_marsh_in_celebrate" }, { "Ct marsh in savior", "cin3d_ct_marsh_in_savior" }, { "Ct marsh in training", "cin3d_ct_marsh_in_training" }, { "Ct marsh in training pt1", "cin3d_ct_marsh_in_training_pt1" }, { "Ct marsh in training pt2", "cin3d_ct_marsh_in_training_pt2" }, { "Ct marsh in training pt3", "cin3d_ct_marsh_in_training_pt3" }, { "Ct marsh mid 01", "cin3d_ct_marsh_mid_01" }, { "Ct marsh mid 01 02", "cin3d_ct_marsh_mid_01_02" }, { "Ct marsh mid 02", "cin3d_ct_marsh_mid_02" }, { "Ct marsh mid 03", "cin3d_ct_marsh_mid_03" }, { "Ct marsh mid 03 04", "cin3d_ct_marsh_mid_03_04" }, { "Ct marsh mid 04 pt1", "cin3d_ct_marsh_mid_04_pt1" }, { "Ct marsh mid 04 pt2", "cin3d_ct_marsh_mid_04_pt2" }, { "Ct marsh mid hang", "cin3d_ct_marsh_mid_hang" }, { "Ct marsh mid nah", "cin3d_ct_marsh_mid_nah" }, { "Ct marsh out", "cin3d_ct_marsh_out" }, { "Ct pals mid 01", "cin3d_ct_pals_mid_01" }, { "Ct pals mid 01 channel", "cin3d_ct_pals_mid_01_channel" }, { "Ct pals mid 01 couch", "cin3d_ct_pals_mid_01_couch" }, { "Ct pals mid 01 knives", "cin3d_ct_pals_mid_01_knives" }, { "Ct pals mid 01 party", "cin3d_ct_pals_mid_01_party" }, { "Ct pals mid 02", "cin3d_ct_pals_mid_02" }, { "Ct pals out", "cin3d_ct_pals_out" }, { "Ct road in", "cin3d_ct_road_in" }, { "Ct road mid 01", "cin3d_ct_road_mid_01" }, { "Ct road mid serge", "cin3d_ct_road_mid_serge" }, { "Ct road out", "cin3d_ct_road_out" }, { "Ct steal mid 01", "cin3d_ct_steal_mid_01" }, { "Ct steal out", "cin3d_ct_steal_out" }, { "Ct steal out lastshot", "cin3d_ct_steal_out_lastshot" }, { "Ct trap in", "cin3d_ct_trap_in" }, { "Ct trap in pt1", "cin3d_ct_trap_in_pt1" }, { "Ct trap in pt2", "cin3d_ct_trap_in_pt2" }, { "Ct trap out", "cin3d_ct_trap_out" }, { "Cto enforcer01", "cin3d_cto_enforcer01" }, { "Id potty in", "cin3d_id_potty_in" }, { "Id potty mid 01", "cin3d_id_potty_mid_01" }, { "Id potty mid 02", "cin3d_id_potty_mid_02" }, { "Mh exec in", "cin3d_mh_exec_in" }, { "Mh exec out", "cin3d_mh_exec_out" }, { "Mh pay out", "cin3d_mh_pay_out" }, { "Mh pay out pt2", "cin3d_mh_pay_out_pt2" }, { "Mh pay out pt3", "cin3d_mh_pay_out_pt3" }, { "Mh pay out pt4", "cin3d_mh_pay_out_pt4" }, { "Mh pay out qte", "cin3d_mh_pay_out_qte" }, { "Ms boothill docketchum explains bink container", "cin3d_ms_boothill_docketchum_explains_bink_container" }, { "Ms boothill docketchum intro consuela bink container", "cin3d_ms_boothill_docketchum_intro_consuela_bink_container" }, { "Ms boothill docketchum intro danielli bink container", "cin3d_ms_boothill_docketchum_intro_danielli_bink_container" }, { "Ms boothill docketchum intro hunter bink container", "cin3d_ms_boothill_docketchum_intro_hunter_bink_container" }, { "Ms boothill docketchum intro justice bink container", "cin3d_ms_boothill_docketchum_intro_justice_bink_container" }, { "Ms boothill sizzle bink container", "cin3d_ms_boothill_sizzle_bink_container" }, { "Ms caper in walk", "cin3d_ms_caper_in_walk" }, { "Ms caper out", "cin3d_ms_caper_out" }, { "Ms queen mid 01 bink container", "cin3d_ms_queen_mid_01_bink_container" }, { "Ms queen out", "cin3d_ms_queen_out" }, { "Ms stiff mid 01", "cin3d_ms_stiff_mid_01" }, { "Ms wed in battle", "cin3d_ms_wed_in_battle" }, { "Ms wed in ceremony", "cin3d_ms_wed_in_ceremony" }, { "Ms wed out", "cin3d_ms_wed_out" }, { "Pn break out", "cin3d_pn_break_out" }, { "Pn forge mid 01", "cin3d_pn_forge_mid_01" }, { "Pn forge out bink container", "cin3d_pn_forge_out_bink_container" }, { "Sm side bink container", "cin3d_sm_side_bink_container" }, { "Vs bar showdown", "cin3d_vs_bar_showdown" }, { "Vs potty01", "cin3d_vs_potty01" }, { "Wl siege in", "cin3d_wl_siege_in" }, { "Wl siege out", "cin3d_wl_siege_out" } } },
-    pset("hover_fly", "Hover rise and lower", "Experimental: on the Prototype RTP and other hover vehicles, hold B to rise and X to lower, as high as you like. It stays where you leave it.", { { "Off", false }, { "Slow", 8.0 }, { "Normal", 20.0 }, { "Fast", 50.0 } }),
+    pset("hover_fly", "Hover rise and lower", "Experimental: on the Prototype RTP and other hover vehicles, hold B to rise and X to lower, as high as you like, at full speed. It stays where you leave it.", { { "Off", false }, { "Slow", 8.0 }, { "Normal", 20.0 }, { "Fast", 50.0 } }),
     pset("hover_speed", "Hover top speed", "Experimental: how fast hover vehicles go. The game's limit is about 45 m/s.", { { "Game's", false }, { "x2", 2.0 }, { "x4", 4.0 }, { "x8", 8.0 } }),
     pset("hover_height", "Hover height", "Experimental: how high it rides without Hover rise and lower. The game's is 0.4 m, and past 9 m it can't feel the ground.", { { "Game's", false }, { "1 m", 1.0 }, { "3 m", 3.0 }, { "9 m", 9.0 } }),
     pset("hover_jump", "Hover jump", "Experimental: how high hover vehicles jump.", { { "Game's", false }, { "x2", 2.0 }, { "x5", 5.0 }, { "x10", 10.0 } }),
-    pset("hover_guns", "Hover guns", "Experimental: take this gun out on hover vehicles, and hold RT to fire. If you can't see the gun or where it's going, that's the board's missing animations.", { { "Off", false }, { "Pistol", 2 }, { "SMG", 3 }, { "Rifle", 4 }, { "Shotgun", 5 } }),
+    pset("hover_guns", "Hover guns", "Experimental: take this gun out on hover vehicles, and hold RT to fire where the camera looks. It has no aiming pose, muzzle flash or sound: the board has no animations for them. No ammo is used.", { { "Off", false }, { "Pistol", 2 }, { "SMG", 3 }, { "Rifle", 4 }, { "Shotgun", 5 } }),
     pset("round_stick", "Rounds stick", "Experimental: Special rounds stick to what they hit.", { { "Off", false }, { "On", true } }),
     pset("round_lob", "Rounds arc", "Experimental: Special rounds are lobbed in an arc.", { { "Off", false }, { "On", true } }),
     pset("sig_key", "Signature effects on any gun", "Experimental: the gun in your hands acts upgraded where the game checks. Most show it only if they have a signature of their own. Not saved.", { { "Off", false }, { "On", true } }),
@@ -966,6 +998,81 @@ local TABS = {
     pset("car_air", "Air control strength", "Experimental: how much Super air control turns you.", { { "Game's", false }, { "x2", 2.0 }, { "x4", 4.0 }, { "x8", 8.0 } }),
     pset("car_honk", "Honk blast strength", "Experimental: how hard Honk blast throws things.", { { "Game's", false }, { "x2", 2.0 }, { "x4", 4.0 }, { "x8", 8.0 } }),
     pset("car_bowel", "Bowelrod launch", "Experimental: how hard the Bowelrod throws people out.", { { "Game's", false }, { "x2", 2.0 }, { "x4", 4.0 }, { "x8", 8.0 } }),
+    { kind = "engine_sys", label = "Engine system", help = "Every value the game keeps in its data records, by system. Pick a system, then a class, a record and a field.", sel = 1, options = ENGINE_SYSTEMS },
+    { kind = "engine_class", label = "Engine class", help = "The classes in that system.", sel = 1, options = engine_classes(1) },
+    { kind = "engine_rec", label = "Engine record", help = "Which record of that class. Press Enter on it to load the list.", sel = 1, options = {} },
+    { kind = "engine_field", label = "Engine field", help = "Which value. Press Enter to see what it is now.", sel = 1, options = engine_fields(engine_classes(1)[1][3]) },
+    pset("engine_amount", "Engine amount", "How to change it. x multiplies the game's own value.", { { "x2", false }, { "x0.1", { "mul", 0.1 } }, { "x0.5", { "mul", 0.5 } }, { "x5", { "mul", 5 } }, { "x10", { "mul", 10 } }, { "x100", { "mul", 100 } }, { "Set to 0", { "set", 0 } }, { "Set to 1", { "set", 1 } }, { "Back to the game's", { "back" } } }),
+    { kind = "engine_apply", all = false, label = "Change this record", help = "Experimental: applies Engine amount to that field of that record. May do nothing: some are only read at load. It lasts until you quit. Save first." },
+    { kind = "engine_apply", all = true, label = "Change all records", help = "Experimental: the same on every record of the class." },
+    { kind = "pfn", fn = "engine_undo_all", label = "Undo all engine changes", help = "Every value changed here, back to the game's." },
+    pset("gun_car", "Car damage", "Experimental: how much the gun in your hands hurts vehicles.", { { "Game's", false }, { "x0.5", 0.5 }, { "x3", 3.0 }, { "x6", 6.0 }, { "x12", 12.0 } }),
+    pset("gun_people", "People damage scale", "Experimental: a separate scale against people, on the gun in your hands.", { { "Game's", false }, { "x2", 2.0 }, { "x5", 5.0 }, { "x10", 10.0 } }),
+    pset("gun_shield", "Shield damage", "Experimental: how much it hurts tough shields.", { { "Game's", false }, { "x2", 2.0 }, { "x5", 5.0 }, { "x10", 10.0 } }),
+    pset("gun_pellets", "Pellets", "Experimental: how many pellets a shotgun fires, or rounds in a burst. Lots can slow the game.", { { "Game's", false }, { "4", 4 }, { "12", 12 }, { "24", 24 }, { "48", 48 } }),
+    pset("gun_spread", "Spread", "Experimental: how wide shots go. For none at all, Perfect aim.", { { "Game's", false }, { "x0.25", 0.25 }, { "x0.5", 0.5 }, { "x2", 2.0 }, { "x4", 4.0 }, { "x8", 8.0 } }),
+    pset("gun_hip", "Hip fire like aiming", "Experimental: no accuracy penalty from the hip.", { { "Off", false }, { "On", true } }),
+    pset("gun_recover", "Recoil recovery", "Experimental: how fast the gun settles.", { { "Game's", false }, { "x2", 2.0 }, { "x5", 5.0 }, { "x10", 10.0 } }),
+    pset("gun_stagger", "Shots stagger", "Experimental: how hard each hit staggers people.", { { "Game's", false }, { "Light", 5.0 }, { "Heavy", 20.0 }, { "Massive", 50.0 } }),
+    pset("gun_ragdoll", "Ragdoll on kill", "Experimental: bodies fly when this gun kills.", { { "Game's", false }, { "Far", 100.0 }, { "Very far", 300.0 }, { "Into orbit", 500.0 } }),
+    pset("gun_dmgtype", "Damage type", "Experimental: what this gun's hits count as. Their effects aren't confirmed; heal may do nothing.", { { "Game's", false }, { "Instant kill", 0xDC2D1A57 }, { "Electric", 0x64382DD1 }, { "Water", 0x3D11E3C7 }, { "No flinch", 0xD966281B }, { "Heal", 0x886CA1B2 } }),
+    pset("gun_impact", "Impact effects", "Experimental: what hits look like.", { { "Game's", false }, { "Fist cannon", 0x2A12F13F }, { "Potato launcher", 0xFF73E1CB } }),
+    pset("gun_fuse", "Fuse", "Experimental: seconds before thrown things and rounds go off.", { { "Game's", false }, { "Instant", 0.0 }, { "5 s", 5.0 }, { "30 s", 30.0 } }),
+    pset("gun_wide", "Wide swings", "Experimental: melee arcs reach further around you.", { { "Off", false }, { "x2", 2.0 }, { "x5", 5.0 } }),
+    pset("gun_tracer", "Tracer", "Experimental: what the gun in your hands' shots look like. Not with Special rounds.", { { "Game's", false }, { "haunted-rifle tracer 02", [[data\dlc_02\spawnables\vfx\prefabs\vfx_haunted-rifle_tracer_02]] }, { "lmg tracer 01", [[data\dlc_boothill\spawnables\vfx\prefabs\vfx-particle_lmg_tracer_01]] }, { "marksman-rifle tracer 01", [[data\dlc_boothill\spawnables\vfx\prefabs\vfx-particle_marksman-rifle_tracer_01]] }, { "dlc boothill pistol shotgun tracer", [[data\dlc_boothill\spawnables\vfx\prefabs\vfx_dlc_boothill_pistol_shotgun_tracer]] }, { "frostlander paintball tracer", [[data\dlc_exp_02_dusty\spawnables\vfx\prefabs\vfx_frostlander_paintball_tracer]] }, { "frostlander paintball tracer turret", [[data\dlc_exp_02_dusty\spawnables\vfx\prefabs\vfx_frostlander_paintball_tracer_turret]] }, { "smg frostlander tracer cinematic", [[data\dlc_exp_02_dusty\spawnables\vfx\prefabs\vfx_smg_frostlander_tracer_cinematic]] }, { "base-sniper tracer 01", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_base-sniper_tracer_01]] }, { "beercan-launcher tracer 01", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_beercan-launcher_tracer_01]] }, { "cowboy shotgun tracer 01a", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_cowboy_shotgun_tracer_01a]] }, { "elephant-rifle tracer 01a", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_elephant-rifle_tracer_01a]] }, { "focus rifle tracer 01a", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_focus_rifle_tracer_01a]] }, { "god blaster tracer", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_god_blaster_tracer]] }, { "heavy-smg tracer 01", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_heavy-smg_tracer_01]] }, { "high-volume smg tracer 01a", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_high-volume_smg_tracer_01a]] }, { "lawgiver tracer 01", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_lawgiver_tracer_01]] }, { "potato launcher tracer 01", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_potato_launcher_tracer_01]] }, { "retrowave-sniper tracer 01", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_retrowave-sniper_tracer_01]] }, { "idols-pistol-tracer 01", [[data\sr_city\spawnables\vfx\prefabs\vfx-weapon_idols-pistol-tracer_01]] }, { "idols-pistol-tracer cinematic ct pals mid 02", [[data\sr_city\spawnables\vfx\prefabs\vfx-weapon_idols-pistol-tracer_cinematic_ct_pals_mid_02]] }, { "pistol tracer invisible", [[data\sr_city\spawnables\vfx\prefabs\vfx-weapon_pistol_tracer_invisible]] }, { "wastelander crossbow tracer postlaunch", [[data\sr_city\spawnables\vfx\prefabs\vfx-weapon_wastelander_crossbow_tracer_postlaunch]] }, { "wastelander pistol tracer city city 03", [[data\sr_city\spawnables\vfx\prefabs\vfx-weapon_wastelander_pistol_tracer_city_city_03]] }, { "idols-smg-tracer 01", [[data\sr_city\spawnables\vfx\vfx-weapon_idols-smg-tracer_01]] }, { "panteros-sawed-shotgun-tracer 01", [[data\sr_city\spawnables\vfx\vfx-weapon_panteros-sawed-shotgun-tracer_01]] }, { "police-shotgun-basic-tracer 01", [[data\sr_city\spawnables\vfx\vfx-weapon_police-shotgun-basic-tracer_01]] }, { "recycled-smg tracer 01a", [[data\sr_city\spawnables\vfx\vfx-weapon_recycled-smg_tracer_01a]] }, { "shotgun wastelander tracer 01", [[data\sr_city\spawnables\vfx\vfx-weapon_shotgun_wastelander_tracer_01]] }, { "smg-idols-miniboss tracer 01a", [[data\sr_city\spawnables\vfx\vfx-weapon_smg-idols-miniboss_tracer_01a]] }, { "weapon firework-cannon-tracer 01a", [[data\sr_city\spawnables\vfx\vfx_weapon_firework-cannon-tracer_01a]] }, { "assault-rifle tracer 01a", [[data\sr_vanguard\spawnables\vfx\prefabs\vfx-particle_assault-rifle_tracer_01a]] }, { "marshall-rifle-burst ultimate tracer 01a", [[data\sr_vanguard\spawnables\vfx\prefabs\vfx-particle_marshall-rifle-burst_ultimate_tracer_01a]] }, { "marshall-six-shooter tracer 01a", [[data\sr_vanguard\spawnables\vfx\prefabs\vfx-particle_marshall-six-shooter_tracer_01a]] }, { "marshall minigun tracer 01", [[data\sr_vanguard\spawnables\vfx\prefabs\vfx_marshall_minigun_tracer_01]] }, { "marshall-generic-burst-tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_marshall-generic-burst-tracer_01]] }, { "marshall-rifle-burst-tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_marshall-rifle-burst-tracer_01]] }, { "marshall carbine-tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_marshall_carbine-tracer_01]] }, { "marshall charged-shotgun-tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_marshall_charged-shotgun-tracer_01]] }, { "marshall overwatch tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_marshall_overwatch_tracer_01]] }, { "marshall pistol-tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_marshall_pistol-tracer_01]] }, { "marshall turret tracer apc", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_marshall_turret_tracer_apc]] }, { "marshall turret tracer tank 02", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_marshall_turret_tracer_tank_02]] }, { "marshall turret tracer train", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_marshall_turret_tracer_train]] }, { "nahualli overwatch tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_nahualli_overwatch_tracer_01]] }, { "nonfaction tracer 02", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_nonfaction_tracer_02]] }, { "nonfaction tracer heli", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_nonfaction_tracer_heli]] }, { "panteros-pistol-handcannon-tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_panteros-pistol-handcannon-tracer_01]] }, { "panteros shotgun tracer cinematic", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_panteros_shotgun_tracer_cinematic]] }, { "panteros tracer 02", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_panteros_tracer_02]] }, { "player overwatch tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_player_overwatch_tracer_01]] }, { "police-pistol-basic-tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_police-pistol-basic-tracer_01]] }, { "shotgun-tac-semi-auto tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_shotgun-tac-semi-auto_tracer_01]] }, { "tracer parent", [[data\sr_vanguard\spawnables\weapons\shots\tracer_parent]] }, { "smg tactical tracer", [[data\sr_vanguard\spawnables\weapons\shots\vfx_smg_tactical_tracer]] } }),
+    pset("gun_muzzle", "Muzzle flash", "Experimental: any flash on the gun in your hands.", swap_options(EXTRAS.muzzle)),
+    pset("gun_casing", "Shell casing", "Experimental: what it ejects.", swap_options(EXTRAS.shell)),
+    pset("gun_shake", "Firing shake", "Experimental: how the camera kicks.", swap_options(EXTRAS.shake)),
+    pset("double_jump", "Double jump", "Experimental: press A or Space again in the air.", { { "Off", false }, { "One more", 1 }, { "Three more", 3 }, { "Ten more", 10 } }),
+    pset("jetpack", "Jetpack", "Experimental: hold A or Space in the air to climb.", { { "Off", false }, { "Gentle", 4.0 }, { "Strong", 8.0 }, { "Rocket", 20.0 } }),
+    pset("air_dash", "Air dash", "Experimental: press X or Shift in the air to shoot where the camera looks.", { { "Off", false }, { "Quick", 15.0 }, { "Far", 30.0 }, { "Very far", 60.0 } }),
+    pset("ice_floor", "Ice floor", "Experimental: you slide around on foot.", { { "Off", false }, { "Slippery", 0.1 }, { "Ice", 0.02 } }),
+    pset("air_drift", "Air momentum", "Experimental: you can't turn much in the air.", { { "Off", false }, { "Some", 50.0 }, { "Lots", 10.0 } }),
+    { kind = "pfn_list", fn = "stay_ragdoll", label = "Ragdoll yourself", help = "Experimental: you go limp and stay that way until you pick Get back up.", sel = 1, options = { { "Go limp", 1 }, { "Get back up", 0 } } },
+    { kind = "pfn_list", fn = "scale_me", label = "Your size", help = "Experimental: resizes you, collision too. Animations and doors won't fit. Normal puts you back.", sel = 1, options = { { "x0.25", 0.25 }, { "x0.5", 0.5 }, { "x0.75", 0.75 }, { "Normal", 1 }, { "x1.5", 1.5 }, { "x2", 2.0 }, { "x3", 3.0 }, { "x5", 5.0 } } },
+    { kind = "pfn_list", fn = "scale_car", label = "Vehicle size", help = "Experimental: giant or tiny, collision too. The wheels stay their size. Start small.", sel = 1, options = { { "x0.25", 0.25 }, { "x0.5", 0.5 }, { "x0.75", 0.75 }, { "Normal", 1 }, { "x1.5", 1.5 }, { "x2", 2.0 }, { "x3", 3.0 }, { "x5", 5.0 } } },
+    { kind = "pfn_list", fn = "scale_near", label = "Size of everything near", help = "Experimental: every person and car within 40 m.", sel = 1, options = { { "x0.25", 0.25 }, { "x0.5", 0.5 }, { "x0.75", 0.75 }, { "Normal", 1 }, { "x1.5", 1.5 }, { "x2", 2.0 }, { "x3", 3.0 }, { "x5", 5.0 } } },
+    { kind = "look_num", cloth = true, part = "glossiness", label = "Item gloss", help = "Experimental: how shiny what's in Clothing slot is. Your save keeps it.", sel = 1, options = { { "None", 0 }, { "Some", 0.5 }, { "Full", 1 }, { "Double", 2 }, { "Way past", 5 } } },
+    { kind = "look_num", slot = "eyes", part = "iris_glow_intensity", label = "Eye glow", help = "Experimental: glowing eyes, past the game's limit, on eyes that have it. Your save keeps it.", sel = 1, options = { { "None", 0 }, { "Some", 0.5 }, { "Full", 1 }, { "Double", 2 }, { "Way past", 5 } } },
+    { kind = "stack_item", label = "Stack that item", help = "Experimental: wears what's on Clothing item into the slot on Stack on slot, even if it doesn't belong: two hats, a suit over a suit. Saved with your character." },
+    { kind = "stack_slot", label = "Stack on slot", help = "Which slot Stack that item uses.", sel = 1, options = CLOTH_SLOTS },
+    pset("front_grip", "Front grip", "Experimental: how the front tires hold. Low means it won't turn in.", { { "Game's", false }, { "x0.25", 0.25 }, { "x0.5", 0.5 }, { "x2", 2.0 }, { "x4", 4.0 }, { "x8", 8.0 } }),
+    pset("rear_grip", "Rear grip", "Experimental: how the rear tires hold. Low means it drifts.", { { "Game's", false }, { "x0.25", 0.25 }, { "x0.5", 0.5 }, { "x2", 2.0 }, { "x4", 4.0 }, { "x8", 8.0 } }),
+    pset("drift", "Drift angle", "Experimental: how far it slides.", { { "Game's", false }, { "x2", 2.0 }, { "x5", 5.0 }, { "x10", 10.0 } }),
+    pset("burnout", "Burnout", "Experimental: longer, spinnier burnouts.", { { "Game's", false }, { "x2", 2.0 }, { "x5", 5.0 }, { "x10", 10.0 } }),
+    pset("bike_lean", "Bike lean", "Experimental: how deep bikes lean.", { { "Game's", false }, { "x1.5", 1.5 }, { "x2", 2.0 }, { "x3", 3.0 } }),
+    pset("boost_tank", "Boost tank", "Experimental: how much boost it holds.", { { "Game's", false }, { "x2", 2.0 }, { "x5", 5.0 }, { "x10", 10.0 } }),
+    pset("boost_refill", "Boost refill", "Experimental: how fast it comes back.", { { "Game's", false }, { "x2", 2.0 }, { "x5", 5.0 }, { "x10", 10.0 } }),
+    pset("boost_punch", "Boost power", "Experimental: how hard boost pushes.", { { "Game's", false }, { "x2", 2.0 }, { "x5", 5.0 }, { "x10", 10.0 } }),
+    pset("launch_power", "Launch strength", "Experimental: how hard a launch start pushes.", { { "Game's", false }, { "x2", 2.0 }, { "x5", 5.0 }, { "x10", 10.0 } }),
+    pset("heli_lift", "Helicopter lift", "Experimental: snappier climbs.", { { "Game's", false }, { "x2", 2.0 }, { "x5", 5.0 }, { "x10", 10.0 } }),
+    pset("water_float", "Floats on water", "Experimental: how high anything rides in water.", { { "Game's", false }, { "x2", 2.0 }, { "x5", 5.0 }, { "x10", 10.0 } }),
+    pset("never_sink", "Never sink", "Experimental: the vehicle you're in survives deep water.", { { "Off", false }, { "On", true } }),
+    pset("engine_fire", "Engine fire at", "Experimental: when its engine catches fire.", { { "Game's", false }, { "Never", -1.0 }, { "First hit", 1.0 } }),
+    pset("stay_on_bike", "Stay on bike", "Experimental: no bail-outs. On a car it may eject you.", { { "Off", false }, { "On", true } }),
+    pset("auto_flip", "Auto-flip", "Experimental: rights itself.", { { "Game's", false }, { "Never", 1 }, { "Always", 2 }, { "On its side", 3 } }),
+    pset("ice_body", "Ice body", "Experimental: the vehicle you're in slides off walls and things.", { { "Off", false }, { "On", true } }),
+    pset("car_crash", "World crash scale", "Experimental: how hard walls hit cars, boats, helicopters and jets, AI's too.", { { "Game's", false }, { "x0.25", 0.25 }, { "x0.5", 0.5 }, { "x2", 2.0 }, { "x4", 4.0 }, { "x8", 8.0 } }),
+    pset("car_burn", "Fire burn speed", "Experimental: how fast burning vehicles take damage.", { { "Game's", false }, { "x0.25", 0.25 }, { "x0.5", 0.5 }, { "x2", 2.0 }, { "x4", 4.0 }, { "x8", 8.0 } }),
+    pset("traffic_gap", "Traffic spacing", "Experimental: how far apart cars keep. The game's are 25 to 50.", { { "Game's", false }, { "Close", 8.0 }, { "Sparse", 150.0 } }),
+    gchoice("Car camera far", "Experimental: a long chase camera.", { { "Normal", [[player_camera_set_param("CP Normal Combat DTT", 6) return "normal"]] }, { "Far", [[player_camera_set_param("CP Normal Combat DTT", 20) return "far"]] }, { "Very far", [[player_camera_set_param("CP Normal Combat DTT", 60) return "very far"]] } }),
+    pset("cam_through", "Camera through walls", "Experimental: the camera doesn't pull in for walls.", { { "Off", false }, { "On", true } }),
+    pset("moon", "Moon mode", "Experimental: everything at a sixth of gravity, you too.", { { "Off", false }, { "On", true } }),
+    pset("airstrike", "Airstrike", "Experimental: blasts land around you. God mode first, and it costs frames.", { { "Off", false }, { "Now and then", 90 }, { "Heavy", 30 }, { "Carpet", 10 } }),
+    { kind = "pfn", fn = "blast_waypoint", label = "Blast at waypoint", help = "Experimental: an explosion at your map waypoint. The first press loads it." },
+    { kind = "pfn_list", fn = "goal_near", label = "Any goal set near", help = "Experimental: Left/Right picks one of the game's AI behaviours, Enter: everyone within 40 m acts that way, as far as their animations let them.", sel = 1, options = GOAL_LIST },
+    { kind = "pfn_list", fn = "hunted_near", label = "Hunted", help = "Experimental: how everyone within 40 m tracks you. It needs another pass for people who arrive later.", sel = 1, options = { { "Always find me", 4 }, { "On sight", 1 }, { "Back to normal", 0 } } },
+    { kind = "pfn_list", fn = "district_crowd", label = "Any district's crowd", help = "Experimental: this place fills with another district's people and cars. It changes back when you change district.", sel = 1, options = PROFILE_LIST },
+    { kind = "pfn_list", fn = "give_reward", label = "Give reward", help = "Experimental: gives one of the game's reward tables. Saved with your game.", sel = 1, options = REWARD_LIST },
+    pset("no_fast_travel", "Fast travel off", "Experimental: the map's own fast travel stops. The menu's teleport still works.", { { "Off", false }, { "On", true } }),
+    pset("ai_find", "Enemies always find you", "Experimental: every kind of AI knows where you are.", { { "Off", false }, { "On", true } }),
+    pset("ai_flee", "Enemies flee fights", "Experimental: they run from combat areas.", { { "Off", false }, { "On", true } }),
+    pset("ai_nonlethal", "Non-lethal enemies", "Experimental: enemies fight to subdue.", { { "Off", false }, { "On", true } }),
+    pset("ai_shield", "Riot shields for all", "Experimental: melee enemies carry riot shields, where they have the animations.", { { "Off", false }, { "On", true } }),
+    pset("ai_smoke", "Enemies use smoke", "Experimental: squads throw smoke on their coordinated attacks.", { { "Off", false }, { "On", true } }),
+    pset("ai_swarm", "Swarm", "Experimental: more enemies attack you at once.", { { "Game's", false }, { "x2", 2.0 }, { "x5", 5.0 }, { "x10", 10.0 } }),
+    pset("corpses_stay", "Corpses stay", "Experimental: bodies and wrecks linger longer. It costs frames.", { { "Game's", false }, { "x2", 2.0 }, { "x5", 5.0 }, { "x10", 10.0 } }),
+    pset("fraud_score", "Fraud scoring", "Experimental: Insurance Fraud pays far more per hit.", { { "Game's", false }, { "x2", 2.0 }, { "x5", 5.0 }, { "x10", 10.0 } }),
     wset("range", "Range", "How far every gun reaches. Melee has its own row.", { { "Game's", 1 }, { "x2", 2 }, { "x4", 4 } }),
     pset("melee_lunge", "Melee lunge", "How far you dash at a swing. None: everyone swings from where they stand. Far: x4 when no one's in reach.", { { "None", "none" }, { "Game's", "game" }, { "Far", "far" } }),
     wset("knockback", "Knockback", "How hard hits push people and things.", { { "Game's", 1 }, { "x3", 3 }, { "x10", 10 } }),
@@ -984,6 +1091,7 @@ local TABS = {
     { kind = "weapons_reset", label = "Weapons back to normal", help = "Every weapon setting back to the game's." },
   } },
   { name = "Vehicles", rows = {
+    { kind = "garage_car", label = "From my garage", help = "Left/Right picks a car in your garage, with your paint and parts, Enter puts it next to you. No mechanic and no wait.", sel = 1, options = {} },
     { kind = "deliver", label = "Spawn vehicle", help = "Left/Right picks one of the game's 90 vehicles, Enter spawns it next to you.", sel = 1, options = {} },
     { kind = "carset", key = "power", label = "Engine power", help = "Experimental: the torque of the vehicle you're in.", options = { { "Game's", 1 }, { "x2", 2 }, { "x3", 3 }, { "x5", 5 } }, sel = 1, save_key = "car.power" },
     { kind = "carset", key = "grip", label = "Grip", help = "Experimental: how hard the tires of the vehicle you're in hold the road.", options = { { "Game's", 1 }, { "x1.5", 1.5 }, { "x2", 2 }, { "x3", 3 } }, sel = 1, save_key = "car.grip" },
@@ -1251,33 +1359,34 @@ for _, t in ipairs(TABS) do for _, r in ipairs(t.rows) do if APPLY_ON_PICK[r.lab
 local LAYOUT = {
   { "Player", {
     { "Health and survival", "God mode, health, and what can't hurt you.", { "God mode", "Health", "Refill health", "Health regen", "No fall damage", "No ragdoll", "No flinch", "Dodge safe time", "Bulletproof", "Explosion-proof", "Crash-proof", "Get up", "Kill yourself" } },
-    { "Movement", "How you run, jump and fall.", { "Run speed", "Jump height", "Air control", "Swim speed", "Your gravity", "No clip", "Movement style", "Walk style", "Wounded walk", "Swim on land", "Always crouch", "Wind", "No shoving" } },
+    { "Movement", "How you run, jump and fall.", { "Run speed", "Jump height", "Air control", "Swim speed", "Your gravity", "No clip", "Movement style", "Walk style", "Wounded walk", "Swim on land", "Always crouch", "Wind", "No shoving", "Double jump", "Jetpack", "Air dash", "Ice floor", "Air momentum", "Ragdoll yourself", "Your size", "Moon mode" } },
     { "Wingsuit", "Boosts, power, speed and glide.", { "Wingsuit boosts", "Wingsuit boost power", "Wingsuit top speed", "Wingsuit glide", "Wingsuit from low down", "Wingsuit bounce", "Glide to nearest car", "Wingsuit now" } },
     { "Flow and abilities", "Your ability meter, skills and takedowns.", { "All perks on", "Equip any skill", "Effect on you", "Immune to", "Unlimited Flow", "Free skills", "Flow gain", "Extra Flow bars", "Flow never drains", "Rampage at full Flow", "Takedown cooldown", "Takedown ready now", "Grenade takedown", "Takedowns always kill", "Short takedowns only", "No takedowns", "Dustlander takedowns", "Skills recharge at once", "Any perk", "Perk strength", "My perks off" } },
     { "Emotes and voice", "Emotes, expressions and how you sound.", { "D-pad emote 1", "D-pad emote 2", "Play emote", "Hidden emote", "Repeat emote", "Freeze emote", "Stop emote", "Facial expression", "Your voice", "Voice pitch", "Say a line", "Radio call from" } },
     { "Homies", "Who's with you.", { "Summon homie", "Call in Saints", "Dismiss homies", "Homie limit", "Quiet homies", "Next homie outfit" } },
-    { "Clothes and items", "One item at a time, and colours.", { "Clothing slot", "Clothing item", "Take off this slot", "What's on this slot", "Any wearable", "Item colour", "Colour part", "Hair colour", "Beard colour", "Eye colour", "Skin type", "Skin set", "Any voice" } },
+    { "Clothes and items", "One item at a time, and colours.", { "Clothing slot", "Clothing item", "Take off this slot", "What's on this slot", "Any wearable", "Stack on slot", "Stack that item", "Item colour", "Colour part", "Item gloss", "Eye glow", "Hair colour", "Beard colour", "Eye colour", "Skin type", "Skin set", "Any voice" } },
     { "Animations", "Any of the game's animations, used or not.", { "Any animation", "Animation mode", "Stop animation", "Everyone near plays it", "Move like", "Force state", "Back on foot", "Play cinematic" } },
     { "Your look", "Who you are and what you're wearing.", { "Play as spawned person", "Play as pick", "Play as special pick", "Back to yourself", "You are invisible", "You look on fire", "Saved look", "Saved look: outfit only", "No wind on clothes", "Character preset", "Wear any outfit", "Hidden outfit", "Face part", "Face amount", "Random face", "Long legs", "Skin effect on you", "Stop skin effects", "Undo my look", "Take a look snapshot", "Customize character", "Prank yourself" } },
     { "Body beyond limits", "Past the sliders' ends. Only on screen: your save keeps your real body.", { "Body: muscle", "Body: fat", "Body: thin", "Body: chest", "Body: blend", "Face: head shape", "Face: eye size", "Face: nose size", "Face: mouth size", "Body: groin", "Body: squeezed", "Face: eye spacing", "Face: mouth width", "Back to my real body" } },
-    { "Money and progress", "XP, skill points, cash and prices.", { "Give XP", "Give skill points", "Add cash", "Free shopping", "Free ventures", "Start mission", "Insurance Fraud here" } },
+    { "Money and progress", "XP, skill points, cash and prices.", { "Give XP", "Give skill points", "Add cash", "Free shopping", "Free ventures", "Start mission", "Insurance Fraud here", "Level up once", "Refund all skills" } },
     { "Unlocks", "Skills, perks, weapons, clothing and more. These stay in your save.", { "Unlock EVERYTHING", "Unlock fast travel points", "Own every weapon", "Unlock all skills", "Unlock all perks", "Unlock gang and homies", "Unlock all clothing", "Unlock everything in the stores", "Unlock all weapon skins", "Unlock all collectibles" } },
   } },
   { "Weapons", {
-    { "Gun tuning", "Fire rate, damage, recoil and the rest of how guns behave.", { "Fire rate", "Full auto", "Damage", "Magazine", "Reload speed", "No recoil", "Perfect aim", "Range", "Melee lunge", "Rocket speed", "Hide my gun", "More satchels", "Rare ammo drops", "Aim anywhere", "Knockback", "Blast radius", "Friendly fire", "Back shot damage", "No warm-up", "No overheat" } },
+    { "Gun tuning", "Fire rate, damage, recoil and the rest of how guns behave.", { "Fire rate", "Full auto", "Damage", "Magazine", "Reload speed", "No recoil", "Perfect aim", "Range", "Melee lunge", "Rocket speed", "Car damage", "People damage scale", "Shield damage", "Pellets", "Spread", "Hip fire like aiming", "Recoil recovery", "Shots stagger", "Ragdoll on kill", "Damage type", "Impact effects", "Fuse", "Wide swings", "Tracer", "Muzzle flash", "Shell casing", "Firing shake", "Hide my gun", "More satchels", "Rare ammo drops", "Aim anywhere", "Knockback", "Blast radius", "Friendly fire", "Back shot damage", "No warm-up", "No overheat" } },
     { "Special ammo", "What your shots and hits do.", { "Special ammo", "Special rounds", "Round blast", "Rounds stick", "Rounds arc", "Signature effects on any gun", "Explosive punches", "Money gun" } },
     { "Get weapons", "Give, fill, upgrade or remove.", { "Give weapon", "Special weapon", "Refill all ammo", "Max every weapon's upgrades", "Put that gun in slot", "Weapon skin", "Random gun colours", "Prototype weapon", "Signature ability (this gun)", "All signature abilities", "Remove this weapon", "Remove test guns" } },
     "Weapons back to normal",
   } },
   { "Vehicles", {
-    { "Spawning", "Getting vehicles and getting rid of them.", { "Spawn vehicle", "Special vehicle", "Any vehicle", "Variant", "Remove spawned vehicles", "Deliver to garage" } },
-    { "Handling", "Power, grip and how it sits on the road.", { "Engine power", "Grip", "Steering", "Vehicle top speed", "Suspension", "Ride height", "Tank steering", "Twitchy chassis", "Downforce", "Vehicle gravity", "Heavy vehicle" } },
+    { "Spawning", "Getting vehicles and getting rid of them.", { "From my garage", "Spawn vehicle", "Special vehicle", "Any vehicle", "Variant", "Remove spawned vehicles", "Deliver to garage" } },
+    { "Handling", "Power, grip and how it sits on the road.", { "Engine power", "Grip", "Steering", "Vehicle top speed", "Suspension", "Ride height", "Front grip", "Rear grip", "Drift angle", "Burnout", "Bike lean", "Auto-flip", "Ice body", "Vehicle size", "Tank steering", "Twitchy chassis", "Downforce", "Vehicle gravity", "Heavy vehicle" } },
     { "Toughness", "Keeping it in one piece, or not.", { "Vehicle god mode", "No collision damage", "Bulletproof tires", "Keep vehicle repaired", "Destroy this vehicle" } },
-    { "Aircraft and boats", "What Handling can't reach.", { "Aircraft speed", "VTOL boost", "Helicopter agility", "Boat speed" } },
+    { "Aircraft and boats", "What Handling can't reach.", { "Aircraft speed", "VTOL boost", "Helicopter agility", "Helicopter lift", "Boat speed", "Floats on water", "Never sink" } },
+    { "Boost and damage", "Boost, launches, fire and crashes.", { "Boost tank", "Boost refill", "Boost power", "Launch strength", "Engine fire at", "Fire burn speed", "World crash scale", "Stay on bike" } },
     { "Upgrades and parts", "The garage's options, on the vehicle you're in.", { "Vehicle upgrade", "Upgrade level", "Rims", "Tires", "Any paint", "Underglow colour", "Underglow brightness", "Off-road kit anywhere" } },
     { "Hover vehicles", "The Prototype RTP and its kind: rise, lower, speed and guns.", { "Hover rise and lower", "Hover top speed", "Hover height", "Hover jump", "Hover guns" } },
     { "Abilities and combat", "Vehicle abilities, rams and takedowns.", { "Vehicle ability", "Fire that ability", "Stop that ability", "Remove that ability", "Tow hook", "Drop tow hook", "Make nearest car towable", "Crab steering strength", "Air control strength", "Honk blast strength", "Bowelrod launch", "Windshield launch", "Boost now", "Launch start", "Stick nearest car on me", "Unstick car", "Back on the road", "Effect on this car", "Launch this vehicle", "Jump this vehicle", "Surf nearest car", "Stop surfing", "Surf faster cars", "Surf autopilot", "Surfing is safe", "Hoverboard slam", "Vehicle jump power", "No ability cooldowns", "Ram power", "Crusher", "Takedowns at any speed", "Ejector cannon", "Cowcatcher launch" } },
-    { "Look and camera", "Paint, lights and the driving camera.", { "Next paint", "Brake lights stay on", "Car camera resets after", "Wheel size", "Underglow", "Headlights on", "Any horn", "Any engine sound", "Always tire marks", "Always tire smoke", "Free camera in cars", "Car camera follows the nose", "Car camera field of view" } },
+    { "Look and camera", "Paint, lights and the driving camera.", { "Next paint", "Brake lights stay on", "Car camera resets after", "Wheel size", "Underglow", "Headlights on", "Any horn", "Any engine sound", "Always tire marks", "Always tire smoke", "Free camera in cars", "Car camera follows the nose", "Car camera field of view", "Car camera far", "Camera through walls" } },
   } },
   { "Teleport", {
     "Go to waypoint", "Auto-teleport to waypoint", "Warp from map", "Store", "Map place", "Fast travel point", "Teleport style",
@@ -1289,16 +1398,17 @@ local LAYOUT = {
     { "Developer switches", "Left in the game by its developers. Most do unknown things.", { "Dev: never die", "Dev: never die, AI", "Dev: Shawn mode", "Dev: capture mode", "Dev: auto sprint", "Dev: infinite ammo", "Dev: infinite magazine", "Dev: radio on", "Dev: vehicle ramps", "Dev: weapon raycasts", "Dev: notoriety bubbles", "Dev: HQ mask off" } },
     { "Spawn people", "Who to spawn, and what they do.", { "Spawn person", "Special person", "Spawned people", "Spawned people carry", "Spawn a crowd", "Spawn 10 random people", "Call in follower", "Spawned people get in my car", "Spawned people go to waypoint", "Remove spawned people" } },
     { "Everyone near", "Everyone within 40 m.", { "Everyone near", "Status on everyone near", "Make everyone near follow you", "Everyone near dance", "Make everyone near friendly", "Make everyone near hostile", "Disarm everyone near", "Re-arm everyone near", "Stun everyone near", "Ragdoll everyone near", "Float everyone near", "Set everyone near on fire", "Dissolve everyone near", "Poison everyone near", "Kill everyone near", "Stop fights near", "Revive everyone near", "Strip shields near", "Make everyone near tough", "Everyone near staggers easily", "Fade out everyone near", "Fade everyone near back in", "Everyone near says it", "Order everyone near", "Face on everyone near", "Statues", "Statues back to life", "Flaming look near", "Put out everyone near", "Blow up cars near", "Set off car alarms", "Sirens on near", "Spin cars near", "Everyone out of their cars", "Cars near floor it" } },
-    { "Notoriety and gangs", "Who's after you, and whose side they're on.", { "Never wanted", "Enemy aim", "Send in a gang", "Stay in combat", "Notoriety forgets fast", "Wanted climbs fast", "Escape radius", "No reinforcements", "No roadblocks", "Roadblock mania", "Pursuit cars", "Enemies arrive", "Call-in speed", "No ramming", "Chase speed", "Unseen by AI", "Enemy sight", "Notoriety at least", "Notoriety at most", "No notoriety cap", "Can't lose them", "Gangs and police without guns", "Gang on your side", "Saints are enemies" } },
+    { "Notoriety and gangs", "Who's after you, and whose side they're on.", { "Never wanted", "Enemy aim", "Send in a gang", "Stay in combat", "Notoriety forgets fast", "Wanted climbs fast", "Escape radius", "No reinforcements", "No roadblocks", "Roadblock mania", "Pursuit cars", "Enemies arrive", "Call-in speed", "No ramming", "Chase speed", "Enemies always find you", "Enemies flee fights", "Non-lethal enemies", "Riot shields for all", "Enemies use smoke", "Swarm", "Unseen by AI", "Enemy sight", "Notoriety at least", "Notoriety at most", "No notoriety cap", "Can't lose them", "Gangs and police without guns", "Gang on your side", "Saints are enemies" } },
     { "Gang war", "Gangs and people fighting each other.", { "Gang war", "Zombie outbreak", "Riot", "Free for all", "Gang presence", "NPC fight damage", "Pedestrians fight back", "Everyone battle ready", "Downed, not dead", "Downed timer", "Instant revive", "Guardian angel", "Spawned people can't die" } },
-    { "Physics and explosions", "Gravity, blasts and sending things flying.", { "No world boundary", "World gravity", "Explosion here", "Explosion size", "Explosion force", "Explosion damage", "Hurting yourself", "Knocked over", "Launch everyone near" } },
-    { "Population", "How busy the streets are.", { "Pedestrians", "Traffic", "Rare traffic", "Traffic mood", "Traffic light here", "Long trains", "No trains", "Traffic pop-in", "People appear", "Quiet streets", "Crowds in the rain", "People panic", "No parked cars" } },
+    { "Physics and explosions", "Gravity, blasts and sending things flying.", { "No world boundary", "World gravity", "Explosion here", "Blast at waypoint", "Airstrike", "Size of everything near", "Explosion size", "Explosion force", "Explosion damage", "Hurting yourself", "Knocked over", "Launch everyone near" } },
+    { "Population", "How busy the streets are.", { "Pedestrians", "Traffic", "Rare traffic", "Traffic mood", "Traffic light here", "Any district's crowd", "Traffic spacing", "Corpses stay", "Long trains", "No trains", "Traffic pop-in", "People appear", "Quiet streets", "Crowds in the rain", "People panic", "No parked cars" } },
     { "Music", "Stations, songs and playing them anywhere.", { "Radio station", "Music anywhere", "Play song", "Next station", "Previous station", "Unlock radio in missions", "Radios in cars near me", "Radio on foot", "Shuffle playlists", "Master volume", "Music volume", "Effects volume", "Voice volume", "Volume: Ambience", "Volume: Combat", "Volume: Interface", "Volume: Vehicles", "Volume: Radio", "Volume: Music in the world", "Volume: Menu music", "Volume: Explosions", "Volume: Gore", "Volume: Voices", "Volume: Pedestrian voices", "City panic noise", "Play sound", "Skip track", "Pause or resume music", "Now playing", "Newscast", "Stop newscast" } },
     { "Props and HQ", "Spawn props anywhere, or dress your headquarters.", { "Spawn prop", "Remove last prop", "Remove all props", "HQ spot", "HQ prop", "Clear this HQ spot", "Fill the HQ", "Save HQ layout", "Load HQ layout", "HQ room theme" } },
     { "Money and drops", "Cash and weapons on the ground.", { "Drop cash", "Drop weapon", "Money rain", "Pedestrians always pay", "Venture income" } },
     { "Difficulty", "The pause menu's custom sliders.", { "Difficulty: player health", "Difficulty: player damage", "Difficulty: enemies", "Difficulty: vehicles", "Difficulty: notoriety", "Difficulty: ammo reserve", "Difficulty: timer speed" } },
-    { "Side jobs", "Starting the game's oddities by hand.", { "Start diversion", "Hermit juice", "Insurance Fraud launch", "Venture lot", "Build venture here", "Load hidden place", "Unload hidden place" } },
-    { "People near, more", "More for everyone within 40 m.", { "People speed", "Gravity near", "Drop through the ground", "Fake noise", "Drivers bolt", "Crowd around me", "Stop crowding", "Taunt them", "Stop taunting", "Shoot at me", "Stop shooting", "Cars near pull over", "Drivers weave", "Drivers stay in", "Off the minimap", "Back on the minimap", "Outline people near", "Clear outlines", "Skin effect near", "Reeling near", "Take down nearest", "Delete everyone near" } },
+    { "Engine values", "Almost any number in the game's records.", { "Engine system", "Engine class", "Engine record", "Engine field", "Engine amount", "Change this record", "Change all records", "Undo all engine changes" } },
+    { "Side jobs", "Starting the game's oddities by hand.", { "Start diversion", "Hermit juice", "Insurance Fraud launch", "Fraud scoring", "Give reward", "Fast travel off", "Venture lot", "Build venture here", "Load hidden place", "Unload hidden place" } },
+    { "People near, more", "More for everyone within 40 m.", { "People speed", "Gravity near", "Drop through the ground", "Fake noise", "Drivers bolt", "Any goal set near", "Hunted", "Crowd around me", "Stop crowding", "Taunt them", "Stop taunting", "Shoot at me", "Stop shooting", "Cars near pull over", "Drivers weave", "Drivers stay in", "Off the minimap", "Back on the minimap", "Outline people near", "Clear outlines", "Skin effect near", "Reeling near", "Take down nearest", "Delete everyone near" } },
     { "Cars near", "What cars within 40 m do.", { "Freeze cars near", "Unfreeze cars near", "Launch cars near", "Pop tires near", "Stall engines near", "Engines back on", "Cars near do", "Cars near back to normal", "Hazards near", "Lock cars near", "Unlock cars near", "Pop trunks near", "Crush cars near", "Tip bikes near", "Ghost through cars near", "Solid cars near", "Delete nearest car" } },
     "Empty streets", "Show activities on the map",
   } },
@@ -1892,6 +2002,53 @@ local function select_row(row)
     end
   elseif row.kind == "near_act" then
     say(P.near_act(row.key), "status")
+  elseif row.kind == "engine_sys" or row.kind == "engine_class" then
+    say("Pick with Left/Right")
+  elseif row.kind == "engine_rec" or row.kind == "engine_field" or row.kind == "engine_apply" then
+    local class_row, rec_row, field_row
+    for _, r in ipairs(all_rows()) do
+      if r.kind == "engine_class" then class_row = r elseif r.kind == "engine_rec" then rec_row = r elseif r.kind == "engine_field" then field_row = r end
+    end
+    local class = class_row.options[class_row.sel][2]
+    if #rec_row.options == 0 then
+      for i, n in ipairs(P.engine_records(class)) do rec_row.options[i] = { n, n } end
+    end
+    local rec, field = rec_row.options[rec_row.sel], field_row.options[field_row.sel]
+    if not rec then say("No records of that class are loaded", "warn")
+    elseif row.kind == "engine_rec" then say(#rec_row.options .. " records: Left/Right picks")
+    elseif row.kind == "engine_field" then
+      local v = P.engine_read(class, rec[2], field[2], field[3])
+      say(field[1] .. " on " .. rec[2] .. ": " .. tostring(v), "status")
+    else
+      local recs = {}
+      if row.all then for i, o in ipairs(rec_row.options) do recs[i] = o[2] end else recs[1] = rec[2] end
+      local n = P.engine_apply(class, recs, field[2], field[3], P.engine_amount or { "mul", 2 })
+      say(field[1] .. ": changed on " .. n .. (n == 1 and " record" or " records"), "status")
+    end
+  elseif row.kind == "look_num" then
+    local v, slot, part = row.options[row.sel][2], row.slot, row.part
+    if row.cloth then for _, r in ipairs(all_rows()) do if r.kind == "cloth_slot" then slot = r.options[r.sel][2] end end end
+    P.look_first()
+    local ok, n = wml.game(string.format([[local c = gml_get_local_player():get_component_by_type("gml_component_character_customization")
+      local i = gml_customization_get_slot_index(c, vlib_info_object:get_object("char_cust_slot", %q))
+      local n = 0
+      for _, e in ipairs(gml_customization_get_shader_params(c, i)) do
+        if e.param_name == %q then gml_customization_set_shader_param_value(c, i, e.material, %q, %s); n = n + 1 end
+      end
+      return n]], slot, part, part, tostring(v)))
+    say(not ok and tostring(n) or (n == 0 and ("That has no " .. part) or (row.label .. ": " .. row.options[row.sel][1])), ok and "status" or "warn")
+  elseif row.kind == "stack_item" then
+    local item, slot
+    for _, r in ipairs(all_rows()) do
+      if r.kind == "cloth_item" then item = r.options[r.sel] elseif r.kind == "stack_slot" then slot = r.options[r.sel] end
+    end
+    if item and slot then
+      P.look_first()
+      local ok, err = wml.game(string.format([[local c = gml_get_local_player():get_component_by_type("gml_component_character_customization")
+        local i = gml_customization_get_slot_index(c, vlib_info_object:get_object("char_cust_slot", %q))
+        gml_customization_select_wearable(c, i, vlib_info_object:get_object("char_cust_wearable_info", %q), nil, nil, true)]], slot[2], item[2]))
+      say(ok and ("Stacked " .. item[1] .. " on " .. slot[1]) or tostring(err), ok and "status" or "warn")
+    end
   elseif row.kind == "ability_act" then
     local o
     for _, r in ipairs(all_rows()) do if r.kind == "car_ability" then o = r.options[r.sel] end end
@@ -2272,6 +2429,10 @@ local function select_row(row)
       local ok, msg = wml.game(row.code)
       say(row.label .. ": " .. tostring(ok and (msg or "done") or msg), ok and "status" or "warn")
     end
+  elseif row.kind == "garage_car" then
+    local o = row.options[row.sel]
+    if not o then say("Nothing in your garage list yet: open the menu again", "warn")
+    else select_row({ kind = "deliver", label = row.label, sel = 1, options = { o } }) end
   elseif row.kind == "deliver" then
     -- the game's drop-car cheat, pointed at the picked table entry: it spawns
     -- the vehicle properly (wheels, variant) about 5 m from you
@@ -2409,7 +2570,7 @@ local function row_value(row)
     return "Enter", "off"
   elseif row.kind == "voiceline" and not row.loaded then
     return "Enter to load", "off"
-  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" or row.kind == "crowd_act" or row.kind == "arms" or row.kind == "destroy_car" or row.kind == "kill_self" or row.kind == "car_act" or row.kind == "play_as" or row.kind == "revive_me" or row.kind == "console_row" or row.kind == "look_undo" or row.kind == "look_snap" or row.kind == "body_back" or row.kind == "wing_now" or row.kind == "surf" or row.kind == "surf_stop" or row.kind == "skip_track" or row.kind == "remove_prop" or row.kind == "hq_clear" or row.kind == "pfn" or row.kind == "outfit_only" or row.kind == "near_act" or row.kind == "weather_now" or row.kind == "ability_act" or row.kind == "cloth_off" or row.kind == "cloth_now" or row.kind == "anim_near" or row.kind == "play_as_pick" then
+  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" or row.kind == "crowd_act" or row.kind == "arms" or row.kind == "destroy_car" or row.kind == "kill_self" or row.kind == "car_act" or row.kind == "play_as" or row.kind == "revive_me" or row.kind == "console_row" or row.kind == "look_undo" or row.kind == "look_snap" or row.kind == "body_back" or row.kind == "wing_now" or row.kind == "surf" or row.kind == "surf_stop" or row.kind == "skip_track" or row.kind == "remove_prop" or row.kind == "hq_clear" or row.kind == "pfn" or row.kind == "outfit_only" or row.kind == "near_act" or row.kind == "weather_now" or row.kind == "engine_apply" or row.kind == "stack_item" or row.kind == "ability_act" or row.kind == "cloth_off" or row.kind == "cloth_now" or row.kind == "anim_near" or row.kind == "play_as_pick" then
     return "Enter", "off"
   elseif row.kind == "page" then
     return #row.rows .. "  >", "off"
@@ -2418,7 +2579,7 @@ local function row_value(row)
   elseif row.kind == "mset" then
     local o = row.options[row.sel]
     return "<  " .. o[1] .. "  >", row.sel == 1 and "off" or "on"
-  elseif row.kind == "any_perk" or row.kind == "pfn_list" or row.kind == "hq_fill" or row.kind == "cloth_slot" or row.kind == "cloth_item" or row.kind == "look_colour" or row.kind == "any_anim" or row.kind == "sky_any" or row.kind == "venture_lot" or row.kind == "venture_build" or row.kind == "immune" or row.kind == "face_part" or row.kind == "gun_slot" or row.kind == "radio_line" or row.kind == "hq_save" or row.kind == "hq_load" or row.kind == "any_vehicle" or row.kind == "any_variant" or row.kind == "console_list" or row.kind == "game_list" or row.kind == "hq_theme" or row.kind == "launch_car" or row.kind == "go_to_hour" or row.kind == "outfit_any" or row.kind == "car_effect" or row.kind == "proto_weapon" or row.kind == "song" or row.kind == "spawn_prop" or row.kind == "hq_spot" or row.kind == "hq_prop" or row.kind == "near_effect" or row.kind == "me_effect" or row.kind == "send_gang" or row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" or row.kind == "giveweapon" or row.kind == "voiceline" or row.kind == "gchoice" or row.kind == "weathernode" or row.kind == "cash_drop" or row.kind == "weapon_drop" or row.kind == "reaction" or row.kind == "map_place" or row.kind == "outfit" or row.kind == "look_preset" or row.kind == "call_saints" or row.kind == "prank" or row.kind == "car_ability" or row.kind == "special_person" or row.kind == "special_car" or row.kind == "mission" then
+  elseif row.kind == "any_perk" or row.kind == "pfn_list" or row.kind == "hq_fill" or row.kind == "cloth_slot" or row.kind == "cloth_item" or row.kind == "look_colour" or row.kind == "any_anim" or row.kind == "engine_sys" or row.kind == "engine_class" or row.kind == "engine_rec" or row.kind == "engine_field" or row.kind == "look_num" or row.kind == "stack_slot" or row.kind == "garage_car" or row.kind == "sky_any" or row.kind == "venture_lot" or row.kind == "venture_build" or row.kind == "immune" or row.kind == "face_part" or row.kind == "gun_slot" or row.kind == "radio_line" or row.kind == "hq_save" or row.kind == "hq_load" or row.kind == "any_vehicle" or row.kind == "any_variant" or row.kind == "console_list" or row.kind == "game_list" or row.kind == "hq_theme" or row.kind == "launch_car" or row.kind == "go_to_hour" or row.kind == "outfit_any" or row.kind == "car_effect" or row.kind == "proto_weapon" or row.kind == "song" or row.kind == "spawn_prop" or row.kind == "hq_spot" or row.kind == "hq_prop" or row.kind == "near_effect" or row.kind == "me_effect" or row.kind == "send_gang" or row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" or row.kind == "giveweapon" or row.kind == "voiceline" or row.kind == "gchoice" or row.kind == "weathernode" or row.kind == "cash_drop" or row.kind == "weapon_drop" or row.kind == "reaction" or row.kind == "map_place" or row.kind == "outfit" or row.kind == "look_preset" or row.kind == "call_saints" or row.kind == "prank" or row.kind == "car_ability" or row.kind == "special_person" or row.kind == "special_car" or row.kind == "mission" then
     local o = row.options[row.sel]
     return o and ("<  " .. o[1] .. "  >") or "none", o and "row" or "off"
   elseif row.kind == "gcall" then
@@ -2589,6 +2750,16 @@ local function adjust(delta)
   elseif row and row.options then
     row.sel = (row.sel - 1 + delta) % #row.options + 1
     if row.apply then M.apply_row, M.apply_wait = row, 20 end
+    if row.kind == "engine_sys" or row.kind == "engine_class" then
+      local class_row, rec_row, field_row
+      for _, r in ipairs(all_rows()) do
+        if r.kind == "engine_class" then class_row = r elseif r.kind == "engine_rec" then rec_row = r elseif r.kind == "engine_field" then field_row = r end
+      end
+      if row.kind == "engine_sys" then class_row.options, class_row.sel = engine_classes(row.sel), 1 end
+      local c = class_row.options[class_row.sel]
+      rec_row.options, rec_row.sel = {}, 1
+      field_row.options, field_row.sel = engine_fields(c[3]), 1
+    end
     if row.kind == "cloth_slot" then
       for _, r in ipairs(all_rows()) do if r.kind == "cloth_item" then r.options, r.sel = cloth_items(row.sel), 1 end end
     end
@@ -2720,6 +2891,21 @@ local function ensure_ready()
         o[1] = seen[label] > 1 and (label .. " " .. seen[label]) or label
       end
       if r.sel > #r.options then r.sel = 1 end
+    end
+    -- your garage, by the same list the phone's mechanic uses; garage_index is the drop-car table's index
+    if r.kind == "garage_car" and #r.options == 0 then
+      local ok, s = wml.game([[local o = ""
+        for _, v in pairs(vehicle_get_garage_list(vlib_info_object:get_object("store_info", "garage"))) do
+          o = o .. tostring(v.garage_index) .. "|" .. tostring(v.vehicle_info) .. "|" .. tostring(v.variant_info) .. "|" .. tostring(v.has_customization) .. "\n"
+        end
+        return o]])
+      if ok and type(s) == "string" then
+        for i, car, variant, custom in s:gmatch('(%d+)|[^|]-"([^"|]*)"|[^|]-"([^"|]*)"|(%a+)\n') do
+          local way = variant:gsub("^" .. car:gsub("%p", "%%%0") .. "_?", "")
+          r.options[#r.options + 1] = { pretty(car) .. (way ~= "" and way ~= "player" and (": " .. way) or "") .. (custom == "true" and " (customized)" or ""), tonumber(i) }
+        end
+        table.sort(r.options, function(a, b) return a[1] < b[1] end)
+      end
     end
     if r.kind == "warp" and #r.options == 0 then
       local first = 1
@@ -2874,6 +3060,9 @@ function M.update()
   if C.loaded and P.wind then P.update_wind() end
   if C.loaded and P.tp_holding() then P.update_tp_hold() end
   if C.loaded and P.hover_active() then P.update_hover(M.open) end
+  if C.loaded and P.moves_active() then P.update_moves(M.open) end
+  if C.loaded and frame % 15 == 9 and P.gun_tune_active() then P.update_gun_tune() end
+  if C.loaded and P.airstrike and frame % P.airstrike == 0 then P.update_airstrike() end
   if C.loaded and frame % 15 == 8 and P.sig_active() then P.update_sig_key() end
   if C.loaded and M.play_as_wait then
     M.play_as_wait = M.play_as_wait - 1

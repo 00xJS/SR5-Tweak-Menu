@@ -68,7 +68,7 @@ function P.teleport(x, y, z, free)
 end
 function P.tp_holding() return tp_hold ~= nil end
 -- Navmesh here? +1856E10(out, query), false until it's loaded.
-local function ground_ready(at)
+function P._ground_ready(at)
   local q = wml.buffer(14)
   for i = 1, 3 do wml.write_u32(q + (i - 1) * 4, at[i]) end
   wml.write_u64(q + 0xC, 0xFFFFFFFFFFFFFFFF); wml.write_u32(q + 0x14, 0)
@@ -86,7 +86,7 @@ function P.update_tp_hold()
       for i = 0, 8, 4 do wml.write_f32(c + 0x3A0 + i, 0) end
     end
   end
-  if h.ticks <= 0 or (h.ticks % 15 == 0 and h.ticks < 340 and ground_ready(h.at)) then tp_hold = nil end
+  if h.ticks <= 0 or (h.ticks % 15 == 0 and h.ticks < 340 and P._ground_ready(h.at)) then tp_hold = nil end
 end
 -- A travel point's real place: city_warp_find_object (+66A200: point, out object). Only found if that object exists now.
 function P.warp_position(name)
@@ -795,6 +795,7 @@ local CAR_CFG = {
   car_ability_cd = { { 0x274, "zero" }, { 0x348, "zero" }, { 0x368, "zero" } },
   car_ejector = { { 0x284, "mul" }, { 0x288, "mul" } },
   car_cowcatcher = { { 0x3B8, "mul" }, { 0x3BC, "mul" } },
+  car_crash = { { 0xF0, "mul" }, { 0xF4, "mul" }, { 0xF8, "mul" }, { 0xFC, "mul" } }, car_burn = { { 0x114, "mul" }, { 0x118, "mul" } },
   car_crab = { { 0x2B0, "mul" } }, car_air = { { 0x2F8, "mul" } }, car_honk = { { 0x360, "mul" }, { 0x364, "mul" } }, car_bowel = { { 0x3AC, "mul" } },
 }
 function P.car_cfg_key()
@@ -1318,6 +1319,7 @@ local TUNES = {
   -- +0x54 how long you stay down (s), +0x56 how long a revive takes (ms), +0x68 and +0x6C the guardian angel's cooldown and safe time (ms)
   -- +0x94: the health share below which you walk hurt
   always_wounded = { { ptr = 0x5BE34A8, off = 0x94 } },
+  traffic_gap = { { ptr = 0x5BE7EC8, off = 0x38 }, { ptr = 0x5BE7EC8, off = 0x3C }, { ptr = 0x5BE7EC8, off = 0x40 } },
   downed_timer = { { ptr = 0x5BE34A8, off = 0x54, u16 = true } }, instant_revive = { { ptr = 0x5BE34A8, off = 0x56, u16 = true, set = 1 } },
   guardian_angel = { { ptr = 0x5BE34A8, off = 0x68, i32 = true, set = 1000 }, { ptr = 0x5BE34A8, off = 0x6C, i32 = true, set = 3000 } },
   -- *(+4BA0DB8) roadblocks: +0x58 most at once, +0x5C metres apart. *(+4BA2228 + level * 8) notoriety_level:
@@ -1425,7 +1427,7 @@ function P.update_switches()
   local list = { { "combative_peds", 0xAE21A0, 0x29EB1F8, 0xAE21E0, 0x29DB5F0 }, { "ai_combat", 0xAE9C60, 0x29E8AB0, 0xAE9C80, 0x29EB238 },
     { "always_execute", 0x69E930, 0x29ACBA0, 0x69E970, 0x29A6AF0 }, { "notoriety_uncapped", 0x706520, 0x29CDAD0, 0x706560, 0x2990690 },
     { "no_boundary", 0x9C2DD0, 0x29DBBA0, 0x9C2D90, 0x29EBF80 }, { "quiet_streets", 0x1866900, 0x2AC4950, 0x1866940, 0x2AD3C00 }, { "quiet_homies", 0xA9C870, 0x2A009C0, 0xA9C8A0, 0x29E3BE0 },
-    { "no_ramming", 0xAE7560, 0x29DA7B0, 0xAE7590, 0x29EAC58 }, { "no_trains", 0x404B80, 0x2969238, 0x404B10, 0x29712A8 }, { "weather_indoors", 0x193E580, 0x2AC3A68, 0x193E5A0, 0x2ABB408 },
+    { "no_fast_travel", 0x66A610, 0x29C8BD0, 0x66A5E0, 0x2995988 }, { "no_ramming", 0xAE7560, 0x29DA7B0, 0xAE7590, 0x29EAC58 }, { "no_trains", 0x404B80, 0x2969238, 0x404B10, 0x29712A8 }, { "weather_indoors", 0x193E580, 0x2AC3A68, 0x193E5A0, 0x2ABB408 },
     { "no_takedowns", 0x69E850, 0x2987AF8, 0x69E880, 0x29983F0 }, { "dustlander_takedowns", 0x69E9B0, 0x29D73C0, 0x69E9F0, 0x29A6258 } }
   for _, s in ipairs(list) do
     if (P[s[1]] or false) ~= (switch_was[s[1]] or false) then
@@ -1573,12 +1575,12 @@ function P.start_diversion(name)
   return "Started " .. name
 end
 -- The radio component in your car (+B5F350, +5112C0): +3857B0 next, +385870 previous; byte +8 is a mission's lock.
-local function radio_comp()
+function P._radio_comp()
   local o = wml.call(wml.base + 0xB5F350, 0, 1, 0)
   return o ~= 0 and wml.call(wml.base + 0x5112C0, o) or 0
 end
 function P.radio_step(dir)
-  local c = radio_comp()
+  local c = P._radio_comp()
   if c == 0 then return "Get in a vehicle first" end
   wml.write_u8(c + 8, 0)
   wml.call(wml.base + (dir > 0 and 0x3857B0 or 0x385870), c)
@@ -1656,7 +1658,7 @@ end
 -- Crusher: the wheeled component's crush mode +0x2320 (1 crusher), the rebuild flag +0x232B, and +1BC2980 to
 -- register the body with the crusher list. No matching unregister was found, so off restores the mode only.
 P.crusher = false
-local function update_crusher()
+function P._update_crusher()
   local v = P.vehicle_object()
   local c = v and P.component(0x12, v)
   local h = v and P.component(0x44, v)
@@ -1697,7 +1699,7 @@ function P.radio_line(persona, situation)
 end
 -- Ride height: the wheeled component's spring lengths, front +0x19C and rear +0x35C, read each update. Originals per car.
 P.ride_height = false
-local function update_ride()
+function P._update_ride()
   local v = P.vehicle_object()
   local c = v and P.component(0x12, v)
   if not c then return end
@@ -1713,7 +1715,7 @@ end
 -- The driving camera, component 0x1D's follow parameters: +0x7B2 forces following the car's nose; +0x1580 overrides
 -- the field of view multiplier until the clock at +1588 passes (+2E80878, ms).
 P.cam_nose, P.car_fov = false, false
-local function update_car_cam()
+function P._update_car_cam()
   local X, e = SR5TM_EXTRA, P.object()
   if not e then return end
   local cam = wml.call(wml.base + 0x1FCD10, wml.call(wml.base + 0x1B434C0, e + 0x58))
@@ -1798,18 +1800,18 @@ end
 -- Skin effects (+19064D0: object, name, seconds, propagate, remove on detach, destroy, out handle, which must start
 -- as 0xFFFF). The handle comes back in the 7th slot; +1906740 ends one.
 P.skin_handles = {}
-local function skin_on(id, name)
+function P._skin_on(id, name)
   P.node(0x19064D0, 0x2AC36C8, { { u = id }, { p = wml.buffer(5, name) }, { f = -1.0 }, { u = 1 }, { u = 1 }, { u = 0 }, { u = 0xFFFF } })
   P.skin_handles[#P.skin_handles + 1] = wml.read_u32(wml.buffer(0) + 0x4C0)
 end
 function P.skin_me(name)
   local e = P.object()
   if not e then return "Not now" end
-  skin_on(wml.read_u32(e + 0x58), name)
+  P._skin_on(wml.read_u32(e + 0x58), name)
   return "On you: " .. name
 end
 function P.skin_near(name)
-  return each_near(40, function(p) skin_on(wml.read_u32(p.entry + 0x58), name) end) .. " people: " .. name
+  return each_near(40, function(p) P._skin_on(wml.read_u32(p.entry + 0x58), name) end) .. " people: " .. name
 end
 function P.skins_off()
   local n = #P.skin_handles
@@ -1877,7 +1879,7 @@ end
 -- Radio on foot: you become one of the station's listeners. +3846C0 and +3848D0 each drop a reference on your id, so
 -- one's taken first. Comes off when you get in a vehicle, or the two radios could fight.
 local foot_station
-local function foot_listener(fn, name)
+function P._foot_listener(fn, name)
   local B, e = wml.base, wml.call(wml.base + 0x1B432F0, 0)
   if e == 0 then return false end
   local h, id, refs = wml.buffer(13), wml.read_u32(e + 0x58), wml.read_u64(B + 0x2EB2330)
@@ -1889,9 +1891,9 @@ local function foot_listener(fn, name)
 end
 function P.radio_foot(name)
   if P.vehicle_object() then return "Get out of the vehicle first" end
-  if foot_station then foot_listener(0x3848D0, foot_station); foot_station = nil end
+  if foot_station then P._foot_listener(0x3848D0, foot_station); foot_station = nil end
   if name == "off" then return "Radio off" end
-  if not foot_listener(0x3846C0, name) then return "Not now" end
+  if not P._foot_listener(0x3846C0, name) then return "Not now" end
   foot_station = name
   return "On foot: " .. name
 end
@@ -1925,7 +1927,7 @@ end
 -- and the game re-adds proportions over it when they change.
 P.long_legs = false
 local LEG_BONES = { LeftLeg = true, LeftFoot = true, RightLeg = true, RightFoot = true }
-local function update_legs()
+function P._update_legs()
   local X, e = SR5TM_EXTRA, P.object()
   if not e or (P.long_legs or false) == (X.long_legs or false) then return end
   local a = wml.read_u64(e + 0xF8)
@@ -1948,10 +1950,10 @@ local function update_legs()
 end
 -- Your own on and off switches, kept per value.
 P.swim_land, P.crouch_always, P.no_shove, P.short_takedowns, P.hide_gun, P.time_stop, P.tire_marks, P.twitchy, P.callin_speed, P.chase_speed, P.satchels, P.no_autosave, P.city_noise, P.aim_blur, P.ammo_drops = false, false, false, false, false, false, false, false, false, false, false, false, false, false, false
-local function update_extras2(e)
+function P._update_extras2(e)
   local X = SR5TM_EXTRA
-  update_legs()
-  if foot_station and P.vehicle_object() then foot_listener(0x3848D0, foot_station); foot_station = nil end
+  P._update_legs()
+  if foot_station and P.vehicle_object() then P._foot_listener(0x3848D0, foot_station); foot_station = nil end
   if e then
     local me = wml.read_u32(e + 0x58)
     if (P.swim_land or false) ~= (X.swim_land or false) or P.swim_land then
@@ -2055,7 +2057,7 @@ function P.sky_active()
   for k in pairs(SKY_COL) do if P[k] or SR5TM_EXTRA[k] then return true end end
   return next(P.sky_any) ~= nil
 end
-local function sky_colour(i, c)
+function P._sky_colour(i, c)
   local b = wml.buffer(13)
   for j = 1, 3 do wml.write_f32(b + (j - 1) * 4, c[j]) end
   wml.write_f32(b + 12, 1.0)
@@ -2074,7 +2076,7 @@ function P.update_sky(force)
   for k, list in pairs(SKY_COL) do
     if force or P[k] ~= (X[k] or false) then
       for _, i in ipairs(list) do
-        if P[k] then sky_colour(i, P[k]) else wml.call(B + 0x1B04A20, i) end
+        if P[k] then P._sky_colour(i, P[k]) else wml.call(B + 0x1B04A20, i) end
       end
       X[k] = P[k] or nil
     end
@@ -2103,7 +2105,7 @@ function P.update_sun()
 end
 -- The gameplay camera's depth of field (f-stop +0x734 and +0x11E4, focus +0x738 and +0x11E8) and picture shift
 -- (+0x5D8 x, +0x5DC y), each frame, as its rig may overwrite them. Originals kept.
-local function write_keep(cam, off, v)
+function P._write_keep(cam, off, v)
   local X = SR5TM_EXTRA
   X.cam_orig = X.cam_orig or {}
   if X.cam_orig[off] == nil then X.cam_orig[off] = wml.read_f32(cam + off) end
@@ -2117,13 +2119,13 @@ function P.update_cam_look()
   if cam == 0 then return end
   local X = SR5TM_EXTRA
   if P.dof or X.dof then
-    write_keep(cam, 0x734, P.dof); write_keep(cam, 0x11E4, P.dof)
-    write_keep(cam, 0x738, P.dof and 3.0); write_keep(cam, 0x11E8, P.dof and 3.0)
+    P._write_keep(cam, 0x734, P.dof); P._write_keep(cam, 0x11E4, P.dof)
+    P._write_keep(cam, 0x738, P.dof and 3.0); P._write_keep(cam, 0x11E8, P.dof and 3.0)
     X.dof = P.dof or nil
   end
   if P.shift_view or X.shift_view then
-    write_keep(cam, 0x5D8, P.shift_view and P.shift_view[1])
-    write_keep(cam, 0x5DC, P.shift_view and P.shift_view[2])
+    P._write_keep(cam, 0x5D8, P.shift_view and P.shift_view[1])
+    P._write_keep(cam, 0x5DC, P.shift_view and P.shift_view[2])
     X.shift_view = P.shift_view or nil
   end
 end
@@ -2190,7 +2192,7 @@ function P.pop_tires_near()
   return n .. " tires popped"
 end
 -- Freeze in place: a body's motion type (component 6), 0 static, 4 vehicle.
-local function motion_near(t)
+function P._motion_near(t)
   local n = 0
   for _, v in ipairs(P.vehicles_near(40)) do
     local cid, oid = comp_ref(6, v.entry)
@@ -2198,10 +2200,10 @@ local function motion_near(t)
   end
   return n
 end
-function P.freeze_cars_near() return motion_near(0) .. " vehicles frozen" end
-function P.unfreeze_cars_near() return motion_near(4) .. " vehicles free" end
+function P.freeze_cars_near() return P._motion_near(0) .. " vehicles frozen" end
+function P.unfreeze_cars_near() return P._motion_near(4) .. " vehicles free" end
 -- A scripted launch (+19003B0: seconds, end speed, heading, turn radius, handbrake, marks).
-local function launch_start(entry)
+function P._launch_start(entry)
   local cid, oid = comp_ref(0x12, entry)
   if cid then P.node(0x19003B0, 0x2ACA060, { { c = cid, o = oid }, { f = 1.0 }, { f = 40.0 }, { f = 0.0 }, { f = 0.0 }, { u = 0 }, { u = 1 } }) end
   return cid ~= nil
@@ -2209,11 +2211,11 @@ end
 function P.launch_my_car()
   local v = P.vehicle_object()
   if not v then return "Get in a vehicle first" end
-  return launch_start(v) and "Launched" or "Not this vehicle"
+  return P._launch_start(v) and "Launched" or "Not this vehicle"
 end
 function P.launch_cars_near()
   local n = 0
-  for _, v in ipairs(P.vehicles_near(40)) do if launch_start(v.entry) then n = n + 1 end end
+  for _, v in ipairs(P.vehicles_near(40)) do if P._launch_start(v.entry) then n = n + 1 end end
   return n .. " vehicles launched"
 end
 -- A noise everyone reacts to (+AE93A0: stimulus, target, source). An unknown name does nothing.
@@ -2268,7 +2270,7 @@ function P.second_set(e, name)
   if r ~= 0 then wml.write_u8(r + 4, wml.read_u8(r + 4) | 2) end
   return true
 end
-local function own_set(set) return set:find("^character_base") or set:find("^dlc_.*_emotes$") or set:find("^dlc_.*character_base$") end
+function P._own_set(set) return set:find("^character_base") or set:find("^dlc_.*_emotes$") or set:find("^dlc_.*character_base$") end
 P.anim_mode = false
 local anim_group
 -- entry: { label, tag, set, group }
@@ -2277,7 +2279,7 @@ function P.play_anim(o)
   if not e then return "Not now" end
   local id = wml.read_u32(e + 0x58)
   local tag, set, group = o[2], o[3], o[4]
-  if not own_set(set) and not P.second_set(e, set) then return "That animation's set isn't loaded here" end
+  if not P._own_set(set) and not P.second_set(e, set) then return "That animation's set isn't loaded here" end
   if group ~= "default" and not group:find("^default_") then
     P.node(0x18EA2C0, 0x2ABE208, { { u = id }, { p = wml.buffer(5, group) }, { u = 1 } })
     anim_group = true
@@ -2364,13 +2366,13 @@ function P.hover_active()
   local X = SR5TM_EXTRA
   return P.hover_fly or P.hover_speed or P.hover_height or P.hover_jump or P.hover_guns or X.hover_seen ~= nil or X.hover_row_on
 end
-local function hover_row_set(v, on)
+function P._hover_row_set(v, on)
   local B, c = wml.base, v and P.component(0x8A, v)
   if c then wml.call(B + 0xB77F10, c, 0, 0) end
   wml.write_u32(B + hover_row, on and HOVER_ARMED or HOVER_UNARMED)
   if c then wml.call(B + 0xB77F10, c, 0, 1) end
 end
-local function restore_hover(X)
+function P._restore_hover(X)
   local o = X.hover_orig
   if o then
     for addr, val in pairs(o) do wml.write_f32(addr, val) end
@@ -2382,31 +2384,74 @@ local function restore_hover(X)
   end
   X.hover_orig, X.hover_seen, X.hover_y = nil, nil, nil
 end
-local function hover_keep(X, addr)
+function P._hover_keep(X, addr)
   X.hover_orig = X.hover_orig or {}
   if X.hover_orig[addr] == nil then X.hover_orig[addr] = wml.read_f32(addr) end
   return X.hover_orig[addr]
+end
+-- The board has no aim state and its controls never send "weapon fire", so the shot's made directly: weapon_do_shot_type
+-- (+1C083C0: gun, section, start and end in world ints, spread, target, shot type, recoil), from 3 m ahead of the camera to where
+-- it looks, at the gun's own refire (component +0x7B8, ms). No ammo is used, and no muzzle flash or sound comes with it.
+function P.hover_shoot(X)
+  local B = wml.base
+  X.hover_gun_wait = (X.hover_gun_wait or 0) - 1
+  if X.hover_gun_wait <= 0 then
+    local ok, s = wml.game("return tostring(gml_get_local_player_weapon())")
+    X.hover_gun = ok and tonumber((s or ""):match("object (%x+)") or "", 16)
+    X.hover_gun_wait = 20
+    X.hover_comp, X.hover_shot = nil, nil
+    if X.hover_gun and X.hover_gun ~= 0 then
+      local buf = wml.buffer(10)
+      wml.write_u32(buf, X.hover_gun)
+      local entry = wml.call(B + 0x1C1F420, buf)
+      X.hover_comp = entry ~= 0 and wml.call(B + 0x49F8A0, entry) or nil
+      if X.hover_comp == 0 then X.hover_comp = nil end
+      if X.hover_comp then
+        local list, n = wml.read_u64(X.hover_comp + 0x138), wml.read_u16(X.hover_comp + 0x140)
+        for i = 0, n - 1 do
+          if wml.read_u32(list + i * 24) == 817162218 then X.hover_shot = wml.read_u32(list + i * 24 + 8) end
+        end
+      end
+    end
+  end
+  if not X.hover_comp then return end
+  local now = wml.read_u32(B + 0x2E80878)
+  if X.hover_next and now < X.hover_next then return end
+  X.hover_next = now + math.max(60, wml.read_u32(X.hover_comp + 0x7B8))
+  local function s32(x) return x >= 0x80000000 and x - 0x100000000 or x end
+  local cx, cy, cz = s32(wml.read_u32(B + 0x41E1AB0)), s32(wml.read_u32(B + 0x41E1AB4)), s32(wml.read_u32(B + 0x41E1AB8))
+  local f = B + 0x41E1AC0 + 0x20
+  local fx, fy, fz = wml.read_f32(f), wml.read_f32(f + 4), wml.read_f32(f + 8)
+  local function at(d)
+    return { math.floor(cx + fx * d * 10000) & 0xFFFFFFFF, math.floor(cy + fy * d * 10000) & 0xFFFFFFFF, math.floor(cz + fz * d * 10000) & 0xFFFFFFFF }
+  end
+  P.node(0x1C083C0, 0x2AF94F8, { { u = X.hover_gun }, { u = 0 }, { i = at(3) }, { i = at(300) }, { f = 0.0 }, { u = wml.read_u32(B + 0x48E778C) }, { u = X.hover_shot or 0xD57E1B94 }, { u = 1 } })
 end
 function P.update_hover(menu_open)
   local B, X, v = wml.base, SR5TM_EXTRA, P.vehicle_object()
   local a = v and P.component(0x88, v)
   -- the slot mask stays on for as long as the row is, on or off the board
-  if (P.hover_guns or false) ~= (X.hover_row_on or false) then
-    hover_row_set(a and v, P.hover_guns)
-    X.hover_row_on = P.hover_guns or nil
+  if (P.hover_guns and true or false) ~= (X.hover_row_on or false) then
+    P._hover_row_set(a and v, P.hover_guns)
+    X.hover_row_on = P.hover_guns and true or nil
     X.hover_equipped = nil
+    if not P.hover_guns and X.hover_reticle then
+      wml.game("hud_reticle_set_visible(true, true, false)")
+      X.hover_reticle = nil
+    end
   end
   local id = v and wml.read_u32(v + 0x58)
   if not a then
-    if X.hover_seen then restore_hover(X) end
+    if X.hover_seen then P._restore_hover(X) end
     X.hover_equipped = nil
     return
   end
   if X.hover_seen ~= id then
-    restore_hover(X)
+    P._restore_hover(X)
     X.hover_seen = id
     local l0 = P.component(0x15, v)
     local c0 = P.component(0x8A, v)
+    if l0 then wml.log(string.format("hover: mode %d hug %d lift power %.3f cap %.3f rate %.3f", wml.read_u32(l0 + 0x390), wml.read_u8(l0 + 0x39A), wml.read_f32(l0 + 0x658), wml.read_f32(l0 + 0x30), wml.read_f32(l0 + 0x34))) end
     wml.log(string.format("hover: on %08X h %.2f %.2f grav %.2f %.2f jump %.1f %.1f kind %d seat %s top %s %s", id, wml.read_f32(a + 0x90), wml.read_f32(a + 0x15C), wml.read_f32(a + 0x9C), wml.read_f32(a + 0xA0),
       wml.read_f32(a + 0xA8), wml.read_f32(a + 0xAC), wml.read_u8(a + 0x432), c0 and tostring(wml.read_u32(c0 + 0x68C)) or "-", l0 and tostring(wml.read_f32(l0 + 0xA4)) or "-", l0 and tostring(wml.read_f32(l0 + 0xA0)) or "-"))
   end
@@ -2418,15 +2463,15 @@ function P.update_hover(menu_open)
   X.hover_y = y
   local none = wml.read_u32(B + 0x3C44910)
   if P.hover_height and not P.hover_fly then
-    hover_keep(X, a + 0x90); hover_keep(X, a + 0x94)
+    P._hover_keep(X, a + 0x90); P._hover_keep(X, a + 0x94)
     wml.write_f32(a + 0x90, P.hover_height); wml.write_f32(a + 0x94, P.hover_height)
   end
   if P.hover_jump then
-    wml.write_f32(a + 0xA8, hover_keep(X, a + 0xA8) * P.hover_jump)
-    wml.write_f32(a + 0xAC, hover_keep(X, a + 0xAC) * P.hover_jump)
+    wml.write_f32(a + 0xA8, P._hover_keep(X, a + 0xA8) * P.hover_jump)
+    wml.write_f32(a + 0xAC, P._hover_keep(X, a + 0xAC) * P.hover_jump)
   end
   if P.hover_fly then
-    for _, off in ipairs({ 0x9C, 0xA0 }) do hover_keep(X, a + off); wml.write_f32(a + off, 0) end
+    for _, off in ipairs({ 0x9C, 0xA0 }) do P._hover_keep(X, a + off); wml.write_f32(a + off, 0) end
     wml.write_f32(a + 0x158, 0)
     if not X.hover_flying then
       local b = wml.buffer(13)
@@ -2434,23 +2479,34 @@ function P.update_hover(menu_open)
       wml.call(B + 0x486C10, v, 0, 6, 0, b)
       X.hover_flying = id
     end
+    -- Stay in riding state: +0xF4 is the height where it goes to its in-air state, and +0x160 "near the ground" feeds the
+    -- rider's and camera's ground flags. Those flips were the lock-up.
+    P._hover_keep(X, a + 0xF4)
+    wml.write_f32(a + 0xF4, 9999)
+    wml.write_u8(a + 0x160, 1)
     local want = (buttons & 0x2000 ~= 0) and P.hover_fly or (buttons & 0x4000 ~= 0) and -P.hover_fly or 0
-    -- at rest near the ground its own lift does the work
+    -- at rest near the ground its own hover does the work
     local low = want == 0 and wml.read_f32(a + 0x15C) < wml.read_f32(a + 0x90) and wml.read_f32(a + 0x15C) > 0
-    local dv = (want - vy) * 0.25
-    dv = math.max(-4, math.min(4, dv))
-    if not low and math.abs(dv) > 0.05 then
-      P.node(0x192F280, 0x2ABBA60, { { u = id }, { v = { 0, dv, 0 } }, { u = none } })
+    local l1 = P.component(0x15, v)
+    if not X.hover_ceiling then X.hover_ceiling = wml.read_f32(B + 0x2EB2504) end
+    wml.write_f32(B + 0x2EB2504, 5000)      -- the height where lift brakes, 400 m
+    if l1 and wml.read_f32(l1 + 0x658) > 0 then
+      -- the locomotion's own lift state, m/s2, along the board's up, leaving horizontal speed alone
+      if not low then wml.write_f32(l1 + 0x4D0, math.max(-25, math.min(25, (want - vy) * 4))) end
+    elseif not low then
+      local dv = math.max(-0.5, math.min(0.5, (want - vy) * 0.08))
+      if math.abs(dv) > 0.02 then P.node(0x192F280, 0x2ABBA60, { { u = id }, { v = { 0, dv, 0 } }, { u = none } }) end
     end
   elseif X.hover_flying then
     X.hover_flying = nil
-    restore_hover(X)
+    P._restore_hover(X)
     X.hover_seen = id
+    if X.hover_ceiling then wml.write_f32(B + 0x2EB2504, X.hover_ceiling); X.hover_ceiling = nil end
   end
   local l = P.component(0x15, v)
   if l and (P.hover_speed or P.hover_fly) then
-    if P.hover_speed then wml.write_f32(l + 0xA4, hover_keep(X, l + 0xA4) * P.hover_speed) end
-    if P.hover_fly then wml.write_f32(l + 0xA0, math.max(hover_keep(X, l + 0xA0), P.hover_fly * 1.5)) end
+    if P.hover_speed then wml.write_f32(l + 0xA4, P._hover_keep(X, l + 0xA4) * P.hover_speed) end
+    if P.hover_fly then wml.write_f32(l + 0xA0, math.max(P._hover_keep(X, l + 0xA0), P.hover_fly * 1.5)) end
   end
   -- Speed by hand too, in case the limit alone doesn't bind: a push along where it faces, while the stick is forward.
   if P.hover_speed then
@@ -2469,35 +2525,41 @@ function P.update_hover(menu_open)
     end
   end
   if P.hover_guns then
-    if X.hover_equipped ~= (id .. ":" .. P.hover_guns) then
-      local inv = P.component(0x8C)
-      if inv then
-        hover_row_set(v, true)
-        wml.call(B + 0x98E720, inv, P.hover_guns, 1, 0)
-        X.hover_equipped = id .. ":" .. P.hover_guns
+    -- only once the pick has stayed put for a second: scrolling through them swapped guns too fast for the game
+    local want = id .. ":" .. P.hover_guns
+    if X.hover_equipped ~= want then
+      if X.hover_pending ~= want then X.hover_pending, X.hover_wait = want, 60 end
+      X.hover_wait = X.hover_wait - 1
+      if X.hover_wait <= 0 then
+        local inv = P.component(0x8C)
+        if inv then
+          wml.call(B + 0x98E720, inv, P.hover_guns, 1, 0)
+          X.hover_equipped, X.hover_gun, X.hover_gun_wait = want, nil, 0
+        end
       end
     end
-    if rt and rt > 40 then
-      X.hover_gun_wait = (X.hover_gun_wait or 0) - 1
-      if X.hover_gun_wait <= 0 then
-        local ok, s = wml.game("return tostring(gml_get_local_player_weapon())")
-        X.hover_gun = ok and tonumber((s or ""):match("object (%x+)") or "", 16)
-        X.hover_gun_wait = 20
-      end
-      if X.hover_gun and X.hover_gun ~= 0 then
-        P.node(0x1C075C0, 0x2AFBED0, { { u = X.hover_gun }, { u = 0 } })
-      end
+    if not X.hover_reticle then
+      wml.game("hud_reticle_set_visible(false, true, false)")
+      X.hover_reticle = true
     end
+    if rt and rt > 40 then P.hover_shoot(X) end
   end
 end
 -- Aircraft and boats, which the Handling rows can't reach: aerial locomotion 0x15, water 0x16. Originals per component.
 P.aircraft_speed, P.vtol_boost, P.heli_agility, P.boat_speed, P.tank_steer, P.windshield = false, false, false, false, false, false
+P.heli_lift, P.front_grip, P.rear_grip, P.burnout, P.drift, P.bike_lean, P.boost_tank, P.boost_refill, P.boost_punch, P.launch_power, P.water_float, P.engine_fire, P.never_sink, P.stay_on_bike, P.auto_flip, P.ice_body, P.cam_through = false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false
 local VEH_TUNE = {
   aircraft_speed = { 0x15, { 0xA0, 0xA4, 0x1DC } }, vtol_boost = { 0x15, { 0x1F0, 0x1F4 } }, heli_agility = { 0x15, { 0x30, 0x4C, 0x50, 0x54, 0x5C } },
   boat_speed = { 0x16, { 0x144, 0x88, 0x8C } },
+  heli_lift = { 0x15, { 0x34, 0x38, 0x58 } },
+  front_grip = { 0x12, { 0xBF0, 0xBF8 }, flag = true }, rear_grip = { 0x12, { 0xC30, 0xC38 }, flag = true },
+  burnout = { 0x12, { 0x5F8, 0x600, 0x604 } }, drift = { 0x12, { 0x4D8, 0x4DC, 0x4E0 } }, bike_lean = { 0x12, { 0x950, 0x954 } },
+  boost_tank = { 0x87, { 0x160 } }, boost_refill = { 0x87, { 0x170 } }, boost_punch = { 0x87, { 0x16C, 0x164, 0x168, 0x18C } }, launch_power = { 0x87, { 0x1D0, 0x1D4, 0x1D8 } },
+  water_float = { 6, { 0xD8, 0xDC } },
+  engine_fire = { 0x8A, { 0x2F0 }, set = true },
 }
 SR5TM_VEH_ORIG = SR5TM_VEH_ORIG or {}
-local function update_veh_tune()
+function P._update_veh_tune()
   local v = P.vehicle_object()
   if not v then return end
   for key, t in pairs(VEH_TUNE) do
@@ -2507,15 +2569,49 @@ local function update_veh_tune()
         local a = c + off
         if P[key] then
           SR5TM_VEH_ORIG[a] = SR5TM_VEH_ORIG[a] or wml.read_f32(a)
-          wml.write_f32(a, SR5TM_VEH_ORIG[a] * P[key])
+          local want = t.set and P[key] or SR5TM_VEH_ORIG[a] * P[key]
+          if wml.read_f32(a) ~= want then
+            wml.write_f32(a, want)
+            if t.flag then wml.write_u8(c + 0x232B, wml.read_u8(c + 0x232B) | 0x10) end
+          end
         elseif SR5TM_VEH_ORIG[a] then
           wml.write_f32(a, SR5TM_VEH_ORIG[a])
           SR5TM_VEH_ORIG[a] = nil
+          if t.flag then wml.write_u8(c + 0x232B, wml.read_u8(c + 0x232B) | 0x10) end
         end
       end
     end
   end
   local X, id = SR5TM_EXTRA, wml.read_u32(v + 0x58)
+  local k = P.component(0x8A, v)
+  if k and P.never_sink then
+    local now = wml.read_u32(wml.base + 0x2E80878)
+    wml.write_u32(k + 0x6D8, 1); wml.write_u32(k + 0x6D0, now + 10000); wml.write_u32(k + 0x6D4, now + 1000)
+  end
+  if k and (P.stay_on_bike or X.bike_bail) then
+    if P.stay_on_bike then
+      X.bike_bail = X.bike_bail or { k, wml.read_u32(k + 0x3D8) }
+      wml.write_u32(k + 0x3D8, 0)
+    elseif X.bike_bail then
+      if X.bike_bail[1] == k then wml.write_u32(k + 0x3D8, X.bike_bail[2]) end
+      X.bike_bail = nil
+    end
+  end
+  if P.auto_flip or X.auto_flip then
+    local c = P.component(0x12, v)
+    if c then
+      X.flip_orig = X.flip_orig or wml.read_u8(c + 0x2318)
+      wml.write_u8(c + 0x2318, P.auto_flip and P.auto_flip - 1 or X.flip_orig)
+      if not P.auto_flip then X.flip_orig = nil end
+      X.auto_flip = P.auto_flip or nil
+    end
+  end
+  if (P.ice_body or false) ~= (X.ice_body or false) then
+    local b = wml.buffer(13)
+    wml.write_f32(b, 0.01)
+    wml.call(wml.base + 0x486C10, v, 0, P.ice_body and 4 or 5, 0, b)
+    X.ice_body = P.ice_body or nil
+  end
   if P.tank_steer or X.tank_steer then
     local c = P.component(0x12, v)
     if c then wml.write_u8(c + 0xBD2, P.tank_steer and 1 or 0) end
@@ -2527,7 +2623,7 @@ local function update_veh_tune()
   end
 end
 -- Upgrades and looks, by the game's own Lua on the vehicle you're in.
-local function car_lua(code, text)
+function P._car_lua(code, text)
   if not P.vehicle_object() then return "Get in a vehicle first" end
   local ok, err = wml.game(code)
   return ok and text or tostring(err)
@@ -2536,13 +2632,13 @@ local CUST = [[vehicle_get_current():get_component_by_type("gml_component_vehicl
 P.upgrade_level = false
 function P.car_upgrade(name)
   local n = P.upgrade_level or 1
-  return car_lua(string.format("vehicle_set_upgrade_info(vehicle_get_current(), %q, %d)", name, n), name .. " at level " .. n)
+  return P._car_lua(string.format("vehicle_set_upgrade_info(vehicle_get_current(), %q, %d)", name, n), name .. " at level " .. n)
 end
-function P.car_rims(n) return car_lua("vehicle_set_rims(vehicle_get_current(), " .. n .. ")", "Rims " .. n) end
-function P.car_tires(n) return car_lua("vehicle_set_tires(vehicle_get_current(), " .. n .. ")", "Tires " .. n) end
-function P.car_paint(n) return car_lua("vehicle_set_paint_choice(" .. CUST .. ", " .. n .. ")", "Paint " .. n) end
-function P.car_glow(c) return car_lua(string.format("vehicle_cust_set_underglow_color(%s, %d, %d, %d)", CUST, c[1], c[2], c[3]), "Underglow set") end
-function P.car_glow_power(v) return car_lua("vehicle_cust_set_underglow_intensity(" .. CUST .. ", " .. v .. ")", "Underglow brightness " .. v) end
+function P.car_rims(n) return P._car_lua("vehicle_set_rims(vehicle_get_current(), " .. n .. ")", "Rims " .. n) end
+function P.car_tires(n) return P._car_lua("vehicle_set_tires(vehicle_get_current(), " .. n .. ")", "Tires " .. n) end
+function P.car_paint(n) return P._car_lua("vehicle_set_paint_choice(" .. CUST .. ", " .. n .. ")", "Paint " .. n) end
+function P.car_glow(c) return P._car_lua(string.format("vehicle_cust_set_underglow_color(%s, %d, %d, %d)", CUST, c[1], c[2], c[3]), "Underglow set") end
+function P.car_glow_power(v) return P._car_lua("vehicle_cust_set_underglow_intensity(" .. CUST .. ", " .. v .. ")", "Underglow brightness " .. v) end
 function P.car_offroad()
   local v = P.vehicle_object()
   local c = v and P.component(0x87, v)
@@ -2561,6 +2657,190 @@ function P.make_towable()
   if not c or c == P.vehicle_object() then return "No vehicle within 30 m" end
   P.node(0xBB9910, 0x29ECC60, { { u = wml.read_u32(c + 0x58) } })
   return "Now it can be towed"
+end
+-- Engine values: any scalar field of any live record, through the game's own reflection (+17D4660). Originals by address.
+SR5TM_ENGINE = SR5TM_ENGINE or {}
+function P.engine_records(class)
+  local ok, s = wml.game(string.format([[local o = "" for _, r in vlib_info_object:ipairs(%q) do o = o .. tostring(r) .. "|" end return o]], class))
+  local out = {}
+  if ok and type(s) == "string" then
+    for n in s:gmatch('"([^"|]*)"') do out[#out + 1] = n end
+  end
+  table.sort(out)
+  return out
+end
+function P._engine_addr(class, rec, path)
+  local V = require("vdata")
+  local ok, ud = wml.game(string.format("return vlib_info_object:get_object(%q, %q).%s", class, rec, path))
+  return ok and ud and V.field_addr(ud) or nil
+end
+function P.engine_read(class, rec, path, is_int)
+  local a = P._engine_addr(class, rec, path)
+  if not a then return nil end
+  return is_int and wml.read_u32(a) or wml.read_f32(a)
+end
+-- how: { "mul", n }, { "set", n } or { "back" }
+function P.engine_apply(class, recs, path, is_int, how)
+  local n = 0
+  for _, rec in ipairs(recs) do
+    local a = P._engine_addr(class, rec, path)
+    if a then
+      local read = is_int and wml.read_u32 or wml.read_f32
+      local write = is_int and wml.write_u32 or wml.write_f32
+      if SR5TM_ENGINE[a] == nil then SR5TM_ENGINE[a] = { is_int, read(a) } end
+      local o = SR5TM_ENGINE[a][2]
+      if how[1] == "back" then write(a, o); SR5TM_ENGINE[a] = nil
+      else
+        local v = how[1] == "mul" and o * how[2] or how[2]
+        write(a, is_int and math.floor(v) or v)
+      end
+      n = n + 1
+    end
+  end
+  return n
+end
+function P.engine_undo_all()
+  local n = 0
+  for a, o in pairs(SR5TM_ENGINE) do
+    if o[1] then wml.write_u32(a, o[2]) else wml.write_f32(a, o[2]) end
+    SR5TM_ENGINE[a] = nil
+    n = n + 1
+  end
+  return n .. " values back to the game's"
+end
+-- Resizing, with collision rebuilt (object_set_scale +192CD50: object, x y z); +192CFD0 undoes it. A vehicle's wheels stay their size.
+function P._set_scale(id, s)
+  if s == 1 then P.node(0x192CFD0, 0x2AD30E0, { { u = id } }) else P.node(0x192CD50, 0x2AC9988, { { u = id }, { v = { s, s, s } } }) end
+end
+function P.scale_me(s)
+  local e = P.object()
+  if not e then return "Not now" end
+  P._set_scale(wml.read_u32(e + 0x58), s)
+  return "Your size: x" .. s
+end
+function P.scale_car(s)
+  local v = P.vehicle_object()
+  if not v then return "Get in a vehicle first" end
+  P._set_scale(wml.read_u32(v + 0x58), s)
+  return "Vehicle size: x" .. s
+end
+function P.scale_near(s)
+  local n = 0
+  for _, list in ipairs({ P.people_near(40), P.vehicles_near(40) }) do
+    for _, o in ipairs(list) do
+      if o.entry ~= P.object() then P._set_scale(wml.read_u32(o.entry + 0x58), s); n = n + 1 end
+    end
+  end
+  return n .. " things at x" .. s
+end
+function P.goal_near(name)
+  local h = crc_of(name)
+  return each_near(40, function(p) P.node(0xAE7BD0, 0x29E8570, { { u = wml.read_u32(p.entry + 0x58) }, { u = h } }) end) .. " people: " .. name
+end
+function P.hunted_near(n)
+  return each_near(40, function(p) P.node(0xAE6B90, 0x29EAA98, { { u = wml.read_u32(p.entry + 0x58) }, { u = n } }) end) .. " people told"
+end
+function P.district_crowd(name)
+  P.node(0xB340C0, 0x2A00188, { { u = crc_of(name) } })
+  return "Crowd: " .. name
+end
+function P.give_reward(name)
+  P.node(0x68A8E0, 0x2995AC8, { { u = crc_of(name) }, { u = crc_of("mission") } })
+  return "Reward: " .. name
+end
+function P.stay_ragdoll(on)
+  local e = P.object()
+  if not e then return "Not now" end
+  local b = wml.buffer(13)
+  wml.write_u32(b, wml.read_u32(e + 0x58))
+  for i = 0, 8, 4 do wml.write_f32(b + 0x10 + i, 0) end
+  if on == 1 then wml.call(wml.base + 0x5B0DE0, b, b + 0x10, 0, 3, 0xFFFFFFFF) else wml.call(wml.base + 0x5B0F60, b) end
+  return on == 1 and "Ragdolled" or "Back up"
+end
+-- Moves, on foot, every frame: human movement (0x10) +0x3A0 and +0x3A8 velocity asked for, +0x3A4 up, +0x2A8 gravity scale,
+-- +0x358 how fast the ground takes you, +0x360 air control. In the air: not walking and not in a vehicle.
+P.double_jump, P.jetpack, P.air_dash, P.ice_floor, P.air_drift = false, false, false, false, false
+function P.moves_active()
+  return P.double_jump or P.jetpack or P.air_dash or P.ice_floor or P.air_drift or SR5TM_EXTRA.move_orig ~= nil
+end
+function P.update_moves(menu_open)
+  local B, X, e = wml.base, SR5TM_EXTRA, P.object()
+  local c = e and not P.vehicle_object() and P.component(0x10)
+  if not c then return end
+  local keep = function(off, v)
+    X.move_orig = X.move_orig or {}
+    if X.move_orig[off] == nil then X.move_orig[off] = wml.read_f32(c + off) end
+    wml.write_f32(c + off, v)
+  end
+  if P.ice_floor then keep(0x358, P.ice_floor) end
+  if P.air_drift then keep(0x360, P.air_drift) end
+  if X.move_orig then
+    if not P.ice_floor and X.move_orig[0x358] then wml.write_f32(c + 0x358, X.move_orig[0x358]); X.move_orig[0x358] = nil end
+    if not P.air_drift and X.move_orig[0x360] then wml.write_f32(c + 0x360, X.move_orig[0x360]); X.move_orig[0x360] = nil end
+    if next(X.move_orig) == nil then X.move_orig = nil end
+  end
+  local buttons = wml.pad()
+  if menu_open or not buttons then buttons = 0 end
+  local jump = buttons & 0x1000 ~= 0 or (not menu_open and wml.key_down("SPACE"))
+  local dash = buttons & 0x4000 ~= 0 or (not menu_open and wml.key_down("SHIFT"))
+  local g = wml.call(B + 0x1534D80, e)
+  local st = g ~= 0 and wml.read_u32(g + 0x324) or 0
+  local air = st ~= 0x660A9BAD and st ~= 0x105CE42B
+  if not air then X.jumps_used = 0 end
+  if P.double_jump and jump and not X.jump_was and air and (X.jumps_used or 0) < P.double_jump then
+    X.jump_frames, X.jumps_used = 15, (X.jumps_used or 0) + 1
+  end
+  if X.jump_frames and X.jump_frames > 0 then
+    X.jump_frames = X.jump_frames - 1
+    wml.write_f32(c + 0x3A4, 8)
+  end
+  if P.jetpack and jump and air then
+    wml.write_f32(c + 0x3A4, P.jetpack)
+    wml.write_f32(c + 0x2A8, 0.1)
+  end
+  if P.air_dash and dash and not X.dash_was and air then X.dash_frames = 15 end
+  if X.dash_frames and X.dash_frames > 0 then
+    X.dash_frames = X.dash_frames - 1
+    local f = B + 0x41E1AC0 + 0x20
+    wml.write_f32(c + 0x3A0, wml.read_f32(f) * P.air_dash)
+    wml.write_f32(c + 0x3A8, wml.read_f32(f + 8) * P.air_dash)
+  end
+  X.jump_was, X.dash_was = jump, dash
+end
+-- Everyone's AI core data: flags read live. Written per record, originals kept.
+P.ai_find, P.ai_flee, P.ai_nonlethal, P.ai_shield, P.ai_smoke = false, false, false, false, false
+local AI_BOOLS = { ai_find = "m_always_find_player", ai_flee = "m_flee_combat_area", ai_nonlethal = "m_non_lethal_combatant", ai_shield = "m_defensive_melee_data.m_has_riot_shield", ai_smoke = "m_coordinated_action_data.m_smoke_attack" }
+function P._update_ai_bools()
+  local X, V = SR5TM_EXTRA, nil
+  for key, path in pairs(AI_BOOLS) do
+    if (P[key] or false) ~= (X[key] or false) then
+      V = V or require("vdata")
+      X.ai_recs = X.ai_recs or P.engine_records("ai_component_core_data")
+      X.ai_orig = X.ai_orig or {}
+      for _, rec in ipairs(X.ai_recs) do
+        local a = P._engine_addr("ai_component_core_data", rec, path)
+        if a then
+          if X.ai_orig[a] == nil then X.ai_orig[a] = wml.read_u8(a) end
+          wml.write_u8(a, P[key] and 1 or X.ai_orig[a])
+        end
+      end
+      X[key] = P[key] or nil
+    end
+  end
+end
+-- Moon mode: world and your own gravity at a sixth.
+P.moon = false
+function P._update_moon()
+  local X = SR5TM_EXTRA
+  if (P.moon or false) == (X.moon or false) then return end
+  if P.moon then
+    X.moon_was = { P.world_gravity, P.move.gravity }
+    P.world_gravity, P.move.gravity = 0.17, 0.17
+  elseif X.moon_was then
+    P.world_gravity, P.move.gravity = X.moon_was[1], X.moon_was[2]
+  end
+  X.moon = P.moon or nil
+  if P.update_tunes then P.update_tunes() end
 end
 -- Spawned people take orders once they're followers: ai_issue_enter_vehicle_orders (+AE6180: person, vehicle,
 -- seat and a second int, -1 for any, 8 as the game's default), ai_issue_orders (+AE5720) "go to run" with a
@@ -2598,7 +2878,7 @@ end
 -- Downforce: the wheeled component's extra gravity on the ground and in the air, +0x1FFC and +0x2000, and the
 -- flag at +0x232B that has it rebuilt. Originals per car.
 P.downforce = false
-local function update_downforce()
+function P._update_downforce()
   local v = P.vehicle_object()
   local c = v and P.component(0x12, v)
   if not c then return end
@@ -2618,7 +2898,7 @@ end
 -- What's kept up once a second. Traffic mood: spawn_profile_add and remove (+B34150, +B341C0), as the traffic cheats do.
 P.invisible_me, P.radio_unlock, P.spawned_safe, P.traffic_mood, P.surf_fast, P.long_trains = false, false, false, false, false, false
 SR5TM_EXTRA = SR5TM_EXTRA or {}
-local function collected(key, class, fields)
+function P._collected(key, class, fields)
   if not SR5TM_EXTRA[key] then SR5TM_EXTRA[key] = require("vdata").collect(class, fields) end
   return SR5TM_EXTRA[key]
 end
@@ -2631,13 +2911,22 @@ local SCALED = {
   { key = "enemy_sight", class = "ai_view_frustum_types", fields = { { path = "m_non_combat_frustum.m_length", what = "a" }, { path = "m_combat_frustum.m_length", what = "b" }, { path = "m_combat_target_frustum.m_length", what = "c" } } },
   { key = "aim_blur", class = "depth_of_field_info", set = 0.5, fields = { { path = "m_dof_fstop_min", what = "a" }, { path = "m_dof_fstop_max", what = "b" } } },
   { key = "ammo_drops", class = "dropped_ammo_table", only = "default_ammo", fields = { { path = "m_launcher_weight", what = "l" }, { path = "m_special_weight", what = "s" } } },
+  { key = "ai_swarm", class = "gml_ai_token_config", fields = { { path = "m_num_tokens", what = "n" } } },
+  { key = "corpses_stay", class = "gml_spawnable_lifetime", fields = { { path = "m_slush_properties.m_duration", what = "d" }, { path = "m_slush_properties.m_instance_limit", what = "n" } } },
+  { key = "fraud_score", class = "insurance_fraud_tweakable_values", fields = { { path = "m_impact_score_multiplier", what = "a" }, { path = "m_airtime_score_per_second", what = "b" } } },
   { key = "fraud_launch", class = "insurance_fraud_tweakable_values", fields = { { path = "m_ragdoll_impulse_up", what = "up" }, { path = "m_ragdoll_impulse_dir", what = "dir" } } },
   { key = "skill_fast", class = "gml_weapon_info", only = "ability", set = 0.05, fields = { { path = "m_refire_delay", what = "refire" } } },
 }
 function P.update_extras()
   local X, e = SR5TM_EXTRA, P.object()
-  update_extras2(e)
-  update_veh_tune()
+  P._update_extras2(e)
+  P._update_veh_tune()
+  P._update_ai_bools()
+  P._update_moon()
+  if P.cam_through and e then
+    local cam = wml.call(wml.base + 0x1FCD10, wml.call(wml.base + 0x1B434C0, e + 0x58))
+    if cam ~= 0 then wml.write_u8(cam + 0x8F8, 0) end
+  end
   if P.tire_smoke or X.tire_smoke then
     local v = P.vehicle_object()
     local cid, oid
@@ -2664,8 +2953,8 @@ function P.update_extras()
       X[k] = P[k] or nil
     end
   end
-  update_downforce()
-  update_crusher()
+  P._update_downforce()
+  P._update_crusher()
   if e then
     local me = wml.read_u32(e + 0x58)
     -- ai_set_invisible style node (+AE8180: id, seconds), kept up; +AE8370 clears it
@@ -2708,8 +2997,8 @@ function P.update_extras()
     if cam ~= 0 then wml.write_f32(cam + 0x700, P.radial_blur or 0.0) end
     X.radial_blur = P.radial_blur or nil
   end
-  update_ride()
-  update_car_cam()
+  P._update_ride()
+  P._update_car_cam()
   if (P.blackout or false) ~= (X.blackout or false) then
     wml.game("gml_disable_scene_rendering(" .. tostring(P.blackout or false) .. ")")   -- a counter: once each way
     X.blackout = P.blackout or nil
@@ -2721,7 +3010,7 @@ function P.update_extras()
   end
   for _, s in ipairs(SCALED) do
     if (P[s.key] or false) ~= (X[s.key] or false) then
-      for _, f in ipairs(collected(s.key .. "_list", s.class, s.fields)) do
+      for _, f in ipairs(P._collected(s.key .. "_list", s.class, s.fields)) do
         if not s.only or f.object:find(s.only) then
           require("vdata").write(f.addr, f.t, P[s.key] and (s.set or f.orig * P[s.key]) or f.orig)
         end
@@ -2749,7 +3038,7 @@ function P.update_extras()
     X.unseen = nil
   end
   if P.radio_unlock then
-    local c = radio_comp()
+    local c = P._radio_comp()
     if c ~= 0 then wml.write_u8(c + 8, 0) end
   end
   if P.spawned_safe then
@@ -2761,13 +3050,13 @@ function P.update_extras()
     X.mood = P.traffic_mood or nil
   end
   if (P.surf_fast or false) ~= (X.surf_was or false) then
-    for _, f in ipairs(collected("surf", "wingsuit_info", { { path = "m_contents.m_surf_target_max_mph", what = "mph" }, { path = "m_contents.m_surf_cooldown", what = "cd" } })) do
+    for _, f in ipairs(P._collected("surf", "wingsuit_info", { { path = "m_contents.m_surf_target_max_mph", what = "mph" }, { path = "m_contents.m_surf_cooldown", what = "cd" } })) do
       require("vdata").write(f.addr, f.t, not P.surf_fast and f.orig or f.what == "mph" and f.orig * P.surf_fast or 0.1)
     end
     X.surf_was = P.surf_fast or nil
   end
   if (P.long_trains or false) ~= (X.trains_was or false) then
-    for _, f in ipairs(collected("trains", "train_spawning_config", { { path = "m_min_cars_per_train", what = "min" }, { path = "m_max_cars_per_train", what = "max" } })) do
+    for _, f in ipairs(P._collected("trains", "train_spawning_config", { { path = "m_min_cars_per_train", what = "min" }, { path = "m_max_cars_per_train", what = "max" } })) do
       require("vdata").write(f.addr, f.t, P.long_trains and f.orig * P.long_trains or f.orig)
     end
     X.trains_was = P.long_trains or nil
@@ -3432,6 +3721,114 @@ function P.explosion_here()
   wml.call(B + 0xB43470, out, 2, 3)
   wml.call(B + 0x3BB5D0, out)
   return "Boom"
+end
+-- Per-gun tuning by key, read at each shot or copied to it, on the gun in hand. Written through +1BFF510 like every other
+-- override; a key's old value is kept per gun, so off puts it back, and a new copy of a gun starts clean.
+local GUN_TUNE = {
+  gun_car = { { 0x1CFFB2C2, 1 } }, gun_people = { { 0xE535E3C3, 1 } }, gun_shield = { { 0xD28DDEC0, 1 } }, gun_pellets = { { 0xDB259529, 0 } },
+  gun_spread = { { 0xB850704B, 1, "mul" }, { 0xB52BB264, 1, "mul" } }, gun_hip = { { 0x2184260E, 1, "one" }, { 0xC3628BC9, 1, "one" }, { 0x4632F766, 1, "one" } },
+  gun_recover = { { 0x607813CF, 1, "mul" }, { 0x682EF224, 1, "mul" } }, gun_stagger = { { 0x6486BAA2, 1 } },
+  gun_ragdoll = { { 0x0C8E2D69, 1 }, { 0x59B3B850, 0, "one" } }, gun_dmgtype = { { 0x6EB4708F, 3 } }, gun_impact = { { 0x4C8A29CD, 3 } }, gun_fuse = { { 0x4A932887, 1 } },
+  gun_wide = { { 0xAC93F8D3, 0, "one" }, { 0xA38D599A, 1, "mul" } },
+}
+local GUN_SWAP = { gun_tracer = 0x8A4357A7, gun_muzzle = 0x77900BC7, gun_casing = 0xBBB93444, gun_shake = 0x0F61188C }
+function P.gun_tune_active()
+  for k in pairs(GUN_TUNE) do if P[k] or SR5TM_EXTRA[k] then return true end end
+  for k in pairs(GUN_SWAP) do if P[k] then return true end end
+  return false
+end
+local tune_gun, tune_state, tune_orig
+function P.update_gun_tune()
+  local ok, s = wml.game("return tostring(gml_get_local_player_weapon())")
+  local id = ok and tonumber((s or ""):match("object (%x+)") or "", 16)
+  if not id or id == 0 then return end
+  local state = {}
+  for k in pairs(GUN_TUNE) do state[#state + 1] = k .. tostring(P[k]) end
+  for k in pairs(GUN_SWAP) do state[#state + 1] = k .. tostring(P[k]) end
+  table.sort(state)
+  state = table.concat(state)
+  if id == tune_gun and state == tune_state then return end
+  local buf = wml.buffer(10)
+  wml.write_u32(buf, id)
+  local entry = wml.call(wml.base + 0x1C1F420, buf)
+  local comp = entry ~= 0 and wml.call(wml.base + 0x49F8A0, entry) or 0
+  if comp == 0 then return end
+  for _, path in pairs({ P.gun_tracer, P.gun_muzzle, P.gun_casing, P.gun_shake }) do
+    local r = loaded(path)
+    if r == nil then return end       -- still loading: try again
+    if r == false then wml.log("gun swap: wouldn't load " .. path) end
+  end
+  if id ~= tune_gun then tune_orig = {} end
+  tune_gun, tune_state = id, state
+  local name = wml.buffer(11, "sr5_tweak_menu")
+  local function current(section, key)
+    local list, n = wml.read_u64(comp + section * 0x6A0 + 0x138), wml.read_u16(comp + section * 0x6A0 + 0x140)
+    for i = 0, n - 1 do
+      local p = list + i * 24
+      if wml.read_u32(p) == key then return p end
+    end
+  end
+  local function put(section, key, kind, v)
+    wml.write_u32(buf + 0x10, key)
+    for i = 0, 15, 4 do wml.write_u32(buf + 0x20 + i, 0) end
+    if kind == 1 then wml.write_f32(buf + 0x20, v) else wml.write_u32(buf + 0x20, v) end
+    wml.write_u32(buf + 0x28, kind)
+    wml.call(wml.base + 0x1BFF510, comp, buf + 0x10, section, buf + 0x20, name)
+  end
+  for row, keys in pairs(GUN_TUNE) do
+    for _, k in ipairs(keys) do
+      for section = 0, 1 do
+        local slot = section .. ":" .. k[1]
+        local p = current(section, k[1])
+        if P[row] then
+          if tune_orig[slot] == nil then
+            tune_orig[slot] = p and (k[2] == 1 and wml.read_f32(p + 8) or wml.read_u32(p + 8)) or false
+          end
+          local base = tune_orig[slot] or 1
+          local v = k[3] == "mul" and base * P[row] or k[3] == "one" and 1 or P[row]
+          put(section, k[1], k[2], v)
+        elseif tune_orig[slot] ~= nil then
+          if tune_orig[slot] ~= false then put(section, k[1], k[2], tune_orig[slot]) end
+          tune_orig[slot] = nil
+        end
+      end
+    end
+    SR5TM_EXTRA[row] = P[row] or nil
+  end
+  for row, key in pairs(GUN_SWAP) do
+    if P[row] and loaded(P[row]) and not (P.rockets and key == 0x8A4357A7) then
+      wml.write_u32(buf + 0x10, key)
+      for section = 0, 1 do wml.call(wml.base + 0x1C001E0, comp, buf + 0x10, section, prefab_id(P[row] .. ".cprefab_pc"), name) end
+    end
+  end
+end
+-- A blast anywhere: world ints. Airstrike and Blast at waypoint use it.
+P.airstrike = false
+function P.blast_at(x, y, z)
+  local B, e = wml.base, P.object()
+  if not e then return false end
+  if loaded(BOOM) ~= true then return false end
+  local out, m = wml.buffer(14), wml.buffer(13)
+  for i = 0, 0x2C, 4 do wml.write_u32(m + i, wml.read_u32(e + i)) end
+  wml.write_u32(m + 0x30, x & 0xFFFFFFFF); wml.write_u32(m + 0x34, y & 0xFFFFFFFF); wml.write_u32(m + 0x38, z & 0xFFFFFFFF)
+  for i = 0, 0x400, 8 do wml.write_u64(out + i, 0) end
+  wml.call(B + 0xB42DA0, out, prefab_id(BOOM .. ".cprefab_pc"), m, B + 0x3C4117C, B + 0x3C4117C, B + 0x3C44910, 0)
+  wml.call(B + 0xB43470, out, 2, 3)
+  wml.call(B + 0x3BB5D0, out)
+  return true
+end
+function P.update_airstrike()
+  local e = P.object()
+  if not e then return end
+  local function s32(v) return v >= 0x80000000 and v - 0x100000000 or v end
+  local a, r = math.random() * 6.283, 8 + math.random() * 30
+  P.blast_at(s32(wml.read_u32(e + 0x30)) + math.floor(math.cos(a) * r * 10000), s32(wml.read_u32(e + 0x34)), s32(wml.read_u32(e + 0x38)) + math.floor(math.sin(a) * r * 10000))
+end
+function P.blast_waypoint()
+  local x, y, z = P.waypoint()
+  if not x then return "No waypoint set" end
+  if loaded(BOOM) ~= true then return "Loading: press again" end
+  return P.blast_at(math.floor(x * 10000), math.floor(y * 10000), math.floor(z * 10000)) and "Boom, at your waypoint" or "Not now"
 end
 P.explosive_melee = false
 -- Signature effects on any gun: "ultimate_upgrade" (B0ACE1F9) in the gun's own list, which shots and melee read. A gun with
