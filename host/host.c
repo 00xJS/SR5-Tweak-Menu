@@ -803,15 +803,27 @@ static LONG CALLBACK crash_logger(EXCEPTION_POINTERS *e)
         _snprintf_s(extra, sizeof extra, _TRUNCATE, " (%s %p)", e->ExceptionRecord->ExceptionInformation[0] ? "writing" : "reading",
                     (void *)e->ExceptionRecord->ExceptionInformation[1]);
     hlog("EXCEPTION %08lX at %s%s, thread %lu%s", code, at, extra, GetCurrentThreadId(), g_guarded ? " (guarded)" : "");
-    void *frames[16];
-    USHORT n = RtlCaptureStackBackTrace(0, 16, frames, NULL);
-    char line[1200] = "", one[160];
+    void *frames[40];
+    USHORT n = RtlCaptureStackBackTrace(0, 40, frames, NULL);
+    char line[2400] = "", one[160];
     for (USHORT i = 0; i < n; i++) {
         where(frames[i], one, sizeof one);
         strcat_s(line, sizeof line, " ");
         strcat_s(line, sizeof line, one);
     }
     hlog("  stack:%s", line);
+    const CONTEXT *c = e->ContextRecord;
+    hlog("  regs: rax %llX rbx %llX rcx %llX rdx %llX rsi %llX rdi %llX rbp %llX rsp %llX", c->Rax, c->Rbx, c->Rcx, c->Rdx, c->Rsi, c->Rdi, c->Rbp, c->Rsp);
+    hlog("  regs: r8 %llX r9 %llX r10 %llX r11 %llX r12 %llX r13 %llX r14 %llX r15 %llX", c->R8, c->R9, c->R10, c->R11, c->R12, c->R13, c->R14, c->R15);
+    // what the registers that hold pointers point at, if they can be read
+    const char *names[] = { "rsi", "r8", "r9", "r10", "r14" };
+    const DWORD64 regs[] = { c->Rsi, c->R8, c->R9, c->R10, c->R14 };
+    for (int r = 0; r < 5; r++) {
+        uint64_t m[6];
+        SIZE_T got = 0;   // not a plain read: a fault here would come back through this handler
+        if (ReadProcessMemory(GetCurrentProcess(), (LPCVOID)regs[r], m, sizeof m, &got) && got == sizeof m)
+            hlog("  at %s: %llX %llX %llX %llX %llX %llX", names[r], m[0], m[1], m[2], m[3], m[4], m[5]);
+    }
     return EXCEPTION_CONTINUE_SEARCH;
 }
 

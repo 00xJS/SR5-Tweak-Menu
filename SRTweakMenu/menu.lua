@@ -543,6 +543,10 @@ local function any_variants(i)
   for _, p in ipairs(ANY_VEHICLES[i][3]) do out[#out + 1] = { p[1] .. " (" .. p[2] .. ")", p[1] } end
   return out
 end
+local PERK_LIST = require("perks")
+local SKY_LIST = require("sky")
+local SOUND_LIST = {}
+for _, n in ipairs(require("sounds")) do SOUND_LIST[#SOUND_LIST + 1] = { n, n } end
 local TABS = {
   { name = "Player", rows = {
     pset("god", "God mode", "You can't die. Not the game's cheat: your save stays clean.", { { "Off", false }, { "On", true } }),
@@ -652,7 +656,248 @@ local TABS = {
     wset("no_recoil", "No recoil", "No kick when you fire, and no camera shake from it.", { { "Off", false }, { "On", true } }),
     wset("no_warmup", "No warm-up", "Miniguns spin up and charged weapons charge at once.", { { "Off", false }, { "On", true } }),
     wset("no_overheat", "No overheat", "Weapons that overheat never do.", { { "Off", false }, { "On", true } }),
-    wset("range", "Range", "How far every weapon reaches.", { { "Game's", 1 }, { "x2", 2 }, { "x4", 4 } }),
+    { kind = "any_perk", label = "Any perk", help = "Experimental: Left/Right picks any of the game's perk classes, Enter turns it on or off at Perk strength. Until you quit. Many do unknown things.", sel = 1, options = PERK_LIST },
+    pset("perk_strength", "Perk strength", "Experimental: how strong Any perk turns one on. Off and on again to change one already on.", { { "1", false }, { "0.5", 0.5 }, { "2", 2.0 }, { "5", 5.0 }, { "10", 10.0 } }),
+    { kind = "pfn", fn = "perks_off", label = "My perks off", help = "Takes off everything Any perk turned on." },
+    { kind = "pfn", fn = "takedown_ready", label = "Takedown ready now", help = "Experimental: fills your takedown meter once." },
+    pset("always_execute", "Takedowns always kill", "Experimental: takedowns always use the kill version.", { { "Off", false }, { "On", true } }),
+    pset("invisible_me", "You are invisible", "Experimental: you fade out, to everyone's eyes but the game's: enemies still see you.", { { "Off", false }, { "On", true } }),
+    { kind = "outfit_only", label = "Saved look: outfit only", help = "Experimental: wears the clothes of the look picked on Saved look, keeping your body." },
+    pset("body_groin", "Body: groin", "Experimental: past the slider's top. Only on screen: your save keeps your real body.", { { "Game's", false }, { "x1.5", 1.5 }, { "x2", 2.0 }, { "x3", 3.0 }, { "x5", 5.0 } }),
+    pset("body_squeezed", "Body: squeezed", "Experimental: past the slider's top. Only on screen: your save keeps your real body.", { { "Game's", false }, { "x1.5", 1.5 }, { "x2", 2.0 }, { "x3", 3.0 }, { "x5", 5.0 } }),
+    pset("body_eye_gap", "Face: eye spacing", "Experimental: past the slider's top. Only on screen: your save keeps your real body.", { { "Game's", false }, { "x1.5", 1.5 }, { "x2", 2.0 }, { "x3", 3.0 }, { "x5", 5.0 } }),
+    pset("body_mouth_wide", "Face: mouth width", "Experimental: past the slider's top. Only on screen: your save keeps your real body.", { { "Game's", false }, { "x1.5", 1.5 }, { "x2", 2.0 }, { "x3", 3.0 }, { "x5", 5.0 } }),
+    wset("proj_speed", "Rocket speed", "Experimental: how fast launchers and Rocket rounds fly.", { { "Game's", 1 }, { "x0.25", 0.25 }, { "x0.5", 0.5 }, { "x2", 2 }, { "x4", 4 } }),
+    pset("car_ejector", "Ejector cannon", "Experimental: ejector seats throw you much higher.", { { "Game's", false }, { "x2", 2 }, { "x5", 5 }, { "x10", 10 } }),
+    pset("car_cowcatcher", "Cowcatcher launch", "Experimental: people the cowcatcher hits fly much further.", { { "Game's", false }, { "x2", 2 }, { "x5", 5 }, { "x10", 10 } }),
+    pset("surf_fast", "Surf faster cars", "Experimental: jump onto much faster cars, with almost no wait between surfs.", { { "Game's", false }, { "x2", 2 }, { "x5", 5 } }),
+    pset("roadblock_mania", "Roadblock mania", "Experimental: up to 20 roadblocks, 20 m apart, a new one every 5 s while you're wanted.", { { "Off", false }, { "On", true } }),
+    pset("pursuit_cars", "Pursuit cars", "Experimental: how many cars chase you at each level. The game's are 1 to 3.", { { "Game's", false }, { "6", 6 }, { "12", 12 }, { "20", 20 } }),
+    pset("heat_fast", "Wanted climbs fast", "Experimental: a tenth of the points to reach each level, so five stars comes fast.", { { "Off", false }, { "On", true } }),
+    pset("escape_radius", "Escape radius", "Experimental: how far you must get to lose them. The game's are 90 to 130.", { { "Game's", false }, { "Tiny", 20 }, { "Wide", 400 }, { "Huge", 1500 } }),
+    { kind = "crowd_act", key = "calm", label = "Stop fights near", help = "Experimental: everyone within 40 m forgets who they were fighting, until they see a reason again." },
+    { kind = "crowd_act", key = "revive", label = "Revive everyone near", help = "Experimental: the downed within 40 m get back up." },
+    { kind = "crowd_act", key = "strip", label = "Strip shields near", help = "Experimental: tough enemies within 40 m lose their shields." },
+    { kind = "crowd_act", key = "tough", label = "Make everyone near tough", help = "Experimental: everyone within 40 m gets a tough shield, for harder fights." },
+    { kind = "crowd_act", key = "stagger", label = "Everyone near staggers easily", help = "Experimental: any hit staggers everyone now within 40 m, for as long as they live." },
+    { kind = "crowd_act", key = "unseen", label = "Fade out everyone near", help = "Experimental: everyone within 40 m fades out. They're still there." },
+    { kind = "crowd_act", key = "seen", label = "Fade everyone near back in", help = "Experimental: brings back those within 40 m." },
+    { kind = "crowd_act", key = "say", label = "Everyone near says it", help = "Experimental: everyone within 40 m with a voice says the line picked on Say a line." },
+    { kind = "crowd_act", key = "bail", label = "Everyone out of their cars", help = "Experimental: drivers within 40 m skid to a stop and bail out." },
+    { kind = "crowd_act", key = "floor", label = "Cars near floor it", help = "Experimental: drivers within 40 m put their foot down for 8 s." },
+    pset("spawned_safe", "Spawned people can't die", "Experimental: people you spawned stop taking damage, your army and bodyguards too.", { { "Off", false }, { "On", true } }),
+    pset("downed_timer", "Downed timer", "Experimental: how long you or anyone stays down before dying. The game's is 30 s.", { { "Game's", false }, { "2 min", 120 }, { "10 min", 600 }, { "A long time", 60000 } }),
+    pset("instant_revive", "Instant revive", "Experimental: reviving someone takes no time.", { { "Off", false }, { "On", true } }),
+    pset("guardian_angel", "Guardian angel", "Experimental: the game's save from a lethal hit comes every second, not every 15, and lasts 3 s.", { { "Off", false }, { "On", true } }),
+    pset("traffic_mood", "Traffic mood", "Experimental: adds one of the game's spawn sets as the streets fill. Save first: it can ask for models that aren't loaded.", { { "Game's", false }, { "Bomb trucks", 0xA1CBE10A }, { "Ambulances", 0xCB2114E0 }, { "Dirt bikes", 0xF962793B }, { "Hobos", 0x872E3169 }, { "Modesty outlawed", 0xE1133E4F }, { "Marshall district", 0xA04896DB }, { "Dustfaire", 0x29956940 }, { "Sunshine Springs", 0x1C8C5249 } }),
+    pset("long_trains", "Long trains", "Experimental: trains made from now on are longer.", { { "Game's", false }, { "x2", 2 }, { "x4", 4 } }),
+    { kind = "pfn_list", fn = "start_diversion", label = "Start diversion", help = "Experimental: Left/Right picks a side job, Enter starts it if the game allows it. Save first.", sel = 1, options = { { "Repo: boat", "repo_boat" }, { "Repo: cache", "repo_cache" }, { "Repo: engine", "repo_engine" }, { "Repo: fire truck", "repo_firetruck" }, { "Repo: fireworks", "repo_fireworks" }, { "Repo: tank", "repo_tank" }, { "Repo: vault", "repo_vault" }, { "Maximum notoriousness", "maxmimum_notoriousness" }, { "Toxic dump", "toxic_dump_ambient" }, { "Radio station: Idols", "radio_station_idols_01" }, { "Radio station: Marshall", "radio_station_marshall_01" }, { "Radio station: Panteros", "radio_station_panteros_01" } } },
+    { kind = "pfn", fn = "spawned_to_car", label = "Spawned people get in my car", help = "Experimental: people you spawned become your followers and climb into your vehicle." },
+    { kind = "pfn", fn = "spawned_to_waypoint", label = "Spawned people go to waypoint", help = "Experimental: people you spawned run to your map waypoint." },
+    pset("peds_pay", "Pedestrians always pay", "Experimental: every civilian you kill drops cash, not one in four. It's real money.", { { "Off", false }, { "On", true } }),
+    pset("downforce", "Downforce", "Experimental: the vehicle you're in sticks to the road harder at speed.", { { "Game's", false }, { "x2", 2.0 }, { "x5", 5.0 }, { "x10", 10.0 } }),
+    { kind = "game_list", class = "weapon_skin", label = "Weapon skin", help = "Experimental: Left/Right picks a skin, Enter puts it on the gun in hand if it's for that gun and unlocked (Unlock all weapon skins). Saved with your game. Save first.", sel = 1, options = {}, code = [[if not weapon_cust_apply_skin(player_local_inventory_get_active_slot(), vlib_info_object:get_object("weapon_skin", "%s")) then error("That skin isn't for this gun, or isn't unlocked") end]] },
+    { kind = "pfn", fn = "hermit_juice", label = "Hermit juice", help = "Experimental: the drink that warps you to a mystery spot and may hand you boots." },
+    { kind = "pfn", fn = "radio_step", arg = 1, label = "Next station", help = "Experimental: the next station on the radio in your vehicle, even if a mission locked it." },
+    { kind = "pfn", fn = "radio_step", arg = -1, label = "Previous station", help = "Experimental: the station before." },
+    pset("radio_unlock", "Unlock radio in missions", "Experimental: you can change station when a mission locked the radio.", { { "Off", false }, { "On", true } }),
+    { kind = "hq_fill", label = "Fill the HQ", help = "Experimental: Left/Right picks, Enter twice: every spot in your headquarters, one by one, saved with your game.", sel = 1, options = { { "Random", "random" }, { "Huge props only", "huge" }, { "Clear all", "clear" } } },
+    gchoice("Screen tint", "Experimental: the game's screen-edge colour, in any colour.", { { "Off", [[gml_vignette_override(false) return "off"]] }, { "Red", [[gml_vignette_override(true) gml_vignette_color(1, 0, 0) gml_vignette_intensity(1) return "red"]] }, { "Green", [[gml_vignette_override(true) gml_vignette_color(0, 1, 0) gml_vignette_intensity(1) return "green"]] }, { "Blue", [[gml_vignette_override(true) gml_vignette_color(0, 0, 1) gml_vignette_intensity(1) return "blue"]] }, { "Gold", [[gml_vignette_override(true) gml_vignette_color(1, 0.7, 0) gml_vignette_intensity(1) return "gold"]] }, { "Purple", [[gml_vignette_override(true) gml_vignette_color(0.6, 0, 1) gml_vignette_intensity(1) return "purple"]] }, { "Black", [[gml_vignette_override(true) gml_vignette_color(0, 0, 0) gml_vignette_intensity(1) return "black"]] }, { "White", [[gml_vignette_override(true) gml_vignette_color(1, 1, 1) gml_vignette_intensity(1) return "white"]] } }),
+    { kind = "console_row", label = "Camera effects", handler = 0x9CE4B0, help = "Experimental: the game's switch for camera effects, off or back on." },
+    { kind = "console_row", label = "All caps text", handler = 0x1315920, help = "Experimental: every piece of interface text in capitals, or back." },
+    pset("spawn_loadout", "Spawned people carry", "Experimental: what people you spawn from now on carry. Pair with Your army or Bodyguards. Some bodies may not take a weapon: save first.", { { "Their own", false }, { "Saints pistol", "saint_grunt_pistol" }, { "Saints rifle", "saint_grunt_rifle" }, { "Saints shotgun", "saint_grunt_shotgun" }, { "Saints assault", "saint_grunt_assault" }, { "Saints bat", "saint_grunt_bat" }, { "Saints rocket", "saint_grunt_rocket" }, { "Panteros pistol", "panteros_grunt_pistol" }, { "Panteros shotgun", "panteros_grunt_shotgun" }, { "Idols pistol", "idols_grunt_pistol" }, { "Idols SMG", "idols_grunt_smg" }, { "Marshall carbine", "marshall_grunt_carbine" }, { "Police pistol", "police_grunt_pistol" }, { "SWAT burst", "police_swat_burst" }, { "Drug dealer AR", "nonfaction_drug_dealer_ar" }, { "Hitman", "nonfaction_hitman" } }),
+    { kind = "pfn_list", fn = "call_follower", label = "Call in follower", help = "Experimental: Left/Right picks who, Enter calls them in as a follower, at most 4 at once. Save first.", sel = 1, options = { { "Saints grunt", "saints_grunt_male" }, { "Panteros grunt", "enemy_panteros_grunt_pistol" }, { "Fighting pedestrian", "enemy_combat_ped" }, { "Cat mascot", "ally_nonfaction_mascot_cat" }, { "Coyote", "enemy_quadruped_coyote" } } },
+    { kind = "pfn_list", class = "ai_combat_orders_config", fn = "order_near", label = "Order everyone near", help = "Experimental: Left/Right picks any of the game's 129 AI orders, Enter gives it to everyone within 40 m. Most do what they say; some need a place or a fight.", sel = 1, options = {} },
+    { kind = "pfn_list", fn = "mood_near", label = "Face on everyone near", help = "Experimental: Left/Right picks a mood for everyone's face within 40 m. It may only show in some animations.", sel = 1, options = { { "Anger", "anger" }, { "Contempt", "contempt" }, { "Disgust", "disgust" }, { "Fear", "fear" }, { "Happiness", "happiness" }, { "Pain", "pain" }, { "Sadness", "sadness" }, { "Surprise", "surprise" }, { "None", "none" } } },
+    { kind = "pfn_list", class = "radio_station_info", fn = "radios_near", label = "Radios in cars near me", help = "Experimental: Left/Right picks a station, Enter: every car within 40 m plays it. Pick Off to stop them.", sel = 1, options = {} },
+    { kind = "pfn", fn = "grenade_takedown", label = "Grenade takedown", help = "Experimental: the Pineapple Express takedown on your current target, without the skill." },
+    pset("skill_fast", "Skills recharge at once", "Experimental: skills are ready again right after use, from the next time each is drawn.", { { "Off", false }, { "On", true } }),
+    { kind = "immune", label = "Immune to", help = "Experimental: Left/Right picks a status effect, Enter makes you immune to it or takes that off. Lost when you respawn.", sel = 1, options = {} },
+    { kind = "face_part", class = "char_cust_facial_morph_group", label = "Face part", help = "Experimental: Left/Right picks one of the 50 face parts, Enter sets it to Face amount. Stays in your character if you save; Undo my look puts it back.", sel = 1, options = {} },
+    pset("face_amount", "Face amount", "Experimental: how far Face part goes. The game's sliders stop at 100.", { { "+100", false }, { "+200", 200 }, { "+300", 300 }, { "+500", 500 }, { "-100", -100 }, { "-200", -200 }, { "-300", -300 }, { "-500", -500 }, { "Centre", 0 } }),
+    pset("crusher", "Crusher", "Experimental: the vehicle you're in flattens other cars and props like the monster truck. Off may not fully undo it for that car.", { { "Off", false }, { "On", true } }),
+    pset("surf_safe", "Surfing is safe", "Experimental: the world can't hurt you while you surf a car.", { { "Off", false }, { "On", true } }),
+    pset("hover_slam", "Hoverboard slam", "Experimental: turns on the hoverboard's slam.", { { "Off", false }, { "On", true } }),
+    pset("venture_income", "Venture income", "Experimental: what ventures pay. It may only reach ones you build from now on. It's real money.", { { "Game's", false }, { "x10", 10 }, { "x100", 100 } }),
+    pset("fraud_launch", "Insurance Fraud launch", "Experimental: how hard you're thrown in Insurance Fraud.", { { "Game's", false }, { "x2", 2 }, { "x5", 5 }, { "x20", 20 } }),
+    { kind = "hq_save", label = "Save HQ layout", help = "Experimental: Left/Right picks a slot, Enter keeps what's on every spot of your headquarters, in a file.", sel = 1, options = { { "Slot 1", 1 }, { "Slot 2", 2 }, { "Slot 3", 3 } } },
+    { kind = "hq_load", label = "Load HQ layout", help = "Experimental: Left/Right picks a slot, Enter twice puts that layout back, saved with your game.", sel = 1, options = { { "Slot 1", 1 }, { "Slot 2", 2 }, { "Slot 3", 3 } } },
+    gcall("New save", "Experimental: a new save file, as the game's save menu makes.", "gml_ui_save_game_save() return 'saving'"),
+    { kind = "gun_slot", label = "Put that gun in slot", help = "Experimental: Left/Right picks a slot, Enter puts the gun picked on Give weapon there, even one that doesn't belong. It replaces what's there. Save first.", sel = 1, options = { { "Melee", 1 }, { "Pistol", 2 }, { "SMG", 3 }, { "Rifle", 4 }, { "Shotgun", 5 }, { "Launcher", 6 }, { "Special", 7 }, { "Temporary", 8 } } },
+    { kind = "radio_line", class = "gml_persona", label = "Radio call from", help = "Experimental: Left/Right picks a voice (495), Enter plays the line picked on Say a line as a radio call. Silent if that voice isn't loaded.", sel = 1, options = {} },
+    pset("surf_autopilot", "Surf autopilot", "Experimental: the car you surf with Surf nearest car drives itself.", { { "Off", false }, { "On", true } }),
+    pset("ride_height", "Ride height", "Experimental: how high the vehicle you're in sits.", { { "Game's", false }, { "Lowrider", 0.6 }, { "Lifted", 1.5 }, { "Monster", 2.5 } }),
+    pset("cam_nose", "Car camera follows the nose", "Experimental: the camera points where the car points, not where it's sliding.", { { "Off", false }, { "On", true } }),
+    pset("car_fov", "Car camera field of view", "Experimental: a wider or narrower view while you're in a vehicle.", { { "Game's", false }, { "x0.8", 0.8 }, { "x1.2", 1.2 }, { "x1.5", 1.5 } }),
+    pset("no_wind", "No wind on clothes", "Experimental: your clothes stop blowing about.", { { "Off", false }, { "On", true } }),
+    pset("blackout", "Blackout", "Experimental: the world stops being drawn. The HUD and menu stay.", { { "Off", false }, { "On", true } }),
+    pset("enemies_arrive", "Enemies arrive", "Experimental: how far away reinforcements appear. The game's are 60 m on foot and 90 m in cars.", { { "Game's", false }, { "Closer", 0.5 }, { "On top of you", 0.25 }, { "Further", 2 } }),
+    pset("peds_far", "People appear", "Experimental: how far away people appear. The game's is 65 m.", { { "Game's", false }, { "Close", 30.0 }, { "Far", 150.0 }, { "Very far", 300.0 } }),
+    pset("notoriety_uncapped", "No notoriety cap", "Experimental: removes the limit your story progress puts on notoriety.", { { "Off", false }, { "On", true } }),
+    opt("Minimap size", "The game's minimap size option. Takes effect the next time the HUD loads.", "options_get_map_size()", "options_set_map_size(%s)", { { "Small", 0 }, { "Medium", 0.5 }, { "Large", 1 } }),
+    pset("no_boundary", "No world boundary", "Experimental: fly past the edge of the map with no warning and no turning back.", { { "Off", false }, { "On", true } }),
+    pset("unseen_by_ai", "Unseen by AI", "Experimental: enemies don't see you, unless you give them a reason.", { { "Off", false }, { "On", true } }),
+    pset("enemy_sight", "Enemy sight", "Experimental: how far people can see. The game's is 45 m at rest.", { { "Game's", false }, { "Short", 0.25 }, { "Almost blind", 0.05 }, { "Long", 3 } }),
+    pset("notoriety_min", "Notoriety at least", "Experimental: your notoriety never falls below this, with every gang and the police.", { { "Off", false }, { "1 star", 1 }, { "2 stars", 2 }, { "3 stars", 3 }, { "4 stars", 4 }, { "5 stars", 5 } }),
+    pset("notoriety_max", "Notoriety at most", "Experimental: your notoriety never rises above this, with every gang and the police.", { { "Off", false }, { "1 star", 1 }, { "2 stars", 2 }, { "3 stars", 3 }, { "4 stars", 4 }, { "5 stars", 5 } }),
+    pset("always_wounded", "Wounded walk", "Experimental: walk hurt all the time, or never.", { { "Game's", false }, { "Always", 1.01 }, { "Never", 0.0 } }),
+    pset("flame_me", "You look on fire", "Experimental: you burn, with no damage.", { { "Off", false }, { "On", true } }),
+    pset("aim_anywhere", "Aim anywhere", "Experimental: aim while you sprint or glide.", { { "Off", false }, { "On", true } }),
+    pset("quiet_streets", "Quiet streets", "Experimental: people on the street stop talking.", { { "Off", false }, { "On", true } }),
+    pset("quiet_homies", "Quiet homies", "Experimental: your homies stop their banter.", { { "Off", false }, { "On", true } }),
+    pset("blacklight", "Blacklight world", "Experimental: everything lights up as under the Idols' blacklight.", { { "Off", false }, { "On", true } }),
+    pset("tracer_colour", "Tracer colours", "Experimental: tracers, muzzle flashes and blasts in one colour. Going back to Game's needs a restart.", { { "Game's", false }, { "Red", { 1.0, 0.05, 0.05 } }, { "Green", { 0.05, 1.0, 0.05 } }, { "Blue", { 0.05, 0.2, 1.0 } }, { "Purple", { 0.7, 0.05, 1.0 } }, { "Gold", { 1.0, 0.7, 0.05 } }, { "White", { 1.0, 1.0, 1.0 } } }),
+    pset("radial_blur", "Radial blur", "Experimental: the screen's edges blur, as at speed.", { { "Off", false }, { "Light", 0.3 }, { "Strong", 1.0 } }),
+    { kind = "pfn_list", fn = "play_sound", label = "Play sound", help = "Experimental: Left/Right picks one of the game's sound events, Enter plays it. Some are silent until their bank is loaded.", sel = 1, options = SOUND_LIST },
+    { kind = "crowd_act", key = "statue", label = "Statues", help = "Experimental: everyone within 40 m stands rigid." },
+    { kind = "crowd_act", key = "unstatue", label = "Statues back to life", help = "Experimental: lets those within 40 m move again." },
+    { kind = "crowd_act", key = "flame", label = "Flaming look near", help = "Experimental: everyone within 40 m burns, with no damage." },
+    { kind = "crowd_act", key = "unflame", label = "Put out everyone near", help = "Experimental: ends the flaming look within 40 m." },
+    { kind = "crowd_act", key = "alarm", label = "Set off car alarms", help = "Experimental: every car within 40 m wails." },
+    { kind = "crowd_act", key = "siren", label = "Sirens on near", help = "Experimental: every car within 40 m that has a siren turns it on." },
+    { kind = "crowd_act", key = "spin", label = "Spin cars near", help = "Experimental: every car within 40 m spins." },
+    gchoice("Wheel size", "Experimental: the tyres of the vehicle you're in.", { { "Game's", [[vehicle_set_tire_scale(vehicle_get_current(), 0, 1, 1) vehicle_set_tire_scale(vehicle_get_current(), 1, 1, 1) return "game's"]] }, { "Big", [[vehicle_set_tire_scale(vehicle_get_current(), 0, 1.5, 1.5) vehicle_set_tire_scale(vehicle_get_current(), 1, 1.5, 1.5) return "big"]] }, { "Huge", [[vehicle_set_tire_scale(vehicle_get_current(), 0, 2.5, 2.5) vehicle_set_tire_scale(vehicle_get_current(), 1, 2.5, 2.5) return "huge"]] }, { "Tiny", [[vehicle_set_tire_scale(vehicle_get_current(), 0, 0.5, 0.5) vehicle_set_tire_scale(vehicle_get_current(), 1, 0.5, 0.5) return "tiny"]] } }),
+    gchoice("Underglow", "Experimental: any of the 27 underglow colours on the vehicle you're in, live.", { { "Off", [[return "left as it is"]] }, { "Colour 1", [[vehicle_set_underglow_color(vehicle_get_current(), 0) return "colour 1"]] }, { "Colour 2", [[vehicle_set_underglow_color(vehicle_get_current(), 1) return "colour 2"]] }, { "Colour 3", [[vehicle_set_underglow_color(vehicle_get_current(), 2) return "colour 3"]] }, { "Colour 4", [[vehicle_set_underglow_color(vehicle_get_current(), 3) return "colour 4"]] }, { "Colour 5", [[vehicle_set_underglow_color(vehicle_get_current(), 4) return "colour 5"]] }, { "Colour 6", [[vehicle_set_underglow_color(vehicle_get_current(), 5) return "colour 6"]] }, { "Colour 7", [[vehicle_set_underglow_color(vehicle_get_current(), 6) return "colour 7"]] }, { "Colour 8", [[vehicle_set_underglow_color(vehicle_get_current(), 7) return "colour 8"]] }, { "Colour 9", [[vehicle_set_underglow_color(vehicle_get_current(), 8) return "colour 9"]] }, { "Colour 10", [[vehicle_set_underglow_color(vehicle_get_current(), 9) return "colour 10"]] }, { "Colour 11", [[vehicle_set_underglow_color(vehicle_get_current(), 10) return "colour 11"]] }, { "Colour 12", [[vehicle_set_underglow_color(vehicle_get_current(), 11) return "colour 12"]] }, { "Colour 13", [[vehicle_set_underglow_color(vehicle_get_current(), 12) return "colour 13"]] }, { "Colour 14", [[vehicle_set_underglow_color(vehicle_get_current(), 13) return "colour 14"]] }, { "Colour 15", [[vehicle_set_underglow_color(vehicle_get_current(), 14) return "colour 15"]] }, { "Colour 16", [[vehicle_set_underglow_color(vehicle_get_current(), 15) return "colour 16"]] }, { "Colour 17", [[vehicle_set_underglow_color(vehicle_get_current(), 16) return "colour 17"]] }, { "Colour 18", [[vehicle_set_underglow_color(vehicle_get_current(), 17) return "colour 18"]] }, { "Colour 19", [[vehicle_set_underglow_color(vehicle_get_current(), 18) return "colour 19"]] }, { "Colour 20", [[vehicle_set_underglow_color(vehicle_get_current(), 19) return "colour 20"]] }, { "Colour 21", [[vehicle_set_underglow_color(vehicle_get_current(), 20) return "colour 21"]] }, { "Colour 22", [[vehicle_set_underglow_color(vehicle_get_current(), 21) return "colour 22"]] }, { "Colour 23", [[vehicle_set_underglow_color(vehicle_get_current(), 22) return "colour 23"]] }, { "Colour 24", [[vehicle_set_underglow_color(vehicle_get_current(), 23) return "colour 24"]] }, { "Colour 25", [[vehicle_set_underglow_color(vehicle_get_current(), 24) return "colour 25"]] }, { "Colour 26", [[vehicle_set_underglow_color(vehicle_get_current(), 25) return "colour 26"]] }, { "Colour 27", [[vehicle_set_underglow_color(vehicle_get_current(), 26) return "colour 27"]] } }),
+    gcall("Headlights on", "Experimental: turns on the lights of the vehicle you're in.", "vehicle_activate_lights(vehicle_get_current(), true) return 'on'"),
+    pset("swim_land", "Swim on land", "Experimental: you move as if swimming, on foot.", { { "Off", false }, { "On", true } }),
+    pset("crouch_always", "Always crouch", "Experimental: stuck crouching.", { { "Off", false }, { "On", true } }),
+    pset("wind", "Wind", "Experimental: a push along where you face, as long as this is on.", { { "Off", false }, { "Breeze", 2.0 }, { "Gale", 8.0 }, { "Hurricane", 25.0 } }),
+    pset("no_shove", "No shoving", "Experimental: you stop bumping people out of the way.", { { "Off", false }, { "On", true } }),
+    pset("short_takedowns", "Short takedowns only", "Experimental: no long takedown animations.", { { "Off", false }, { "On", true } }),
+    pset("no_takedowns", "No takedowns", "Experimental: the takedown prompt stops working.", { { "Off", false }, { "On", true } }),
+    pset("dustlander_takedowns", "Dustlander takedowns", "Experimental: takedowns use the Dustlander moves. Their animations may not be loaded.", { { "Off", false }, { "On", true } }),
+    { kind = "pfn", fn = "wing_bounce", label = "Wingsuit bounce", help = "Experimental: a kick in mid-air, as off a car roof." },
+    { kind = "pfn", fn = "glide_to_car", label = "Glide to nearest car", help = "Experimental: the wingsuit steers you to the nearest car within 200 m." },
+    { kind = "pfn", fn = "level_up", label = "Level up once", help = "Experimental: one level. Saved with your game." },
+    gcall("Refund all skills", "Experimental: your skill points come back. Saved with your game.", "player_local_refund_all_skills() return 'refunded'"),
+    { kind = "pfn_list", fn = "skin_me", label = "Skin effect on you", help = "Experimental: Left/Right picks, Enter puts it on you. Dissolves may hide you until Stop skin effects.", sel = 1, options = { { "Burnt", "vfx_burnt" }, { "Kisses", "vfx_kisses" }, { "Snow", "vfx_snow" }, { "Wet look", "vfx_wet_look" }, { "Toxic glow", "vfx_toxic_glow" }, { "Electric", "vfx_electric_highlight" }, { "Hit flash", "vfx_hit_flash_01" }, { "Edge glow", "vfx_edge_highlight_01" }, { "Edge glow 2", "vfx_edge_highlight_02" }, { "Fist cannon glow", "vfx_fist_cannon_ult_glow" }, { "Combat outline", "vfx_object_outline_combat_01" }, { "Combat outline 2", "vfx_object_outline_combat_02" }, { "Skill active", "vfx_skill-perk_active" }, { "Hologram", "vfx_hologram_spawn" }, { "Hologram out", "vfx_hologram_die" }, { "Energy out", "vfx_energy_derez_out" }, { "Fire dissolve", "vfx_fire_dissolve" }, { "Portal dissolve", "vfx_portal_dissolve" }, { "Toxic dissolve", "vfx_toxic_dissolve" }, { "Tumbleweed dissolve", "vfx_tumbleweed_dissolve" }, { "Fabric rip", "vfx_fabric_rip_dissolve" } } },
+    { kind = "pfn", fn = "skins_off", label = "Stop skin effects", help = "Ends every skin effect the menu started." },
+    { kind = "pfn", fn = "random_face", label = "Random face", help = "Experimental: a new random face. Stays in your character if you save; Undo my look puts it back." },
+    pset("long_legs", "Long legs", "Experimental: stretched legs. May stretch anyone with your skeleton. On screen only.", { { "Off", false }, { "x1.25", 1.25 }, { "x1.5", 1.5 }, { "x2", 2.0 } }),
+    pset("hide_gun", "Hide my gun", "Experimental: the gun in your hands fades out, and still fires.", { { "Off", false }, { "On", true } }),
+    pset("satchels", "More satchels", "Experimental: how many satchels can be out at once.", { { "Game's", false }, { "10", 10 }, { "25", 25 }, { "50", 50 } }),
+    gcall("Random gun colours", "Experimental: re-rolls the colours of the gun in your hands. Saved with your game. Draw it again if it doesn't show.", "weapon_cust_randomize_colors(player_local_inventory_get_active_slot()) return 'rolled'"),
+    pset("ammo_drops", "Rare ammo drops", "Experimental: how often enemies drop launcher and special ammo.", { { "Game's", false }, { "x5", 5 }, { "x20", 20 } }),
+    { kind = "game_list", class = "vehicle_horn_info", label = "Any horn", help = "Experimental: Left/Right picks, Enter puts it on the vehicle you're in.", sel = 1, options = {}, code = [[vehicle_set_horn_audio(vehicle_get_current(), vlib_info_object:get_object("vehicle_horn_info", "%s"), false)]] },
+    { kind = "game_list", class = "vehicle_engine_audio_info", label = "Any engine sound", help = "Experimental: Left/Right picks, Enter puts it on the vehicle you're in. Silent if its sounds aren't loaded.", sel = 1, options = {}, code = [[vehicle_set_engine_audio(vehicle_get_current(), vlib_info_object:get_object("vehicle_engine_audio_info", "%s"), false)]] },
+    pset("tire_marks", "Always tire marks", "Experimental: the vehicle you're in always leaves black marks.", { { "Off", false }, { "On", true } }),
+    pset("twitchy", "Twitchy chassis", "Experimental: the vehicle's body yaws about.", { { "Off", false }, { "Some", 0.5 }, { "A lot", 2.0 } }),
+    { kind = "pfn", fn = "back_on_road", label = "Back on the road", help = "Experimental: the vehicle you're in jumps to the nearest lane." },
+    pset("callin_speed", "Call-in speed", "Experimental: seconds between reinforcement calls, at every level.", { { "Game's", false }, { "Fast", { 1.0, 3.0 } }, { "Non-stop", { 0.2, 0.5 } }, { "Slow", { 60.0, 120.0 } } }),
+    pset("no_ramming", "No ramming", "Experimental: chasing cars stop ramming you.", { { "Off", false }, { "On", true } }),
+    pset("chase_speed", "Chase speed", "Experimental: how fast chasing cars drive.", { { "Game's", false }, { "Slow", 0.5 }, { "Fast", 1.5 }, { "Very fast", 3.0 } }),
+    { kind = "weather_now", label = "That weather, instantly", help = "Experimental: goes straight to the weather picked on Weather (all), with no blend." },
+    pset("time_stop", "Only you move", "Experimental: pair with Pause world. It may not free you: the game's own use isn't known.", { { "Off", false }, { "On", true } }),
+    pset("weather_indoors", "Weather as indoors", "Experimental: the outdoors gets interior weather.", { { "Off", false }, { "On", true } }),
+    pset("no_trains", "No trains", "Experimental: the lines stay empty.", { { "Off", false }, { "On", true } }),
+    { kind = "pfn_list", fn = "traffic_light", label = "Traffic light here", help = "Experimental: Left/Right picks, Enter sets the junction you're standing at. Reset it from the same spot.", sel = 1, options = { { "Red", 1 }, { "Green", 2 }, { "Yellow", 3 }, { "Reset", 0 } } },
+    gchoice("Shuffle playlists", "Experimental: every playlist plays shuffled. Saved with your game.", { { "On", [[for _, p in vlib_info_object:ipairs("playlist_info") do playlist_set_shuffle(p, true) end return "on"]] }, { "Off", [[for _, p in vlib_info_object:ipairs("playlist_info") do playlist_set_shuffle(p, false) end return "off"]] } }),
+    { kind = "pfn_list", class = "radio_station_info", fn = "radio_foot", label = "Radio on foot", help = "Experimental: the real station with its DJ and ads, as you walk. It stops when you get in a vehicle. Pick Off to end it.", sel = 1, options = {} },
+    opt("Master volume", "The game's own setting.", "option_get_master_volume()", "option_set_master_volume(%s)", { { "Mute", 0 }, { "25%", 0.25 }, { "50%", 0.5 }, { "75%", 0.75 }, { "Full", 1 } }),
+    opt("Music volume", "The game's own setting.", "option_get_music_volume()", "option_set_music_volume(%s)", { { "Mute", 0 }, { "25%", 0.25 }, { "50%", 0.5 }, { "75%", 0.75 }, { "Full", 1 } }),
+    opt("Effects volume", "The game's own setting.", "option_get_sfx_volume()", "option_set_sfx_volume(%s)", { { "Mute", 0 }, { "25%", 0.25 }, { "50%", 0.5 }, { "75%", 0.75 }, { "Full", 1 } }),
+    opt("Voice volume", "The game's own setting.", "option_get_voice_volume()", "option_set_voice_volume(%s)", { { "Mute", 0 }, { "25%", 0.25 }, { "50%", 0.5 }, { "75%", 0.75 }, { "Full", 1 } }),
+    pset("city_noise", "City panic noise", "Experimental: crowd panic in the sound mix, on demand. The game may keep overriding it.", { { "Off", false }, { "Some", 50 }, { "Full", 100 } }),
+    opt("High contrast", "The game's accessibility look: people outlined by side. Outline people near needs it.", "option_get_high_contrast()", "option_set_high_contrast(%s)", { { "Off", 1 }, { "On", 2 }, { "On, extra pass", 3 } }),
+    opt("Crosshair size", "The game's own setting.", "option_get_reticle_cursor_scale()", "option_set_reticle_cursor_scale(%s)", { { "Small", 0.5 }, { "Normal", 1 }, { "Big", 1.5 }, { "Huge", 2 } }),
+    gchoice("HUD style", "Experimental: the Saints, Marshall or plain tint on the HUD.", { { "Saints", [[local S = 2 function saints_hud_is_enabled() return S == 2 end function saints_hud_is_marshall() return S == 0 end function saints_hud_is_vanilla() return S == 1 end function saints_hud_select_style(a, b, c) if S == 0 then return a elseif S == 1 then return b end return c end if hud_3d_refresh_saints_hud then hud_3d_refresh_saints_hud() end return "set"]] }, { "Marshall", [[local S = 0 function saints_hud_is_enabled() return S == 2 end function saints_hud_is_marshall() return S == 0 end function saints_hud_is_vanilla() return S == 1 end function saints_hud_select_style(a, b, c) if S == 0 then return a elseif S == 1 then return b end return c end if hud_3d_refresh_saints_hud then hud_3d_refresh_saints_hud() end return "set"]] }, { "Plain", [[local S = 1 function saints_hud_is_enabled() return S == 2 end function saints_hud_is_marshall() return S == 0 end function saints_hud_is_vanilla() return S == 1 end function saints_hud_select_style(a, b, c) if S == 0 then return a elseif S == 1 then return b end return c end if hud_3d_refresh_saints_hud then hud_3d_refresh_saints_hud() end return "set"]] } }),
+    gchoice("Tunnel vision", "Experimental: dark edges closing in.", { { "Off", [[gml_vignette_override(false) return "off"]] }, { "Some", [[gml_vignette_override(true) gml_vignette_color(0, 0, 0) gml_vignette_intensity(1) gml_vignette_radius(0.6) gml_vignette_softness(0.4) return "some"]] }, { "Narrow", [[gml_vignette_override(true) gml_vignette_color(0, 0, 0) gml_vignette_intensity(1) gml_vignette_radius(0.3) gml_vignette_softness(0.2) return "narrow"]] } }),
+    pset("aim_blur", "Aim blur", "Experimental: a stronger background blur when you aim. Needs the game's depth of field option on.", { { "Off", false }, { "On", true } }),
+    { kind = "pfn_list", fn = "world_material", label = "World material", help = "Experimental: the whole scene in one material. CAN CRASH: save first. It must already be loaded.", sel = 1, options = { { "Flat grey", "ctg_flat_grey" }, { "Off", "off" } } },
+    { kind = "pfn_list", fn = "mosaic", label = "Censor mosaic", help = "Experimental: the game's pixel censor on bodies.", sel = 1, options = { { "On", "true" }, { "Off", "false" } } },
+    pset("no_autosave", "No autosave", "Experimental: autosaves stop.", { { "Off", false }, { "On", true } }),
+    { kind = "pfn_list", fn = "load_zone", label = "Load hidden place", help = "Experimental: loads an off-map or cut area's files. HIGH RISK: save first. You have to get there; the row doesn't take you.", sel = 1, options = { { "Idols camp", "idols_camp" }, { "Haunted hotel 1", "haunted_hotel_1" }, { "Haunted hotel 2", "cinco-haunted_hotel_2" }, { "Haunted hotel 3", "cinco-haunted_hotel_3" }, { "Haunted hotel 4", "cinco-haunted_hotel_4" }, { "Haunted hotel 5", "cinco-haunted_hotel_5" }, { "Marshall HQ interior", "mission_mh_exec_interior" }, { "Pals interior", "mission_ct_pals_interior" }, { "Hunt ground floor", "mission_ct_hunt_ground_floor" }, { "Airport interior", "dlc_lp02_ms_airport_interior" }, { "Lucky interior", "mission_dlc_lucky_ideal_interior" }, { "Queen's place", "dlc_lp02_ms_queen" }, { "Boot Hill", "dlc_boothill_01" }, { "Boot Hill city", "dlc_boothill_city_zones" } } },
+    { kind = "pfn_list", fn = "unload_zone", label = "Unload hidden place", help = "Experimental: unloads it again.", sel = 1, options = { { "Idols camp", "idols_camp" }, { "Haunted hotel 1", "haunted_hotel_1" }, { "Haunted hotel 2", "cinco-haunted_hotel_2" }, { "Haunted hotel 3", "cinco-haunted_hotel_3" }, { "Haunted hotel 4", "cinco-haunted_hotel_4" }, { "Haunted hotel 5", "cinco-haunted_hotel_5" }, { "Marshall HQ interior", "mission_mh_exec_interior" }, { "Pals interior", "mission_ct_pals_interior" }, { "Hunt ground floor", "mission_ct_hunt_ground_floor" }, { "Airport interior", "dlc_lp02_ms_airport_interior" }, { "Lucky interior", "mission_dlc_lucky_ideal_interior" }, { "Queen's place", "dlc_lp02_ms_queen" }, { "Boot Hill", "dlc_boothill_01" }, { "Boot Hill city", "dlc_boothill_city_zones" } } },
+    { kind = "venture_lot", label = "Venture lot", help = "Experimental: picks the lot for Build venture here.", sel = 1, options = { { "barrio_01", "barrio_01" }, { "barrio_02", "barrio_02" }, { "casino_01", "casino_01" }, { "commercial_01", "commercial_01" }, { "commercial_02", "commercial_02" }, { "financial_01", "financial_01" }, { "financial_02", "financial_02" }, { "industrial_01", "industrial_01" }, { "industrial_02", "industrial_02" }, { "mansion_hills_01", "mansion_hills_01" }, { "mercado_01", "mercado_01" }, { "mercado_02", "mercado_02" }, { "old_town_01", "old_town_01" }, { "old_town_02", "old_town_02" }, { "rodeo_01", "rodeo_01" }, { "rodeo_02", "rodeo_02" } } },
+    { kind = "venture_build", class = "real_estate_blueprint", label = "Build venture here", help = "Experimental: Left/Right picks any of the game's ventures, Enter builds it on Venture lot. WRITES YOUR SAVE.", sel = 1, options = {} },
+    { kind = "pfn_list", fn = "people_speed", label = "People speed", help = "Experimental: how fast everyone within 40 m moves.", sel = 1, options = { { "x0.25", 0.25 }, { "x0.5", 0.5 }, { "Normal", 1.0 }, { "x2", 2.0 }, { "x4", 4.0 } } },
+    { kind = "pfn_list", fn = "outline_near", label = "Outline people near", help = "Experimental: everyone within 40 m outlined as this. It only shows with High contrast on.", sel = 1, options = { { "Friend", 3 }, { "Enemy", 4 }, { "Neutral", 5 } } },
+    { kind = "pfn_list", fn = "skin_near", label = "Skin effect near", help = "Experimental: Left/Right picks, Enter puts it on everyone within 40 m.", sel = 1, options = { { "Burnt", "vfx_burnt" }, { "Kisses", "vfx_kisses" }, { "Snow", "vfx_snow" }, { "Wet look", "vfx_wet_look" }, { "Toxic glow", "vfx_toxic_glow" }, { "Electric", "vfx_electric_highlight" }, { "Hit flash", "vfx_hit_flash_01" }, { "Edge glow", "vfx_edge_highlight_01" }, { "Edge glow 2", "vfx_edge_highlight_02" }, { "Fist cannon glow", "vfx_fist_cannon_ult_glow" }, { "Combat outline", "vfx_object_outline_combat_01" }, { "Combat outline 2", "vfx_object_outline_combat_02" }, { "Skill active", "vfx_skill-perk_active" }, { "Hologram", "vfx_hologram_spawn" }, { "Hologram out", "vfx_hologram_die" }, { "Energy out", "vfx_energy_derez_out" }, { "Fire dissolve", "vfx_fire_dissolve" }, { "Portal dissolve", "vfx_portal_dissolve" }, { "Toxic dissolve", "vfx_toxic_dissolve" }, { "Tumbleweed dissolve", "vfx_tumbleweed_dissolve" }, { "Fabric rip", "vfx_fabric_rip_dissolve" } } },
+    { kind = "pfn_list", fn = "takedown_nearest", label = "Take down nearest", help = "Experimental: Left/Right picks a style, Enter takes down the nearest person within 10 m.", sel = 1, options = { { "Normal", 0 }, { "Stealth", 1 }, { "Throw", 2 }, { "Jump", 3 }, { "Summon", 4 } } },
+    { kind = "pfn_list", fn = "near_act", label = "Cars near do", help = "Experimental: Left/Right picks a stunt, Enter: every car within 40 m tries it.", sel = 1, options = { { "J-turn", "jturn" }, { "Hairpin", "hairpin" }, { "Ram", "ram" }, { "Ramp mode", "ramp" } } },
+    { kind = "pfn", fn = "delete_nearest_car", label = "Delete nearest car", help = "Experimental: the nearest car within 30 m stops existing." },
+    { kind = "near_act", key = "swarm", label = "Crowd around me", help = "Experimental: everyone within 40 m flocks to you." },
+    { kind = "near_act", key = "unswarm", label = "Stop crowding", help = "Experimental: lets them go." },
+    { kind = "near_act", key = "taunt", label = "Taunt them", help = "Experimental: everyone within 40 m fixes on you." },
+    { kind = "near_act", key = "untaunt", label = "Stop taunting", help = "Experimental: lets them go." },
+    { kind = "near_act", key = "shoot", label = "Shoot at me", help = "Experimental: everyone armed within 40 m opens fire on you." },
+    { kind = "near_act", key = "unshoot", label = "Stop shooting", help = "Experimental: they hold fire." },
+    { kind = "near_act", key = "pull_over", label = "Cars near pull over", help = "Experimental: drivers within 40 m stop at the kerb." },
+    { kind = "near_act", key = "weave", label = "Drivers weave", help = "Experimental: drivers within 40 m leave their lane." },
+    { kind = "near_act", key = "stay_in", label = "Drivers stay in", help = "Experimental: drivers within 40 m won't get out." },
+    { kind = "near_act", key = "no_pip", label = "Off the minimap", help = "Experimental: everyone within 40 m loses their minimap mark." },
+    { kind = "near_act", key = "pip", label = "Back on the minimap", help = "Experimental: gives it back." },
+    { kind = "near_act", key = "unoutline", label = "Clear outlines", help = "Experimental: clears outlines within 40 m." },
+    { kind = "near_act", key = "reel", label = "Reeling near", help = "Experimental: everyone within 40 m can be reeled." },
+    { kind = "near_act", key = "delete", label = "Delete everyone near", help = "Experimental: everyone within 40 m stops existing. Mission characters too: save first." },
+    { kind = "near_act", key = "stall", label = "Stall engines near", help = "Experimental: every engine within 40 m cuts out." },
+    { kind = "near_act", key = "unstall", label = "Engines back on", help = "Experimental: gives engines back." },
+    { kind = "near_act", key = "normal", label = "Cars near back to normal", help = "Experimental: ends Cars near do." },
+    { kind = "near_act", key = "hazards", label = "Hazards near", help = "Experimental: cars within 40 m flash their hazards." },
+    { kind = "near_act", key = "lock", label = "Lock cars near", help = "Experimental: nobody can get in cars within 40 m." },
+    { kind = "near_act", key = "unlock", label = "Unlock cars near", help = "Experimental: unlocks them." },
+    { kind = "near_act", key = "trunk", label = "Pop trunks near", help = "Experimental: trunks within 40 m open." },
+    { kind = "near_act", key = "crush", label = "Crush cars near", help = "Experimental: cars within 40 m flatten as if run over." },
+    { kind = "near_act", key = "tip", label = "Tip bikes near", help = "Experimental: anything on two wheels within 40 m tips over." },
+    { kind = "near_act", key = "ghost", label = "Ghost through cars near", help = "Experimental: you pass through cars within 40 m." },
+    { kind = "near_act", key = "unghost", label = "Solid cars near", help = "Experimental: makes them solid again." },
+    pset("sky_fog", "Fog", "Experimental: How thick the fog is.", { { "Game's", false }, { "Light", 100.0 }, { "Thick", 400.0 }, { "Wall", 1000.0 }, { "None", 0.0 } }),
+    pset("sky_haze", "Haze", "Experimental: How much distance blurs.", { { "Game's", false }, { "None", 0.0 }, { "Heavy", 0.7 }, { "Full", 1.0 } }),
+    pset("sky_exposure", "Sky exposure", "Experimental: How bright the camera wants the world. The game aims for 4.", { { "Game's", false }, { "Dim", 1.0 }, { "Low", 2.0 }, { "High", 10.0 }, { "Blinding", 40.0 } }),
+    pset("sky_godrays", "God rays", "Experimental: Light shafts.", { { "Game's", false }, { "Some", 0.5 }, { "Full", 1.0 } }),
+    pset("sky_ambient", "Ambient light", "Experimental: Flat fill light. The game uses 0.1.", { { "Game's", false }, { "None", 0.0 }, { "Some", 0.5 }, { "Bright", 2.0 } }),
+    pset("sky_gi", "Bounced light", "Experimental: Indirect light. The game uses 1.", { { "Game's", false }, { "None", 0.0 }, { "x3", 3.0 }, { "x10", 10.0 } }),
+    pset("sky_sun", "Sun size", "Experimental: The game uses 0.27 degrees.", { { "Game's", false }, { "Big", 2.0 }, { "Huge", 8.0 }, { "Fills the sky", 32.0 } }),
+    pset("sky_moon", "Moon size", "Experimental: The game uses 0.26 degrees.", { { "Game's", false }, { "Big", 2.0 }, { "Huge", 8.0 }, { "Fills the sky", 32.0 } }),
+    pset("sky_stars", "Star brightness", "Experimental: At night. The game uses 5.", { { "Game's", false }, { "None", 0.0 }, { "Bright", 50.0 }, { "Very", 500.0 }, { "Blinding", 2048.0 } }),
+    pset("sky_clouds", "Cloud cover", "Experimental: All the cloud layers.", { { "Game's", false }, { "None", 0.0 }, { "Half", 0.5 }, { "Overcast", 1.0 } }),
+    pset("sky_rain", "Rain amount", "Experimental: The weather's precipitation. Whether rain follows it isn't known.", { { "Game's", false }, { "None", 0.0 }, { "Half", 0.5 }, { "Full", 1.0 } }),
+    pset("sky_heat", "Heat haze", "Experimental: Shimmer over everything.", { { "Game's", false }, { "Some", 0.5 }, { "Full", 1.0 } }),
+    pset("sky_wind", "Wind speed", "Experimental: In mph. The game uses 9.", { { "Game's", false }, { "Still", 0.0 }, { "50", 50.0 }, { "100", 100.0 }, { "200", 200.0 } }),
+    pset("sky_spin", "Sun speed", "Experimental: How fast the sun and moon cross the sky. Time of day itself carries on.", { { "Game's", false }, { "Stopped", 0.0 }, { "x60", 60.0 }, { "x600", 600.0 }, { "x5000", 5000.0 }, { "Backwards", -600.0 } }),
+    pset("sky_grain", "Film grain", "Experimental: Noise over the picture.", { { "Game's", false }, { "Some", 1.0 }, { "Heavy", 5.0 } }),
+    pset("sky_vignette", "Sky vignette", "Experimental: Darkened edges from the lighting itself.", { { "Game's", false }, { "Some", 0.5 }, { "Full", 1.0 } }),
+    pset("sky_col_sky", "Sky colour", "Experimental: The whole sky gradient.", { { "Game's", false }, { "Red", { 5.0, 0.25, 0.25 } }, { "Orange", { 5.0, 2.0, 0.25 } }, { "Green", { 0.25, 5.0, 0.25 } }, { "Teal", { 0.25, 5.0, 5.0 } }, { "Blue", { 0.25, 0.5, 5.0 } }, { "Purple", { 3.0, 0.25, 5.0 } }, { "Pink", { 5.0, 1.0, 3.5 } }, { "Black", { 0.0, 0.0, 0.0 } } }),
+    pset("sky_col_sun", "Sun colour", "Experimental: The sun's tint.", { { "Game's", false }, { "Red", { 1.0, 0.05, 0.05 } }, { "Orange", { 1.0, 0.4, 0.05 } }, { "Green", { 0.05, 1.0, 0.05 } }, { "Teal", { 0.05, 1.0, 1.0 } }, { "Blue", { 0.05, 0.1, 1.0 } }, { "Purple", { 0.6, 0.05, 1.0 } }, { "Pink", { 1.0, 0.2, 0.7 } }, { "Black", { 0.0, 0.0, 0.0 } } }),
+    pset("sky_col_moon", "Moon colour", "Experimental: The moon's tint.", { { "Game's", false }, { "Red", { 1.0, 0.05, 0.05 } }, { "Orange", { 1.0, 0.4, 0.05 } }, { "Green", { 0.05, 1.0, 0.05 } }, { "Teal", { 0.05, 1.0, 1.0 } }, { "Blue", { 0.05, 0.1, 1.0 } }, { "Purple", { 0.6, 0.05, 1.0 } }, { "Pink", { 1.0, 0.2, 0.7 } }, { "Black", { 0.0, 0.0, 0.0 } } }),
+    pset("sky_col_fog", "Fog colour", "Experimental: Pair with Fog.", { { "Game's", false }, { "Red", { 1.0, 0.05, 0.05 } }, { "Orange", { 1.0, 0.4, 0.05 } }, { "Green", { 0.05, 1.0, 0.05 } }, { "Teal", { 0.05, 1.0, 1.0 } }, { "Blue", { 0.05, 0.1, 1.0 } }, { "Purple", { 0.6, 0.05, 1.0 } }, { "Pink", { 1.0, 0.2, 0.7 } }, { "Black", { 0.0, 0.0, 0.0 } } }),
+    pset("sky_col_stars", "Star colour", "Experimental: At night.", { { "Game's", false }, { "Red", { 1.0, 0.05, 0.05 } }, { "Orange", { 1.0, 0.4, 0.05 } }, { "Green", { 0.05, 1.0, 0.05 } }, { "Teal", { 0.05, 1.0, 1.0 } }, { "Blue", { 0.05, 0.1, 1.0 } }, { "Purple", { 0.6, 0.05, 1.0 } }, { "Pink", { 1.0, 0.2, 0.7 } }, { "Black", { 0.0, 0.0, 0.0 } } }),
+    pset("sun_height", "Sun position", "Experimental: holds the sun where you put it. The game may overrule it.", { { "Game's", false }, { "Low", 5.0 }, { "Halfway", 45.0 }, { "Overhead", 85.0 }, { "Below the horizon", -20.0 } }),
+    gchoice("Lock exposure", "Experimental: stops the camera adjusting to bright and dark.", { { "On", [[gml_engine_render_lock_exposure_value() return "locked"]] }, { "Off", [[gml_engine_render_unlock_exposure_value() return "free"]] } }),
+    pset("lamps", "Lamps on", "Experimental: the city's light fixtures. The only name found for it, so it may do nothing.", { { "Off", false }, { "On", true } }),
+    { kind = "sky_any", label = "Any sky setting", help = "Experimental: Left/Right picks any of the game's sky settings, Enter sets it to Sky amount.", sel = 1, options = SKY_LIST },
+    pset("sky_amount", "Sky amount", "Experimental: how far along its range Any sky setting goes. Clear puts that one back.", { { "Half", false }, { "Lowest", 0.0 }, { "A quarter", 0.25 }, { "Three quarters", 0.75 }, { "Highest", 1.0 }, { "Clear", "clear" } }),
+    { kind = "pfn", fn = "sky_clear_any", label = "Clear sky settings", help = "Every Any sky setting back to the game's." },
+    pset("dof", "Depth of field", "Experimental: everything past 3 m blurs. The camera rig may overrule it.", { { "Off", false }, { "Some", 8.0 }, { "Strong", 1.0 } }),
+    pset("shift_view", "Shift view", "Experimental: the picture moves off centre.", { { "Off", false }, { "Left", { -0.3, 0.0 } }, { "Right", { 0.3, 0.0 } }, { "Up", { 0.0, 0.3 } }, { "Down", { 0.0, -0.3 } } }),
+    { kind = "pfn_list", fn = "colour_filter", label = "Colour vision filter", help = "Experimental: the game's colour blindness filters. May be subtle.", sel = 1, options = { { "None", "none" }, { "Protanopia", "protanopia" }, { "Deuteranopia", "deuteranopia" }, { "Tritanopia", "tritanopia" } } },
+    { kind = "pfn", fn = "explosion_here", label = "Explosion here", help = "Experimental: an RPG explosion 8 m ahead of you. The first press loads it. Save first." },
+    { kind = "pfn_list", fn = "gravity_near", label = "Gravity near", help = "Experimental: Left/Right picks, Enter: everyone and every car within 40 m.", sel = 1, options = { { "None", 0.0 }, { "x0.2", 0.2 }, { "Normal", 1.0 }, { "x3", 3.0 }, { "x10", 10.0 } } },
+    { kind = "pfn_list", fn = "fake_noise", label = "Fake noise", help = "Experimental: Left/Right picks, Enter: everyone around reacts as if they heard it.", sel = 1, options = { { "Car alarm", "car alarm" }, { "Far explosion", "explosion - far" }, { "Player death", "player death" }, { "Oh snap", "oh snap" }, { "Prank bees", "prank bees" } } },
+    { kind = "pfn_list", fn = "homie_outfit", label = "Next homie outfit", help = "Experimental: Left/Right picks a homie, each Enter puts them in their next outfit. Saved with your game.", sel = 1, options = { { "Eli", "eli" }, { "Kevin", "kev" }, { "Nahualli", "nahualli" }, { "Neenah", "neenah" } } },
+    pset("tire_smoke", "Always tire smoke", "Experimental: the vehicle you're in smokes its tires as if doing this.", { { "Off", false }, { "Rolling", 2 }, { "Skidding", 3 }, { "Burning out", 4 } }),
+    { kind = "pfn", fn = "launch_my_car", label = "Launch start", help = "Experimental: the vehicle you're in launches to 40 m/s in a second." },
+    { kind = "pfn", fn = "fall_through_near", label = "Drop through the ground", help = "Experimental: everyone within 40 m falls through the world. No undo." },
+    { kind = "pfn", fn = "drivers_bolt", label = "Drivers bolt", help = "Experimental: drivers within 40 m flee in their cars." },
+    { kind = "pfn", fn = "pop_tires_near", label = "Pop tires near", help = "Experimental: every tire within 40 m pops." },
+    { kind = "pfn", fn = "freeze_cars_near", label = "Freeze cars near", help = "Experimental: cars within 40 m stop dead where they are, in mid-air too." },
+    { kind = "pfn", fn = "unfreeze_cars_near", label = "Unfreeze cars near", help = "Experimental: lets them go." },
+    { kind = "pfn", fn = "launch_cars_near", label = "Launch cars near", help = "Experimental: every car within 40 m launches forward." },
+    { kind = "pfn", fn = "stick_nearest", label = "Stick nearest car on me", help = "Experimental: the nearest car within 15 m rides on you, if it can attach." },
+    { kind = "pfn", fn = "unstick", label = "Unstick car", help = "Experimental: lets it go." },
+    pset("audio_ctx_0", "Volume: Ambience", "Experimental: the game's own sound mix. Changes your audio setting while it's on.", { { "Game's", false }, { "Mute", "mute" }, { "25%", 0.25 }, { "50%", 0.5 }, { "Full", 1 } }),
+    pset("audio_ctx_1", "Volume: Combat", "Experimental: the game's own sound mix. Changes your audio setting while it's on.", { { "Game's", false }, { "Mute", "mute" }, { "25%", 0.25 }, { "50%", 0.5 }, { "Full", 1 } }),
+    pset("audio_ctx_2", "Volume: Interface", "Experimental: the game's own sound mix. Changes your audio setting while it's on.", { { "Game's", false }, { "Mute", "mute" }, { "25%", 0.25 }, { "50%", 0.5 }, { "Full", 1 } }),
+    pset("audio_ctx_3", "Volume: Vehicles", "Experimental: the game's own sound mix. Changes your audio setting while it's on.", { { "Game's", false }, { "Mute", "mute" }, { "25%", 0.25 }, { "50%", 0.5 }, { "Full", 1 } }),
+    pset("audio_ctx_4", "Volume: Radio", "Experimental: the game's own sound mix. Changes your audio setting while it's on.", { { "Game's", false }, { "Mute", "mute" }, { "25%", 0.25 }, { "50%", 0.5 }, { "Full", 1 } }),
+    pset("audio_ctx_5", "Volume: Music in the world", "Experimental: the game's own sound mix. Changes your audio setting while it's on.", { { "Game's", false }, { "Mute", "mute" }, { "25%", 0.25 }, { "50%", 0.5 }, { "Full", 1 } }),
+    pset("audio_ctx_6", "Volume: Menu music", "Experimental: the game's own sound mix. Changes your audio setting while it's on.", { { "Game's", false }, { "Mute", "mute" }, { "25%", 0.25 }, { "50%", 0.5 }, { "Full", 1 } }),
+    pset("audio_ctx_7", "Volume: Explosions", "Experimental: the game's own sound mix. Changes your audio setting while it's on.", { { "Game's", false }, { "Mute", "mute" }, { "25%", 0.25 }, { "50%", 0.5 }, { "Full", 1 } }),
+    pset("audio_ctx_8", "Volume: Gore", "Experimental: the game's own sound mix. Changes your audio setting while it's on.", { { "Game's", false }, { "Mute", "mute" }, { "25%", 0.25 }, { "50%", 0.5 }, { "Full", 1 } }),
+    pset("audio_ctx_9", "Volume: Voices", "Experimental: the game's own sound mix. Changes your audio setting while it's on.", { { "Game's", false }, { "Mute", "mute" }, { "25%", 0.25 }, { "50%", 0.5 }, { "Full", 1 } }),
+    pset("audio_ctx_10", "Volume: Pedestrian voices", "Experimental: the game's own sound mix. Changes your audio setting while it's on.", { { "Game's", false }, { "Mute", "mute" }, { "25%", 0.25 }, { "50%", 0.5 }, { "Full", 1 } }),
+    wset("range", "Range", "How far every gun reaches. Melee has its own row.", { { "Game's", 1 }, { "x2", 2 }, { "x4", 4 } }),
+    pset("melee_lunge", "Melee lunge", "How far you dash at a swing. None: everyone swings from where they stand. Far: x4 when no one's in reach.", { { "None", "none" }, { "Game's", "game" }, { "Far", "far" } }),
     wset("knockback", "Knockback", "How hard hits push people and things.", { { "Game's", 1 }, { "x3", 3 }, { "x10", 10 } }),
     wset("blast", "Blast radius", "Experimental: how far launchers' and thrown weapons' explosions reach.", { { "Game's", 1 }, { "x2", 2 }, { "x5", 5 } }),
     gcall("Max every weapon's upgrades", "Every upgradeable weapon to its top level (saved with your game, like buying them).", [[
@@ -805,8 +1050,8 @@ local TABS = {
     pset("panic", "People panic", "Experimental: how far gunfire and explosions scare people. New scares only.", { { "Game's", false }, { "Hardly at all", 0.05 }, { "Whole block", 3 } }),
     pset("ragdoll_easy", "Knocked over", "Experimental: how hard something has to hit you to knock you over.", { { "Game's", false }, { "Easily", 0.2 }, { "Hardly ever", 5 } }),
     pset("no_parked", "No parked cars", "Experimental: stops new parked cars appearing. The ones already there stay.", { { "Off", false }, { "On", true } }),
-    pset("rockets", "Rocket rounds", "Experimental: the gun in your hands fires rockets, no more than 4 a second. This crashed the game before, for a reason that's now fixed: save first.", { { "Off", false }, { "On", { [[data\sr_city\spawnables\weapons\launcher\weapon_launcher_shoulder_box_missile_projectile]], [[data\sr_city\spawnables\weapons\launcher\weapon_launcher_missile_explosion]] } } }),
-    pset("explosive_melee", "Explosive punches", "Experimental: melee hits explode, your fists too. Switch away and back if it doesn't take. Pair it with God mode, and save first.", { { "Off", false }, { "On", [[data\sr_city\spawnables\weapons\launcher\weapon_launcher_missile_explosion]] } }),
+    pset("rockets", "Rocket rounds", "Experimental: the gun in your hands fires the RPG's rockets, no more than 4 a second. Save first.", { { "Off", false }, { "On", { [[data\sr_vanguard\spawnables\weapons\launcher\weapon_launcher_rpg_projectile]], [[data\sr_vanguard\spawnables\weapons\launcher\weapon_launcher_rpg_explosion]] } } }),
+    pset("explosive_melee", "Explosive punches", "Experimental: melee hits explode, your fists too. Switch away and back if it doesn't take. Pair it with God mode, and save first.", { { "Off", false }, { "On", [[data\sr_vanguard\spawnables\weapons\launcher\weapon_launcher_rpg_explosion]] } }),
     { kind = "console_list", class = "char_cust_outfit", handler = 0x14055C0, what = "Wearing", label = "Wear any outfit", help = "Experimental: Left/Right picks a whole outfit, any of the game's, Enter wears it. Undo my look puts you back.", sel = 1, options = {} },
     { kind = "console_list", class = "skill_info", handler = 0x68B530, what = "Equipped", label = "Equip any skill", help = "Experimental: Left/Right picks any skill, Enter gives it to you and equips it (saved with your game).", sel = 1, options = {} },
     { kind = "game_list", class = "radio_newscast_info", label = "Newscast", help = "Experimental: Left/Right picks any newscast, Enter plays it. Later ones spoil the story, and you've finished it.", sel = 1, options = {}, code = [[newscast_play(vlib_info_object:get_object("radio_newscast_info", %q))]] },
@@ -934,28 +1179,28 @@ for _, t in ipairs(TABS) do for _, r in ipairs(t.rows) do if APPLY_ON_PICK[r.lab
 local LAYOUT = {
   { "Player", {
     { "Health and survival", "God mode, health, and what can't hurt you.", { "God mode", "Health", "Refill health", "Health regen", "No fall damage", "No ragdoll", "No flinch", "Dodge safe time", "Bulletproof", "Explosion-proof", "Crash-proof", "Get up", "Kill yourself" } },
-    { "Movement", "How you run, jump and fall.", { "Run speed", "Jump height", "Air control", "Swim speed", "Your gravity", "No clip", "Movement style", "Walk style" } },
-    { "Wingsuit", "Boosts, power, speed and glide.", { "Wingsuit boosts", "Wingsuit boost power", "Wingsuit top speed", "Wingsuit glide", "Wingsuit from low down", "Wingsuit now" } },
-    { "Flow and abilities", "Your ability meter, skills and takedowns.", { "All perks on", "Equip any skill", "Effect on you", "Unlimited Flow", "Free skills", "Flow gain", "Extra Flow bars", "Flow never drains", "Rampage at full Flow", "Takedown cooldown" } },
-    { "Emotes and voice", "Emotes, expressions and how you sound.", { "D-pad emote 1", "D-pad emote 2", "Play emote", "Hidden emote", "Repeat emote", "Freeze emote", "Stop emote", "Facial expression", "Your voice", "Voice pitch", "Say a line" } },
-    { "Homies", "Who's with you.", { "Summon homie", "Call in Saints", "Dismiss homies", "Homie limit" } },
-    { "Your look", "Who you are and what you're wearing.", { "Play as spawned person", "Back to yourself", "Saved look", "Character preset", "Wear any outfit", "Hidden outfit", "Undo my look", "Take a look snapshot", "Customize character", "Prank yourself" } },
-    { "Body beyond limits", "Past the sliders' ends. Only on screen: your save keeps your real body.", { "Body: muscle", "Body: fat", "Body: thin", "Body: chest", "Body: blend", "Face: head shape", "Face: eye size", "Face: nose size", "Face: mouth size", "Back to my real body" } },
+    { "Movement", "How you run, jump and fall.", { "Run speed", "Jump height", "Air control", "Swim speed", "Your gravity", "No clip", "Movement style", "Walk style", "Wounded walk", "Swim on land", "Always crouch", "Wind", "No shoving" } },
+    { "Wingsuit", "Boosts, power, speed and glide.", { "Wingsuit boosts", "Wingsuit boost power", "Wingsuit top speed", "Wingsuit glide", "Wingsuit from low down", "Wingsuit bounce", "Glide to nearest car", "Wingsuit now" } },
+    { "Flow and abilities", "Your ability meter, skills and takedowns.", { "All perks on", "Equip any skill", "Effect on you", "Immune to", "Unlimited Flow", "Free skills", "Flow gain", "Extra Flow bars", "Flow never drains", "Rampage at full Flow", "Takedown cooldown", "Takedown ready now", "Grenade takedown", "Takedowns always kill", "Short takedowns only", "No takedowns", "Dustlander takedowns", "Skills recharge at once", "Any perk", "Perk strength", "My perks off" } },
+    { "Emotes and voice", "Emotes, expressions and how you sound.", { "D-pad emote 1", "D-pad emote 2", "Play emote", "Hidden emote", "Repeat emote", "Freeze emote", "Stop emote", "Facial expression", "Your voice", "Voice pitch", "Say a line", "Radio call from" } },
+    { "Homies", "Who's with you.", { "Summon homie", "Call in Saints", "Dismiss homies", "Homie limit", "Quiet homies", "Next homie outfit" } },
+    { "Your look", "Who you are and what you're wearing.", { "Play as spawned person", "Back to yourself", "You are invisible", "You look on fire", "Saved look", "Saved look: outfit only", "No wind on clothes", "Character preset", "Wear any outfit", "Hidden outfit", "Face part", "Face amount", "Random face", "Long legs", "Skin effect on you", "Stop skin effects", "Undo my look", "Take a look snapshot", "Customize character", "Prank yourself" } },
+    { "Body beyond limits", "Past the sliders' ends. Only on screen: your save keeps your real body.", { "Body: muscle", "Body: fat", "Body: thin", "Body: chest", "Body: blend", "Face: head shape", "Face: eye size", "Face: nose size", "Face: mouth size", "Body: groin", "Body: squeezed", "Face: eye spacing", "Face: mouth width", "Back to my real body" } },
     { "Money and progress", "XP, skill points, cash and prices.", { "Give XP", "Give skill points", "Add cash", "Free shopping", "Free ventures", "Start mission", "Insurance Fraud here" } },
     { "Unlocks", "Skills, perks, weapons, clothing and more. These stay in your save.", { "Unlock EVERYTHING", "Unlock fast travel points", "Own every weapon", "Unlock all skills", "Unlock all perks", "Unlock gang and homies", "Unlock all clothing", "Unlock everything in the stores", "Unlock all weapon skins", "Unlock all collectibles" } },
   } },
   { "Weapons", {
-    { "Gun tuning", "Fire rate, damage, recoil and the rest of how guns behave.", { "Fire rate", "Full auto", "Damage", "Magazine", "Reload speed", "No recoil", "Perfect aim", "Range", "Knockback", "Blast radius", "Friendly fire", "Back shot damage", "No warm-up", "No overheat" } },
+    { "Gun tuning", "Fire rate, damage, recoil and the rest of how guns behave.", { "Fire rate", "Full auto", "Damage", "Magazine", "Reload speed", "No recoil", "Perfect aim", "Range", "Melee lunge", "Rocket speed", "Hide my gun", "More satchels", "Rare ammo drops", "Aim anywhere", "Knockback", "Blast radius", "Friendly fire", "Back shot damage", "No warm-up", "No overheat" } },
     { "Special ammo", "What your shots and hits do.", { "Special ammo", "Rocket rounds", "Explosive punches", "Money gun" } },
-    { "Get weapons", "Give, fill, upgrade or remove.", { "Give weapon", "Special weapon", "Refill all ammo", "Max every weapon's upgrades", "Prototype weapon", "Signature ability (this gun)", "All signature abilities", "Remove this weapon", "Remove test guns" } },
+    { "Get weapons", "Give, fill, upgrade or remove.", { "Give weapon", "Special weapon", "Refill all ammo", "Max every weapon's upgrades", "Put that gun in slot", "Weapon skin", "Random gun colours", "Prototype weapon", "Signature ability (this gun)", "All signature abilities", "Remove this weapon", "Remove test guns" } },
     "Weapons back to normal",
   } },
   { "Vehicles", {
     { "Spawning", "Getting vehicles and getting rid of them.", { "Spawn vehicle", "Special vehicle", "Any vehicle", "Variant", "Remove spawned vehicles", "Deliver to garage" } },
-    { "Handling", "Power, grip and how it sits on the road.", { "Engine power", "Grip", "Steering", "Vehicle top speed", "Suspension", "Vehicle gravity", "Heavy vehicle" } },
+    { "Handling", "Power, grip and how it sits on the road.", { "Engine power", "Grip", "Steering", "Vehicle top speed", "Suspension", "Ride height", "Twitchy chassis", "Downforce", "Vehicle gravity", "Heavy vehicle" } },
     { "Toughness", "Keeping it in one piece, or not.", { "Vehicle god mode", "No collision damage", "Bulletproof tires", "Keep vehicle repaired", "Destroy this vehicle" } },
-    { "Abilities and combat", "Vehicle abilities, rams and takedowns.", { "Vehicle ability", "Tow hook", "Boost now", "Effect on this car", "Launch this vehicle", "Jump this vehicle", "Surf nearest car", "Stop surfing", "Vehicle jump power", "No ability cooldowns", "Ram power", "Takedowns at any speed" } },
-    { "Look and camera", "Paint, lights and the driving camera.", { "Next paint", "Brake lights stay on", "Car camera resets after", "Free camera in cars" } },
+    { "Abilities and combat", "Vehicle abilities, rams and takedowns.", { "Vehicle ability", "Tow hook", "Boost now", "Launch start", "Stick nearest car on me", "Unstick car", "Back on the road", "Effect on this car", "Launch this vehicle", "Jump this vehicle", "Surf nearest car", "Stop surfing", "Surf faster cars", "Surf autopilot", "Surfing is safe", "Hoverboard slam", "Vehicle jump power", "No ability cooldowns", "Ram power", "Crusher", "Takedowns at any speed", "Ejector cannon", "Cowcatcher launch" } },
+    { "Look and camera", "Paint, lights and the driving camera.", { "Next paint", "Brake lights stay on", "Car camera resets after", "Wheel size", "Underglow", "Headlights on", "Any horn", "Any engine sound", "Always tire marks", "Always tire smoke", "Free camera in cars", "Car camera follows the nose", "Car camera field of view" } },
   } },
   { "Teleport", {
     "Go to waypoint", "Auto-teleport to waypoint", "Warp from map", "Store", "Map place", "Fast travel point",
@@ -963,23 +1208,27 @@ local LAYOUT = {
     "Go up", "Where am I",
   } },
   { "World", {
-    { "Time and weather", "The clock, the sky and pausing.", { "Game speed", "Slow motion button", "Weather (all)", "Freeze clock", "Clock speed", "Go to time", "Pause world" } },
+    { "Time and weather", "The clock, the sky and pausing.", { "Game speed", "Slow motion button", "Weather (all)", "That weather, instantly", "Weather as indoors", "Freeze clock", "Clock speed", "Go to time", "Pause world", "Only you move" } },
     { "Developer switches", "Left in the game by its developers. Most do unknown things.", { "Dev: never die", "Dev: never die, AI", "Dev: Shawn mode", "Dev: capture mode", "Dev: auto sprint", "Dev: infinite ammo", "Dev: infinite magazine", "Dev: radio on", "Dev: vehicle ramps", "Dev: weapon raycasts", "Dev: notoriety bubbles", "Dev: HQ mask off" } },
-    { "Spawn people", "Who to spawn, and what they do.", { "Spawn person", "Special person", "Spawned people", "Spawn a crowd", "Spawn 10 random people", "Remove spawned people" } },
-    { "Everyone near", "Everyone within 40 m.", { "Everyone near", "Status on everyone near", "Make everyone near follow you", "Everyone near dance", "Make everyone near friendly", "Make everyone near hostile", "Disarm everyone near", "Re-arm everyone near", "Stun everyone near", "Ragdoll everyone near", "Float everyone near", "Set everyone near on fire", "Dissolve everyone near", "Poison everyone near", "Kill everyone near", "Blow up cars near" } },
-    { "Notoriety and gangs", "Who's after you, and whose side they're on.", { "Never wanted", "Enemy aim", "Send in a gang", "Stay in combat", "Notoriety forgets fast", "No reinforcements", "No roadblocks", "Can't lose them", "Gangs and police without guns", "Gang on your side", "Saints are enemies" } },
-    { "Gang war", "Gangs and people fighting each other.", { "Gang war", "Zombie outbreak", "Riot", "Free for all", "Gang presence", "NPC fight damage", "Pedestrians fight back", "Everyone battle ready", "Downed, not dead" } },
-    { "Physics and explosions", "Gravity, blasts and sending things flying.", { "World gravity", "Explosion size", "Explosion force", "Explosion damage", "Hurting yourself", "Knocked over", "Launch everyone near" } },
-    { "Population", "How busy the streets are.", { "Pedestrians", "Traffic", "Rare traffic", "Traffic pop-in", "Crowds in the rain", "People panic", "No parked cars" } },
-    { "Music", "Stations, songs and playing them anywhere.", { "Radio station", "Music anywhere", "Play song", "Skip track", "Pause or resume music", "Now playing", "Newscast", "Stop newscast" } },
-    { "Props and HQ", "Spawn props anywhere, or dress your headquarters.", { "Spawn prop", "Remove last prop", "Remove all props", "HQ spot", "HQ prop", "Clear this HQ spot", "HQ room theme" } },
-    { "Money and drops", "Cash and weapons on the ground.", { "Drop cash", "Drop weapon", "Money rain" } },
+    { "Spawn people", "Who to spawn, and what they do.", { "Spawn person", "Special person", "Spawned people", "Spawned people carry", "Spawn a crowd", "Spawn 10 random people", "Call in follower", "Spawned people get in my car", "Spawned people go to waypoint", "Remove spawned people" } },
+    { "Everyone near", "Everyone within 40 m.", { "Everyone near", "Status on everyone near", "Make everyone near follow you", "Everyone near dance", "Make everyone near friendly", "Make everyone near hostile", "Disarm everyone near", "Re-arm everyone near", "Stun everyone near", "Ragdoll everyone near", "Float everyone near", "Set everyone near on fire", "Dissolve everyone near", "Poison everyone near", "Kill everyone near", "Stop fights near", "Revive everyone near", "Strip shields near", "Make everyone near tough", "Everyone near staggers easily", "Fade out everyone near", "Fade everyone near back in", "Everyone near says it", "Order everyone near", "Face on everyone near", "Statues", "Statues back to life", "Flaming look near", "Put out everyone near", "Blow up cars near", "Set off car alarms", "Sirens on near", "Spin cars near", "Everyone out of their cars", "Cars near floor it" } },
+    { "Notoriety and gangs", "Who's after you, and whose side they're on.", { "Never wanted", "Enemy aim", "Send in a gang", "Stay in combat", "Notoriety forgets fast", "Wanted climbs fast", "Escape radius", "No reinforcements", "No roadblocks", "Roadblock mania", "Pursuit cars", "Enemies arrive", "Call-in speed", "No ramming", "Chase speed", "Unseen by AI", "Enemy sight", "Notoriety at least", "Notoriety at most", "No notoriety cap", "Can't lose them", "Gangs and police without guns", "Gang on your side", "Saints are enemies" } },
+    { "Gang war", "Gangs and people fighting each other.", { "Gang war", "Zombie outbreak", "Riot", "Free for all", "Gang presence", "NPC fight damage", "Pedestrians fight back", "Everyone battle ready", "Downed, not dead", "Downed timer", "Instant revive", "Guardian angel", "Spawned people can't die" } },
+    { "Physics and explosions", "Gravity, blasts and sending things flying.", { "No world boundary", "World gravity", "Explosion here", "Explosion size", "Explosion force", "Explosion damage", "Hurting yourself", "Knocked over", "Launch everyone near" } },
+    { "Population", "How busy the streets are.", { "Pedestrians", "Traffic", "Rare traffic", "Traffic mood", "Traffic light here", "Long trains", "No trains", "Traffic pop-in", "People appear", "Quiet streets", "Crowds in the rain", "People panic", "No parked cars" } },
+    { "Music", "Stations, songs and playing them anywhere.", { "Radio station", "Music anywhere", "Play song", "Next station", "Previous station", "Unlock radio in missions", "Radios in cars near me", "Radio on foot", "Shuffle playlists", "Master volume", "Music volume", "Effects volume", "Voice volume", "Volume: Ambience", "Volume: Combat", "Volume: Interface", "Volume: Vehicles", "Volume: Radio", "Volume: Music in the world", "Volume: Menu music", "Volume: Explosions", "Volume: Gore", "Volume: Voices", "Volume: Pedestrian voices", "City panic noise", "Play sound", "Skip track", "Pause or resume music", "Now playing", "Newscast", "Stop newscast" } },
+    { "Props and HQ", "Spawn props anywhere, or dress your headquarters.", { "Spawn prop", "Remove last prop", "Remove all props", "HQ spot", "HQ prop", "Clear this HQ spot", "Fill the HQ", "Save HQ layout", "Load HQ layout", "HQ room theme" } },
+    { "Money and drops", "Cash and weapons on the ground.", { "Drop cash", "Drop weapon", "Money rain", "Pedestrians always pay", "Venture income" } },
     { "Difficulty", "The pause menu's custom sliders.", { "Difficulty: player health", "Difficulty: player damage", "Difficulty: enemies", "Difficulty: vehicles", "Difficulty: notoriety", "Difficulty: ammo reserve", "Difficulty: timer speed" } },
+    { "Side jobs", "Starting the game's oddities by hand.", { "Start diversion", "Hermit juice", "Insurance Fraud launch", "Venture lot", "Build venture here", "Load hidden place", "Unload hidden place" } },
+    { "People near, more", "More for everyone within 40 m.", { "People speed", "Gravity near", "Drop through the ground", "Fake noise", "Drivers bolt", "Crowd around me", "Stop crowding", "Taunt them", "Stop taunting", "Shoot at me", "Stop shooting", "Cars near pull over", "Drivers weave", "Drivers stay in", "Off the minimap", "Back on the minimap", "Outline people near", "Clear outlines", "Skin effect near", "Reeling near", "Take down nearest", "Delete everyone near" } },
+    { "Cars near", "What cars within 40 m do.", { "Freeze cars near", "Unfreeze cars near", "Launch cars near", "Pop tires near", "Stall engines near", "Engines back on", "Cars near do", "Cars near back to normal", "Hazards near", "Lock cars near", "Unlock cars near", "Pop trunks near", "Crush cars near", "Tip bikes near", "Ghost through cars near", "Solid cars near", "Delete nearest car" } },
     "Empty streets", "Show activities on the map",
   } },
   { "Visual", {
     { "Camera", "Where the camera sits and how it moves.", { "Field of view", "Camera distance", "Shoulder camera", "Turn speed", "Camera shake", "Looping camera shake", "Camera bobbing", "Photo mode", "Free camera" } },
-    { "Screen", "What's drawn.", { "Brightness", "Hide from view", "Low health screen", "Show only people", "Letterbox", "Hide HUD" } },
+    { "Sky and atmosphere", "Fog, sun, clouds and the light itself. Lasts until you quit or load.", { "Fog", "Haze", "Sky exposure", "God rays", "Ambient light", "Bounced light", "Sun size", "Moon size", "Star brightness", "Cloud cover", "Rain amount", "Heat haze", "Wind speed", "Sun speed", "Film grain", "Sky vignette", "Sky colour", "Sun colour", "Moon colour", "Fog colour", "Star colour", "Sun position", "Lock exposure", "Lamps on", "Any sky setting", "Sky amount", "Clear sky settings" } },
+    { "Screen", "What's drawn.", { "Depth of field", "Shift view", "Colour vision filter", "Brightness", "Hide from view", "Low health screen", "Show only people", "Blackout", "Minimap size", "High contrast", "HUD style", "Crosshair size", "Blacklight world", "Tracer colours", "Radial blur", "Tunnel vision", "Aim blur", "Censor mosaic", "World material", "Screen tint", "Camera effects", "All caps text", "Letterbox", "Hide HUD" } },
   } },
   { "Cheats", {
     { "Player", "The game's own phone cheats.", { "Invincibility (game's)", "Give cash", "Max level", "Super Saints", "Milk Bones", "Pratfall", "Heaven Bound" } },
@@ -991,7 +1240,7 @@ local LAYOUT = {
   } },
   { "Settings", {
     "Save tweaks for next time",
-    { "Game", "Cutscenes, saving and tutorials.", { "Skip intro", "Skip cutscene", "Pause / resume cutscene", "Quick save", "Load last save", "Tutorial popups" } },
+    { "Game", "Cutscenes, saving and tutorials.", { "Skip intro", "Skip cutscene", "Pause / resume cutscene", "Quick save", "New save", "No autosave", "Load last save", "Tutorial popups" } },
     { "Menu", "How the menu looks and opens.", { "All tweaks", "Hold Back opens the menu", "Keep my save clean", "Menu opacity" } },
     "What's on", "Turn every cheat off", "Everything back to normal", "Forget saved tweaks", "Close menu",
   } },
@@ -1424,7 +1673,9 @@ local function step_unlock()
   end
 end
 
-local CROWD = { ragdoll = { "ragdoll_near", "ragdolled" }, kill = { "kill_near", "killed" }, fire = { "fire_near", "set on fire" },
+local CROWD = { statue = { "statue_near", "turned to statues" }, unstatue = { "unstatue_near", "free again" }, flame = { "flame_near", "burning" }, unflame = { "unflame_near", "put out" },
+  calm = { "calm_near", "calmed" }, revive = { "revive_near", "told to get up" }, strip = { "strip_near", "stripped" }, tough = { "tough_near", "toughened" }, stagger = { "stagger_near", "easier to stagger" }, unseen = { "unseen_near", "faded out" }, seen = { "seen_near", "faded in" },
+  ragdoll = { "ragdoll_near", "ragdolled" }, kill = { "kill_near", "killed" }, fire = { "fire_near", "set on fire" },
   stun = { "stun_near", "stunned" }, launch = { "launch_near", "launched" }, zombies = { "zombies_near", "near an outbreak" }, riot = { "riot_near", "rioting" }, downed = { "downed_near", "won't die" }, follow = { "follow_near", "following you" }, float = { "float_near", "floating" }, dissolve = { "dissolve_near", "dissolving" }, toxic = { "toxic_near", "poisoned" }, dance = { "dance_near", "dancing" }, hostile = { "hostile_near", "turned on you" }, friendly = { "friendly_near", "on your side" } }
 local function select_row(row)
   wml.log("row: " .. tostring(row.label) .. (row.options and row.options[row.sel] and (" = " .. tostring(row.options[row.sel][1])) or ""))   -- so a crash log says what was last pressed
@@ -1537,6 +1788,123 @@ local function select_row(row)
     say(ok and ("Playing " .. o[1]) or tostring(err), ok and "status" or "warn")
   elseif row.kind == "skip_track" then
     say(P.radio_skip())
+  elseif row.kind == "pfn" then
+    say(P[row.fn](row.arg), "status")
+  elseif row.kind == "pfn_list" then
+    local o = row.options[row.sel]
+    if o then say(P[row.fn](o[2]), "status") end
+  elseif row.kind == "gun_slot" then
+    local gun
+    for _, r in ipairs(all_rows()) do if r.kind == "giveweapon" then gun = r.options[r.sel] end end
+    if not gun then say("Pick a gun on Give weapon first", "warn") else
+      say(gun[1] .. ", " .. row.options[row.sel][1] .. ": " .. P.gun_to_slot(gun[2]:match('"(.*)"') or gun[2], row.options[row.sel][2]), "status")
+    end
+  elseif row.kind == "radio_line" then
+    local line
+    for _, r in ipairs(all_rows()) do if r.kind == "voiceline" then line = r.options[r.sel] end end
+    local who = row.options[row.sel]
+    if not line then say("Pick a line on Say a line first", "warn") elseif who then say(P.radio_line(who[2], line[3]), "status") end
+  elseif row.kind == "sky_any" then
+    local o = row.options[row.sel]
+    local a = P.sky_amount or 0.5
+    if a == "clear" then P.sky_set(o[2], nil); say(o[1] .. ": the game's")
+    else
+      local v = o[3] + (o[4] - o[3]) * a
+      P.sky_set(o[2], v)
+      say(o[1] .. ": " .. string.format("%.3f", v))
+    end
+  elseif row.kind == "near_act" then
+    say(P.near_act(row.key), "status")
+  elseif row.kind == "weather_now" then
+    local pick
+    for _, r in ipairs(all_rows()) do if r.kind == "weathernode" then pick = r.options[r.sel] end end
+    if not pick then say("Pick one on Weather (all) first", "warn")
+    else say(P.console(0x1C0CD00, pick[2] .. " 1 10 1") == 0 and ("Weather: " .. pick[1]) or "The game refused", "status") end
+  elseif row.kind == "venture_build" then
+    local lot
+    for _, r in ipairs(all_rows()) do if r.kind == "venture_lot" then lot = r.options[r.sel] end end
+    local bp = row.options[row.sel]
+    if bp and lot then say(P.console(0x66E370, bp[2] .. " " .. lot[2]) == 0 and ("Building " .. bp[1]) or "The game refused", "status") end
+  elseif row.kind == "immune" then
+    local o = row.options[row.sel]
+    local on = o and P.toggle_immune(o[2])
+    say(not o and "Load into the game first" or on == nil and "Not now" or (o[1] .. (on and ": immune" or ": no longer immune")), "status")
+  elseif row.kind == "face_part" then
+    local o = row.options[row.sel]
+    if o then
+      P.look_first()
+      local amount = P.face_amount == 0 and 0 or P.face_amount or 100
+      local ok, err = wml.game(string.format([[gml_customization_apply_bidirectional_ambisymmetric_weight(gml_get_local_player():get_component_by_type("gml_component_character_customization"), vlib_info_object:get_object("char_cust_facial_morph_group", %q), true, true, %d)]], o[2], amount))
+      say(ok and (o[1] .. ": " .. amount) or tostring(err), ok and "status" or "warn")
+    end
+  elseif row.kind == "hq_save" then
+    local f = io.open(wml.root .. "\\hq_layout_" .. row.options[row.sel][2] .. ".txt", "w")
+    if not f then say("Couldn't write the file", "warn") else
+      local n = 0
+      for _, r in ipairs(all_rows()) do
+        if r.kind == "hq_spot" then
+          for _, spot in ipairs(r.options) do
+            local _, s = wml.game("return tostring(hq_customization_get_prop(" .. string.format("%q", spot[2]) .. "))")
+            local name = tostring(s):match('"(.*)"')
+            if name then f:write(spot[2], "\t", name, "\n"); n = n + 1 end
+          end
+        end
+      end
+      f:close()
+      say(row.options[row.sel][1] .. ": " .. n .. " spots kept")
+    end
+  elseif row.kind == "hq_load" then
+    local f = io.open(wml.root .. "\\hq_layout_" .. row.options[row.sel][2] .. ".txt", "r")
+    if not f then say("Nothing saved in " .. row.options[row.sel][1], "warn")
+    elseif (M.hq_armed or 0) < os.clock() then
+      f:close()
+      M.hq_armed = os.clock() + 5
+      say("Press again: this replaces every spot in your headquarters, saved with your game", "warn")
+    else
+      M.hq_armed = nil
+      local layout, spots = {}, {}
+      for line in f:lines() do
+        local a, b = line:match("^(.-)\t(.*)$")
+        if a then layout[a] = b end
+      end
+      f:close()
+      for _, r in ipairs(all_rows()) do if r.kind == "hq_spot" then spots = r.options end end
+      M.hq_queue = { spots = spots, pool = {}, layout = layout, i = 0 }
+      say("Putting the layout back...")
+    end
+  elseif row.kind == "any_perk" then
+    local o = row.options[row.sel]
+    local on = P.toggle_perk(o[2])
+    say(on == nil and (o[1] .. ": the game refused") or (o[1] .. (on and (": on at " .. on) or ": off")), "status")
+  elseif row.kind == "outfit_only" then
+    local pick
+    for _, r in ipairs(all_rows()) do if r.kind == "outfit" then pick = r.options[r.sel] end end
+    if not pick then say("Pick a look on Saved look first", "warn") else
+      P.look_first()
+      local ok, err = wml.game([[local n, c = 0, gml_get_local_player():get_component_by_type("gml_component_character_customization")
+        for _, p in vlib_info_data_object:ipairs("char_cust_player_saved_preset_data") do n = n + 1
+          if n == ]] .. pick[2] .. [[ then gml_customization_apply_player_preset(c, p, false, true) return end end]])
+      say(ok and ("Wearing the clothes of " .. pick[1]) or tostring(err), ok and "status" or "warn")
+    end
+  elseif row.kind == "hq_fill" then
+    if (M.hq_armed or 0) < os.clock() then
+      M.hq_armed = os.clock() + 5
+      say("Press again: this replaces every spot in your headquarters, saved with your game", "warn")
+    else
+      M.hq_armed = nil
+      local spots, props = {}, {}
+      for _, r in ipairs(all_rows()) do
+        if r.kind == "hq_spot" then spots = r.options end
+        if r.kind == "hq_prop" then props = r.options end
+      end
+      local mode = row.options[row.sel][2]
+      local pool = {}
+      for _, p in ipairs(props) do
+        if type(p[2]) == "string" and (mode == "random" or p[1]:find("^Huge")) then pool[#pool + 1] = p[2] end
+      end
+      M.hq_queue = { spots = spots, pool = pool, clear = mode == "clear", i = 0 }
+      say("Filling the HQ...")
+    end
   elseif row.kind == "spawn_prop" then
     say(P.spawn_prop(row.options[row.sel][2]) and ("Loading " .. row.options[row.sel][1] .. "...") or "Couldn't load that", "status")
   elseif row.kind == "remove_prop" then
@@ -1687,6 +2055,18 @@ local function select_row(row)
     if row.key == "cars" then
       local n = P.destroy_near(40)
       say(n == 0 and "No vehicles near" or (n .. (n == 1 and " vehicle" or " vehicles") .. " blown up"))
+    elseif row.key == "bail" or row.key == "floor" or row.key == "alarm" or row.key == "siren" or row.key == "spin" then
+      local fn = { bail = { "bail_cars_near", " stopping" }, floor = { "floor_cars_near", " flooring it" }, alarm = { "alarm_cars_near", " wailing" }, siren = { "siren_cars_near", " told to sound off" }, spin = { "spin_cars_near", " spinning" } }
+      local act = fn[row.key]
+      local n = P[act[1]](40)
+      say(n == 0 and "No vehicles near" or (n .. (n == 1 and " vehicle" or " vehicles") .. act[2]))
+    elseif row.key == "say" then
+      local line
+      for _, r in ipairs(all_rows()) do if r.kind == "voiceline" then line = r.options[r.sel] end end
+      if not line then say("Pick a line on Say a line first", "warn") else
+        local n = P.say_near(40, line[3])
+        say(n == 0 and "Nobody near" or (n .. (n == 1 and " person" or " people") .. ": " .. line[1]))
+      end
     else
       local act = CROWD[row.key]
       local n = P[act[1]](40)
@@ -1896,7 +2276,7 @@ local function row_value(row)
     return "Enter", "off"
   elseif row.kind == "voiceline" and not row.loaded then
     return "Enter to load", "off"
-  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" or row.kind == "crowd_act" or row.kind == "arms" or row.kind == "destroy_car" or row.kind == "kill_self" or row.kind == "car_act" or row.kind == "play_as" or row.kind == "revive_me" or row.kind == "console_row" or row.kind == "look_undo" or row.kind == "look_snap" or row.kind == "body_back" or row.kind == "wing_now" or row.kind == "surf" or row.kind == "surf_stop" or row.kind == "skip_track" or row.kind == "remove_prop" or row.kind == "hq_clear" then
+  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" or row.kind == "crowd_act" or row.kind == "arms" or row.kind == "destroy_car" or row.kind == "kill_self" or row.kind == "car_act" or row.kind == "play_as" or row.kind == "revive_me" or row.kind == "console_row" or row.kind == "look_undo" or row.kind == "look_snap" or row.kind == "body_back" or row.kind == "wing_now" or row.kind == "surf" or row.kind == "surf_stop" or row.kind == "skip_track" or row.kind == "remove_prop" or row.kind == "hq_clear" or row.kind == "pfn" or row.kind == "outfit_only" or row.kind == "near_act" or row.kind == "weather_now" then
     return "Enter", "off"
   elseif row.kind == "page" then
     return #row.rows .. "  >", "off"
@@ -1905,7 +2285,7 @@ local function row_value(row)
   elseif row.kind == "mset" then
     local o = row.options[row.sel]
     return "<  " .. o[1] .. "  >", row.sel == 1 and "off" or "on"
-  elseif row.kind == "any_vehicle" or row.kind == "any_variant" or row.kind == "console_list" or row.kind == "game_list" or row.kind == "hq_theme" or row.kind == "launch_car" or row.kind == "go_to_hour" or row.kind == "outfit_any" or row.kind == "car_effect" or row.kind == "proto_weapon" or row.kind == "song" or row.kind == "spawn_prop" or row.kind == "hq_spot" or row.kind == "hq_prop" or row.kind == "near_effect" or row.kind == "me_effect" or row.kind == "send_gang" or row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" or row.kind == "giveweapon" or row.kind == "voiceline" or row.kind == "gchoice" or row.kind == "weathernode" or row.kind == "cash_drop" or row.kind == "weapon_drop" or row.kind == "reaction" or row.kind == "map_place" or row.kind == "outfit" or row.kind == "look_preset" or row.kind == "call_saints" or row.kind == "prank" or row.kind == "car_ability" or row.kind == "special_person" or row.kind == "special_car" or row.kind == "mission" then
+  elseif row.kind == "any_perk" or row.kind == "pfn_list" or row.kind == "hq_fill" or row.kind == "sky_any" or row.kind == "venture_lot" or row.kind == "venture_build" or row.kind == "immune" or row.kind == "face_part" or row.kind == "gun_slot" or row.kind == "radio_line" or row.kind == "hq_save" or row.kind == "hq_load" or row.kind == "any_vehicle" or row.kind == "any_variant" or row.kind == "console_list" or row.kind == "game_list" or row.kind == "hq_theme" or row.kind == "launch_car" or row.kind == "go_to_hour" or row.kind == "outfit_any" or row.kind == "car_effect" or row.kind == "proto_weapon" or row.kind == "song" or row.kind == "spawn_prop" or row.kind == "hq_spot" or row.kind == "hq_prop" or row.kind == "near_effect" or row.kind == "me_effect" or row.kind == "send_gang" or row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" or row.kind == "giveweapon" or row.kind == "voiceline" or row.kind == "gchoice" or row.kind == "weathernode" or row.kind == "cash_drop" or row.kind == "weapon_drop" or row.kind == "reaction" or row.kind == "map_place" or row.kind == "outfit" or row.kind == "look_preset" or row.kind == "call_saints" or row.kind == "prank" or row.kind == "car_ability" or row.kind == "special_person" or row.kind == "special_car" or row.kind == "mission" then
     local o = row.options[row.sel]
     return o and ("<  " .. o[1] .. "  >") or "none", o and "row" or "off"
   elseif row.kind == "gcall" then
@@ -2131,7 +2511,11 @@ local function ensure_ready()
       table.sort(r.options, function(a, b) return a[1] < b[1] end)
     elseif r.kind == "homie" and #r.options == 0 then
       for _, h in ipairs(names_of("homie_info")) do r.options[#r.options + 1] = { pretty((h:match('"(.*)"') or h):gsub("^homie_", "")), h } end
-    elseif (r.kind == "console_list" or r.kind == "game_list") and #r.options == 0 then
+    elseif r.kind == "immune" and #r.options == 0 then
+      for _, q in ipairs(all_rows()) do
+        if q.kind == "near_effect" then for _, o in ipairs(q.options) do r.options[#r.options + 1] = { o[1], o[2] } end end
+      end
+    elseif (r.kind == "console_list" or r.kind == "game_list" or r.kind == "face_part" or r.kind == "radio_line" or r.kind == "venture_build" or (r.kind == "pfn_list" and r.class)) and #r.options == 0 then
       for _, w in ipairs(names_of(r.class)) do local n = w:match('"(.*)"') or w; r.options[#r.options + 1] = { pretty(n), n } end
       table.sort(r.options, function(a, b) return a[1] < b[1] end)
     elseif r.kind == "giveweapon" and #r.options == 0 then
@@ -2294,6 +2678,8 @@ function M.update()
   -- No recoil: the gun in hand's own recoil too (it keeps its own copy)
   P.no_recoil = W.set.no_recoil
   if C.loaded and frame % 5 == 3 and P.rockets then P.update_rockets() end
+  local reach = P.melee_lunge == "far" and 4 or 1
+  if W.set.melee_reach ~= reach then W.set.melee_reach = reach; M.gun_dirty = true end
   local rk = P.rockets and true or false
   if W.set.rockets ~= rk then W.set.rockets = rk; M.gun_dirty = true end
   -- Full auto also clears the guns' "one shot a trigger pull"
@@ -2321,9 +2707,9 @@ function M.update()
   if C.loaded and P.takedown ~= (M.takedown_was or false) then P.update_takedown(); M.takedown_was = P.takedown end
   if C.loaded and P.free_skills ~= (M.free_skills_was or false) then P.update_free_skills(); M.free_skills_was = P.free_skills end
   if C.loaded then
-    local cfg = tostring(P.car_takedowns) .. tostring(P.car_ram) .. tostring(P.car_jump_power) .. tostring(P.car_ability_cd)
+    local cfg = tostring(P.car_takedowns) .. tostring(P.car_ram) .. tostring(P.car_jump_power) .. tostring(P.car_ability_cd) .. tostring(P.car_ejector) .. tostring(P.car_cowcatcher)
     if cfg ~= M.car_cfg_was then
-      if M.car_cfg_was or cfg ~= "falsefalsefalsefalse" then P.update_car_cfg() end
+      if M.car_cfg_was or cfg ~= "falsefalsefalsefalsefalsefalse" then P.update_car_cfg() end
       M.car_cfg_was = cfg
     end
   end
@@ -2347,6 +2733,24 @@ function M.update()
   if C.loaded and frame % 60 == 57 and P.ffa_active() then P.update_free_for_all() end
   if C.loaded and frame % 120 == 58 and P.rare_active() then P.update_rare_traffic(VEH.rare) end
   if C.loaded and P.explosive_melee and frame % 15 == 6 then P.update_explosive_melee() end
+  if C.loaded and frame % 30 == 27 then P.update_melee_lunge(); P.update_extras() end
+  if C.loaded and P.wind then P.update_wind() end
+  if C.loaded and P.sky_active() then P.update_sky(frame % 600 == 300) end
+  if C.loaded and (P.sun_height or M.sun_was) then P.update_sun(); M.sun_was = P.sun_height end
+  if C.loaded and P.cam_look_active() then P.update_cam_look() end
+  if C.loaded and M.hq_queue and frame % 4 == 1 then
+    local q = M.hq_queue
+    q.i = q.i + 1
+    local spot = q.spots[q.i]
+    if not spot then
+      M.hq_queue = nil
+      say("HQ filled: " .. (q.i - 1) .. " spots")
+    elseif q.clear or q.layout or #q.pool > 0 then
+      local prop
+      if q.layout then prop = q.layout[spot[2]] elseif not q.clear then prop = q.pool[math.random(#q.pool)] end
+      wml.game("hq_customization_set_prop(" .. string.format("%q", spot[2]) .. ", " .. (prop and string.format("%q", prop) or [[vlib_info_object:invalid("building_customization_prop_info")]]) .. ")")
+    end
+  end
   if C.loaded and P.slow_active() then P.update_slow_button(M.open) end
   if C.loaded and frame % 30 == 26 then P.update_scaled(); P.update_parked() end
   if C.loaded and frame % 60 == 3 and P.gangs_active() then P.update_gang_presence() end

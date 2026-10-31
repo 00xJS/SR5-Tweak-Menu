@@ -21,6 +21,7 @@ local RESOLVE = 0x17D4660
 -- Property keys (name hash -> what the menu calls it). Names from the
 -- game's gml_weapon_*_property_key lists (research/weapon_property_keys).
 local FLOAT_KEYS = {
+  [0x799E7CD4] = "proj_speed",    -- projectile speed
   [2068864722] = "refire",        -- refire_delay
   [3848690817] = "reload_speed",  -- reload_speed_scale
   [1030134537] = "warmup",        -- warmup_time
@@ -55,7 +56,7 @@ local FIELDS = {
 
 -- Settings (1 = the game's own).
 W.set = { magazine = 1, fire_rate = 1, damage = 1, perfect_aim = false, range = 1, knockback = 1, blast = 1,
-          reload = 1, no_warmup = false, no_overheat = false, no_recoil = false, full_auto = false, rockets = false }
+          reload = 1, no_warmup = false, no_overheat = false, no_recoil = false, full_auto = false, rockets = false, melee_reach = 1, proj_speed = 1 }
 W.NO_RELOAD = 999
 
 local entries = {}   -- { addr =, t = "f"/"i", what =, orig = }
@@ -205,6 +206,8 @@ local function wanted(e)
     return math.min(v, math.max(v / s.fire_rate, 0.05))
   elseif w == "damage_player" then return s.damage == "kill" and 100000 or v * s.damage
   elseif w == "range" then return v * s.range
+  elseif w == "melee_range" then return v * s.melee_reach
+  elseif w == "proj_speed" then return v * s.proj_speed
   elseif w == "radius" then return v * s.blast
   elseif w == "impulse" then return v * s.knockback
   elseif w == "reload_speed" then return v * s.reload
@@ -254,14 +257,20 @@ function W.update_gun(force)
   local entry = wml.call(wml.base + 0x1C1F420, buf)
   local comp = entry ~= 0 and wml.call(wml.base + 0x49F8A0, entry) or 0
   if comp == 0 then gun_id = nil; return end
-  for section = 0, 1 do
+  for section = 0, 3 do
     local list = wml.read_u64(comp + section * 0x6A0 + 0x138)
     local n = wml.read_u16(comp + section * 0x6A0 + 0x140)
     if list ~= 0 and n <= 200 then
+      -- A melee attack has melee_correction_range: its range is the lunge, not how far a gun reaches.
+      local melee = false
+      for i = 0, n - 1 do
+        if wml.read_u32(list + i * 24) == 0xA38D599A then melee = true end
+      end
       for i = 0, n - 1 do
         local p = list + i * 24
         local key, kind = wml.read_u32(p), wml.read_u32(p + 0x10)
         local what = (kind == 1 and FLOAT_KEYS or kind ~= 3 and INT_KEYS or {})[key]
+        if what == "range" and melee then what = "melee_range" end
         if what and what ~= "recoil" then
           local t = kind == 1 and "f" or "i"
           local slot = section * 0x100000000 + key
@@ -300,7 +309,7 @@ end
 
 function W.any_on()
   local s = W.set
-  return s.magazine ~= 1 or s.fire_rate ~= 1 or s.damage ~= 1 or s.perfect_aim or s.range ~= 1 or s.knockback ~= 1 or s.blast ~= 1
+  return s.magazine ~= 1 or s.fire_rate ~= 1 or s.damage ~= 1 or s.perfect_aim or s.range ~= 1 or s.melee_reach ~= 1 or s.proj_speed ~= 1 or s.knockback ~= 1 or s.blast ~= 1
       or s.reload ~= 1 or s.no_warmup or s.no_overheat or s.no_recoil or s.full_auto
 end
 
