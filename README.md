@@ -55,14 +55,14 @@ in the menu.
   No clip (controller: left stick, RT up, LT down, click the stick for fast; keyboard: W A S D, Space, Ctrl, Shift), Movement style, Walk style
 - **Wingsuit:** Wingsuit boosts (the game gives one until you land: every 2 s or unlimited), Wingsuit boost power, Wingsuit top speed,
   Wingsuit glide (floaty, level, climb: pull back to go up), Wingsuit from low down, Wingsuit now
-- **Flow and abilities:** All perks on, Effect on you (Berserker, Transfusion, Tough Mother and more), Unlimited Flow, Free skills, Flow gain, Extra Flow bars,
+- **Flow and abilities:** All perks on, Equip any skill, Effect on you (Berserker, Transfusion, Tough Mother and more), Unlimited Flow, Free skills, Flow gain, Extra Flow bars,
   Flow never drains, Rampage at full Flow, Takedown cooldown
 - **Emotes and voice:** D-pad emote 1 and D-pad emote 2 (swap the emotes on your D-pad, then use it as
   usual), Play emote, Hidden emote (ones the game never lists), Repeat emote, Freeze emote, Stop emote, Facial
   expression, Your voice, Voice pitch, Say a line (the game's voice lines)
 - **Homies:** Summon homie, Call in Saints, Dismiss homies, Homie limit (up to 4)
 - **Your look:** Play as spawned person, Back to yourself, Saved look (a character you saved in the game:
-  body and outfit), Character preset, Hidden outfit (clothes the wardrobe doesn't list), Undo my look, Take a look snapshot, Customize character (anywhere), Prank yourself (bees, noodle arms,
+  body and outfit), Character preset, Wear any outfit, Hidden outfit (clothes the wardrobe doesn't list), Undo my look, Take a look snapshot, Customize character (anywhere), Prank yourself (bees, noodle arms,
   toilet, cactus and more)
 - **Body beyond limits:** muscle, fat, thin, chest, blend, head shape, eye, nose and mouth size past the sliders' ends, on screen only: your save keeps your real body. Back to my real body
 - **Money and progress:** Give XP, Give skill points, Add cash, Free shopping, Free ventures, Start
@@ -76,16 +76,16 @@ in the menu.
 - **Gun tuning:** Fire rate (up to x8), Full auto (single-shot guns keep firing while you hold the
   trigger, mouse or RT), Damage (x2 to x10, or One-hit kill), Magazine (x2, x5, No reload: kept full,
   never reloads, launchers too), Reload speed (up to instant), No recoil, Perfect aim, Range, Knockback,
-  Friendly fire (the game's shots do nothing to anyone friendly to you; Half or Full lets them hurt), Back shot damage, No warm-up, No overheat
-- **Special ammo:** Special ammo (fire, shock, chill, stun, bleed, disintegrate: the gun in your hands),
-  Money gun
+  Friendly fire (the game's shots do nothing to anyone friendly to you; Half or Full lets them hurt), Back shot damage, Blast radius, No warm-up, No overheat
+- **Special ammo:** Special ammo (fire, shock, chill, stun, bleed, disintegrate, flee, panic, blind and more: the gun in your hands),
+  Rocket rounds, Explosive punches, Money gun
 - **Get weapons:** Give weapon (any of the game's), Special weapon (mission-only ones), Prototype weapon, Refill all ammo
   (free), Max every weapon's upgrades, Signature ability (this gun), All signature abilities, Remove this weapon, Remove test guns (the dev guns Own every weapon adds)
 - Weapons back to normal
 
 ### Vehicles
 - **Spawning:** Spawn vehicle (any of the game's 90 ready-to-drive vehicles, next to you), Special vehicle
-  (bus, tank, yacht, VTOL, hoverboard and more), Remove spawned vehicles, Deliver to garage
+  (bus, tank, yacht, VTOL, hoverboard and more), Any vehicle and Variant (all 624 versions in the game's tables, rare and reward ones too), Remove spawned vehicles, Deliver to garage
 - **Handling:** Engine power, Grip, Steering, Vehicle top speed, Suspension, Vehicle gravity, Heavy vehicle
 - **Toughness:** Vehicle god mode, No collision damage, Bulletproof tires, Keep vehicle repaired, Destroy
   this vehicle
@@ -101,10 +101,10 @@ in the menu.
 - Go up (10 m to 3000 m), Where am I
 
 ### World
-- **Time and weather:** Game speed (slow motion to x4), Weather (all: every weather the game has), Freeze clock, Clock speed, Go to time, Pause world
+- **Time and weather:** Game speed (slow motion to x4), Slow motion button (hold LB and RB, or Alt), Weather (all: every weather the game has), Freeze clock, Clock speed, Go to time, Pause world
 - **Developer switches:** never die, Shawn mode, capture mode, auto sprint, infinite ammo and magazine and more, left in the game by its developers
 - **Spawn people:** Spawn person (any of the game's 834 characters), Special person (bosses, ghosts,
-  skeletons, mascots, a coyote), Spawned people (passive, bodyguards or fight you), Spawn a crowd (ten
+  skeletons, mascots, a coyote), Spawned people (passive, bodyguards, your army or fight you), Spawn a crowd (ten
   around you), Spawn 10 random people, Remove spawned people
 - **Everyone near:** Everyone near (cheer, laugh, taunt and more), Status on everyone near (flee, shock, panic, blind, chill and more), Make everyone near follow you, Everyone
   near dance, Make everyone near friendly or hostile, Disarm and Re-arm everyone near, Stun, Ragdoll,
@@ -112,11 +112,11 @@ in the menu.
 - **Notoriety and gangs:** Never wanted (by anyone, by police: no cops, or by gangs), Enemy aim, Send in a gang, Stay in combat, Notoriety forgets
   fast, No reinforcements, No roadblocks, Can't lose them, Gangs and police without guns, Gang on your
   side, Saints are enemies
-- **Gang war:** Gang war (Panteros, Idols, Marshall and police fight each other), NPC fight damage, Pedestrians fight back, Everyone battle ready
-- **Physics and explosions:** World gravity, Explosion size, Explosion force, Explosion damage, Hurting yourself, Launch everyone near
-- **Population:** Pedestrians, Traffic, Traffic pop-in, Crowds in the rain
-- **Music:** Radio station (premium ones too), Music anywhere (on foot too), Play song (any song, three no station plays), Skip track, Pause or resume music, Now playing
-- **Props and HQ:** Spawn prop, Remove last prop, Remove all props, HQ spot, HQ prop (any prop, owned or not, on any spot in your headquarters, from anywhere), Clear this HQ spot
+- **Gang war:** Gang war (Panteros, Idols, Marshall and police fight each other), Zombie outbreak, Riot, Free for all, Gang presence, Downed, not dead, NPC fight damage, Pedestrians fight back, Everyone battle ready
+- **Physics and explosions:** World gravity, Explosion size, Explosion force, Explosion damage, Hurting yourself, Knocked over, Launch everyone near
+- **Population:** Pedestrians, Traffic, Rare traffic, Traffic pop-in, Crowds in the rain, People panic, No parked cars
+- **Music:** Radio station (premium ones too), Music anywhere (on foot too), Play song (any song, three no station plays), Skip track, Pause or resume music, Now playing, Newscast, Stop newscast
+- **Props and HQ:** Spawn prop, Remove last prop, Remove all props, HQ spot, HQ prop (any prop, owned or not, on any spot in your headquarters, from anywhere), Clear this HQ spot, HQ room theme
 - **Money and drops:** Drop cash, Drop weapon, Money rain
 - **Difficulty:** the custom difficulty sliders (player health, player damage, enemies, vehicles,
   notoriety, ammo reserve, timer speed)
@@ -201,6 +201,7 @@ opacity and Keep my save clean. Restart the game after changing them.
 | `wingsuit.lua` | Wingsuit tweaks (its data and your live copy) |
 | `camera.lua` | Camera turn speed |
 | `vdata.lua` | Shared: field addresses in the game's reflection data |
+| `vehicles.lua` | Every vehicle and variant in the game's tables, generated |
 | `gameui.lua` | Draws the menu with the game's interface (vint text objects) |
 | `luadump.lua` | Development: reads a game Lua function's constants from memory |
 

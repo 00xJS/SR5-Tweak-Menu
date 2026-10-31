@@ -33,6 +33,7 @@ local FLOAT_KEYS = {
   [1296480626] = "feather",       -- refire_delay_feathering (0.1 s by default)
   [184102078] = "damage_player",  -- damage_avatar (a gun's own damage when you fire it)
   [1436921172] = "range",         -- range
+  [0x8ABECFF9] = "radius",        -- radius (explosions from launchers and thrown weapons)
   [2003839093] = "impulse",       -- impulse
   [3476011760] = "recoil",        -- recoil_pitch
   [4628092] = "recoil",           -- recoil_heading
@@ -53,7 +54,7 @@ local FIELDS = {
 }
 
 -- Settings (1 = the game's own).
-W.set = { magazine = 1, fire_rate = 1, damage = 1, perfect_aim = false, range = 1, knockback = 1,
+W.set = { magazine = 1, fire_rate = 1, damage = 1, perfect_aim = false, range = 1, knockback = 1, blast = 1,
           reload = 1, no_warmup = false, no_overheat = false, no_recoil = false, full_auto = false, rockets = false }
 W.NO_RELOAD = 999
 
@@ -204,6 +205,7 @@ local function wanted(e)
     return math.min(v, math.max(v / s.fire_rate, 0.05))
   elseif w == "damage_player" then return s.damage == "kill" and 100000 or v * s.damage
   elseif w == "range" then return v * s.range
+  elseif w == "radius" then return v * s.blast
   elseif w == "impulse" then return v * s.knockback
   elseif w == "reload_speed" then return v * s.reload
   elseif w == "warmup" or w == "charge" then return s.no_warmup and 0.01 or v
@@ -298,7 +300,7 @@ end
 
 function W.any_on()
   local s = W.set
-  return s.magazine ~= 1 or s.fire_rate ~= 1 or s.damage ~= 1 or s.perfect_aim or s.range ~= 1 or s.knockback ~= 1
+  return s.magazine ~= 1 or s.fire_rate ~= 1 or s.damage ~= 1 or s.perfect_aim or s.range ~= 1 or s.knockback ~= 1 or s.blast ~= 1
       or s.reload ~= 1 or s.no_warmup or s.no_overheat or s.no_recoil or s.full_auto
 end
 

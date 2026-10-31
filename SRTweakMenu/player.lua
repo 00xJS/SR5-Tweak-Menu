@@ -1056,6 +1056,106 @@ function P.console(handler, line)
   wml.write_u64(slot, 0)
   return r & 0xFFFFFFFF
 end
+-- Worlds gone wrong. The game's own factions: zombie is hostile to nearly everyone, iconoclash 1 and 2
+-- to each other, saints_hostile fights the gangs and is allied to you. ai_set_faction_node sets the side;
+-- ai_make_combatant_node (id, faction, goal set) turns a civilian into a fighter, if their AI data's loaded;
+-- ai_create_belief (+ADE550: who, of whom) makes them notice, since nobody reacts to a change of side.
+local ZOMBIE, RIOT_A, RIOT_B, ARMY = 0xBA23BB92, 0x5B6567AA, 0xC26C3610, 0xE0FA1670
+local function set_side(id, f)
+  P.node(0xAE86F0, 0x29FB6D0, { { u = id }, { u = f }, { u = crc_of("combat ped") } })
+  P.node(0xADEB50, 0x29E6A58, { { u = id }, { u = f } })
+end
+local function notice(list)
+  for _, a in ipairs(list) do
+    local best, bd
+    for _, t in ipairs(list) do
+      if t.side ~= a.side and t.id ~= a.id then
+        local dx, dz = t.x - a.x, t.z - a.z
+        local d = dx * dx + dz * dz
+        if not bd or d < bd then best, bd = t, d end
+      end
+    end
+    if best then P.node(0xADE550, 0x29EA3F8, { { u = a.id }, { u = best.id } }) end
+  end
+end
+local function sides(radius, pick)
+  local list, i = {}, 0
+  each_near(radius, function(p)
+    i = i + 1
+    local id = id_of(p)
+    local side = pick(i)
+    if side then set_side(id, side) end
+    list[#list + 1] = { id = id, side = side or 0, x = s32(wml.read_u32(p.entry + 0x30)), z = s32(wml.read_u32(p.entry + 0x38)) }
+  end)
+  notice(list)
+  return #list
+end
+function P.zombies_near(radius)
+  return sides(radius, function(i) return i % 3 == 1 and ZOMBIE or nil end)
+end
+function P.riot_near(radius)
+  return sides(radius, function(i) return i % 2 == 0 and RIOT_A or RIOT_B end)
+end
+-- Downed, not dead: human_health_enable_dbno_on_death_node, as you have in the game.
+function P.downed_near(radius)
+  return each_near(radius, function(p) P.node(0x695350, 0x29C7438, { { u = id_of(p) } }) end)
+end
+function P.make_army(id)
+  P.node(0xAE7BD0, 0x29E8570, { { u = id }, { u = crc_of("homie") } })
+  P.node(0xADEB50, 0x29E6A58, { { u = id }, { u = ARMY } })
+  local me = P.object()
+  if me then P.node(0xAE5720, 0x29DD280, { { u = id }, { u = crc_of("assist player") }, { u = wml.read_u32(me + 0x58) } }) end
+end
+-- Free for all: each faction's record (+379030(&hash)): +0x3C how it treats anyone not listed, +0x40 its own.
+-- 1 is hostile. Read on every check, not saved.
+P.free_for_all = false
+SR5TM_FFA = SR5TM_FFA or {}
+local FFA_SETS = { gangs = { 0xCFD91205, 0xAF91816E, 0xAD77A00A }, all = { 0xCFD91205, 0xAF91816E, 0xAD77A00A, 0x55BEF8FA } }
+function P.update_free_for_all()
+  local want = {}
+  for _, h in ipairs(FFA_SETS[P.free_for_all] or {}) do want[h] = true end
+  local b = wml.buffer(13)
+  for _, h in ipairs(FFA_SETS.all) do
+    wml.write_u32(b, h)
+    local rec = wml.call(wml.base + 0x379030, b)
+    if rec ~= 0 then
+      if want[h] then
+        SR5TM_FFA[h] = SR5TM_FFA[h] or { wml.read_u32(rec + 0x3C), wml.read_u32(rec + 0x40) }
+        wml.write_u32(rec + 0x3C, 1); wml.write_u32(rec + 0x40, 1)
+      elseif SR5TM_FFA[h] then
+        wml.write_u32(rec + 0x3C, SR5TM_FFA[h][1]); wml.write_u32(rec + 0x40, SR5TM_FFA[h][2])
+        SR5TM_FFA[h] = nil
+      end
+    end
+  end
+end
+function P.ffa_active() return P.free_for_all or next(SR5TM_FFA) ~= nil end
+-- Gang presence: the district's list of who's out on the street, read live: *(+3C438D0) +0x1A70, count
+-- +0x1A78, 0x2C each: +0x10 and +0x14 on foot day and night, +0x1C and +0x20 in vehicles. Rebuilt on
+-- a change of district, so kept up; originals by address, and only while the list is the same.
+P.gang_presence = false
+SR5TM_GANGS = SR5TM_GANGS or {}
+function P.update_gang_presence()
+  local mgr = wml.read_u64(wml.base + 0x3C438D0)
+  if mgr == 0 then return end
+  local list, n = wml.read_u64(mgr + 0x1A70), wml.read_u16(mgr + 0x1A78)
+  if list == 0 or n > 64 then return end
+  for i = 0, n - 1 do
+    for _, off in ipairs({ 0x10, 0x14, 0x1C, 0x20 }) do
+      local a = list + i * 0x2C + off
+      local now = wml.read_u32(a)
+      if P.gang_presence then
+        local o = SR5TM_GANGS[a]
+        if not o or now ~= o[2] then o = { now, math.floor(now * P.gang_presence) }; SR5TM_GANGS[a] = o end
+        wml.write_u32(a, o[2])
+      elseif SR5TM_GANGS[a] then
+        if now == SR5TM_GANGS[a][2] then wml.write_u32(a, SR5TM_GANGS[a][1]) end
+        SR5TM_GANGS[a] = nil
+      end
+    end
+  end
+end
+function P.gangs_active() return P.gang_presence or next(SR5TM_GANGS) ~= nil end
 -- World tuning. Live config records and globals, each read when it's used, so a write takes at
 -- once: originals kept by address for the session. *(+5BE34A8) is damage_system_config: +0x98 AI vs AI
 -- damage, +0x60 back shot, +0x78 flinch cooldown, +0x7E your dodge's safe ms, +0x9C damage to yourself.
@@ -1230,6 +1330,100 @@ function P.revive_me()
   P.node(0xAEC2D0, 0x29DDE88, { { u = wml.read_u32(e + 0x58) } })
   return true
 end
+-- Slow motion on a held button: the game speed float while LB and RB (or Alt) are held, menu closed.
+P.slow_button = false
+local slow_held
+function P.update_slow_button(menu_open)
+  local b = wml.pad() or 0
+  local held = P.slow_button and not menu_open and ((b & 0x300) == 0x300 or wml.key_down("ALT"))
+  if held then
+    wml.write_f32(wml.base + 0x2E80BC4, P.slow_button)
+  elseif slow_held then
+    wml.write_f32(wml.base + 0x2E80BC4, P.game_speed or 1.0)
+  end
+  slow_held = held
+end
+function P.slow_active() return P.slow_button or slow_held end
+-- Scaled from the game's tables, read when first used: how far an event scares people (ai_stimulus_type)
+-- and how hard a knock has to be to ragdoll you (human_collision_system_config, 30 in the table).
+P.panic, P.ragdoll_easy = false, false
+SR5TM_SCALED = SR5TM_SCALED or {}
+local SCALED = {
+  panic = { "ai_stimulus_type", { { path = "m_radius", what = "radius" }, { path = "m_overlap_radius", what = "radius" } } },
+  ragdoll_easy = { "human_collision_system_config", { { path = "m_object_config.m_impact_ragdoll_min_momentum", what = "ragdoll" } } },
+}
+local scaled_was = {}
+function P.update_scaled()
+  local V = require("vdata")
+  for key, spec in pairs(SCALED) do
+    if (P[key] or false) ~= (scaled_was[key] or false) then
+      SR5TM_SCALED[key] = SR5TM_SCALED[key] or V.collect(spec[1], spec[2])
+      for _, e in ipairs(SR5TM_SCALED[key]) do V.write(e.addr, e.t, e.orig * (P[key] or 1)) end
+      scaled_was[key] = P[key]
+    end
+  end
+end
+-- No parked cars: ambient_spawner_disable_node and enable, by the spawner's name.
+P.no_parked = false
+local parked_was
+function P.update_parked()
+  if (P.no_parked or false) == (parked_was or false) then return end
+  local h = crc_of("parked_car_spawner")
+  if P.no_parked then P.node(0x1A8F110, 0x2AFAB78, { { u = h } }) else P.node(0x1A8F0A0, 0x2AF7218, { { u = h } }) end
+  parked_was = P.no_parked
+end
+-- For the crash log: once a second, a line when something that matters has changed. A crash logs where it
+-- died, not what you were doing.
+local state_was
+function P.log_state()
+  local _, slot = wml.game("return player_local_inventory_get_active_slot()")
+  local _, inf = wml.game("return tostring(player_local_inventory_get_item_info(player_local_inventory_get_active_slot()))")
+  local e = P.object()
+  local g = e and wml.call(wml.base + 0x1534D80, e)
+  local x, y, z = P.position()
+  local line = string.format("hand %s %s | state %X | in car %s | rockets %s punches %s ammo %s | spawned %d cars %d props %d", tostring(slot), tostring(inf):match('"(.-)"') or "none",
+    g and g ~= 0 and wml.read_u32(g + 0x324) or 0, tostring(P.vehicle_object() ~= nil), tostring(P.rockets and true or false), tostring(P.explosive_melee and true or false),
+    P.ammo and P.ammo[1] or "off", #P.spawned, #P.spawned_cars, #P.props)
+  if line ~= state_was then
+    wml.log(string.format("state: %s | at %.0f %.0f %.0f", line, x or 0, y or 0, z or 0))
+    state_was = line
+  end
+end
+-- Rare traffic: each active traffic profile's list (+314A958, count +314A950; the list at +0x10E8, count +0x10F0,
+-- 0x24 each: +4 variant, +0x10 and +0x14 chance by day and night, +0x18 most at once, +0x20 on the road). Rare
+-- ones get a real chance. Originals by address; a district's own list only, so kept up.
+P.rare_traffic = false
+SR5TM_RARE = SR5TM_RARE or {}
+local rare_set
+function P.update_rare_traffic(names)
+  local B = wml.base
+  if P.rare_traffic and not rare_set then
+    rare_set = {}
+    for _, n in ipairs(names) do rare_set[crc_of(n)] = true end
+  end
+  if P.rare_traffic then
+    for i = 0, math.min(wml.read_u32(B + 0x314A950), 16) - 1 do
+      local rec = wml.read_u64(B + 0x314A958 + i * 8)
+      if rec ~= 0 then
+        local arr, n = wml.read_u64(rec + 0x10E8), wml.read_u16(rec + 0x10F0)
+        for j = 0, math.min(n, 400) - 1 do
+          local e = arr + j * 0x24
+          if rare_set[wml.read_u32(e + 4)] and not SR5TM_RARE[e] then
+            SR5TM_RARE[e] = { wml.read_u32(e + 0x10), wml.read_u32(e + 0x14), wml.read_u32(e + 0x18), wml.read_u8(e + 0x20) }
+            wml.write_f32(e + 0x10, 1); wml.write_f32(e + 0x14, 1)
+            wml.write_u32(e + 0x18, 3); wml.write_u8(e + 0x20, 1)
+          end
+        end
+      end
+    end
+  else
+    for e, o in pairs(SR5TM_RARE) do
+      wml.write_u32(e + 0x10, o[1]); wml.write_u32(e + 0x14, o[2]); wml.write_u32(e + 0x18, o[3]); wml.write_u8(e + 0x20, o[4])
+      SR5TM_RARE[e] = nil
+    end
+  end
+end
+function P.rare_active() return P.rare_traffic or next(SR5TM_RARE) ~= nil end
 -- Test guns: dev parents, vehicle mounts and skills' own guns. +988830(record, 0) disowns one
 -- silently; a slot holding one is emptied separately.
 local INTERNAL = { weapon_ability_quick_draw_pistol = 1, weapon_ability_death_blossom_smg = 1, weapon_sniper_ability_overwatch = 1,
@@ -1256,11 +1450,6 @@ function P.clear_internal_slots()
     end
   end
   return n
-end
--- Prototype weapons: no table names their prefabs, and weapon_inventory_set_slot_item_node refuses
--- them for that reason. The console's give command doesn't look: a bare name, a 1-based slot, a loadout.
-function P.give_prefab_weapon(name, slot)
-  return P.console(0x989D90, name .. " " .. (slot + 1) .. " primary") == 0
 end
 -- Friendly fire: your shots do nothing to anyone friendly or allied to you (+3EDA50, a
 -- relation of 4 or 5): x0 while +5BE7E38 is 0, x0.5 at 1, full at anything else.
@@ -1388,6 +1577,7 @@ local PROP_GROUP = 0x12
 function P.prop_pending() return prop_wait ~= nil end
 function P.spawn_prop(name)
   if prop_wait then return false end
+  wml.log("spawning prop: " .. name)
   local B, path = wml.base, prop_path(name)
   local cid = wml.call(B + 0xE71120, wml.buffer(5, path .. ".cprefab_pc"), PROP_GROUP, 0)
   local hid = wml.call(B + 0xE71120, wml.buffer(5, path .. ".hprefab_pc"), PROP_GROUP, 0)
@@ -1433,6 +1623,100 @@ function P.update_prop_release()
   prop_release = left
 end
 function P.prop_release_pending() return #prop_release > 0 end
+-- Prototype weapons: no table names their prefabs, and weapon_inventory_set_slot_item_node refuses
+-- them for that reason. The console's give command doesn't look: a bare name, a 1-based slot, a loadout.
+-- Given bare they were invisible, with no icon and (the miniboss SMG, read live) damage 0. So: load the
+-- model first, as props are. Then the slot (inventory +0x30 each: +0 prefab, +8 info, +12 skin), whose
+-- info is left empty, gets the info of what it replaced, which gives the wheel an icon and a name.
+local PROTO_PATHS = {
+  weapon_shotgun_police_full_auto = [[data\sr_city\spawnables\weapons\shotgun\]], weapon_smg_idols_miniboss_hidden = [[data\sr_city\spawnables\weapons\smg\]],
+  weapon_melee_idols_subgrunt_knife = [[data\sr_city\spawnables\weapons\melee\]], weapon_panteros_specialist_melee = [[data\sr_city\spawnables\weapons\panteros\]],
+  weapon_melee_coyote = [[data\sr_city\spawnables\weapons\melee\]], weapon_frostlander_shield_player = [[data\dlc_exp_02_dusty\spawnables\weapons\frostlander\]],
+  weapon_special_sticky_proximity_bomb = [[data\sr_vanguard\spawnables\weapons\special\]], weapon_proximity_mine_small = [[data\sr_vanguard\spawnables\weapons\grenades\]],
+}
+-- What a slot shows if what it replaced had nothing to show either (an earlier prototype).
+local PROTO_HOST = { [1] = "weapon_melee_1hand_nahualli_knife", [3] = "weapon_smg_tac", [5] = "weapon_shotgun_auto", [7] = "inventory_weapon_anvil_gun", [8] = "weapon_temporary_marshall_minigun", [12] = "weapon_grenade_frag" }
+local proto_wait
+function P.proto_pending() return proto_wait ~= nil end
+function P.give_prefab_weapon(name, slot)
+  if proto_wait then return false end
+  local B, path = wml.base, PROTO_PATHS[name] .. name
+  local cid = wml.call(B + 0xE71120, wml.buffer(5, path .. ".cprefab_pc"), PROP_GROUP, 0)
+  local hid = wml.call(B + 0xE71120, wml.buffer(5, path .. ".hprefab_pc"), PROP_GROUP, 0)
+  if cid == 0 or hid == 0 then return false end
+  local inv = wml.call(B + 0x4BB340, P.object())
+  local e = wml.read_u64(inv) + slot * 0x30
+  proto_wait = { name = name, slot = slot, cid = cid, hid = hid, e = e, a = wml.read_u32(e + 8), b = wml.read_u32(e + 12), ticks = 1800 }
+  return true
+end
+function P.proto_show(e, slot, a, b)
+  if a == 0 then a = PROTO_HOST[slot] and crc_of(PROTO_HOST[slot]) or 0 end
+  if a ~= 0 then wml.write_u32(e + 8, a); wml.write_u32(e + 12, b) end
+end
+function P.update_proto()
+  local B, w = wml.base, proto_wait
+  if w.given then
+    w.given = w.given - 1
+    if w.given <= 0 then
+      P.proto_show(w.e, w.slot, w.a, w.b)
+      prop_release[#prop_release + 1] = { cid = w.cid, hid = w.hid, ticks = 600 }
+      proto_wait = nil
+      return "ready"
+    end
+    return nil
+  end
+  local c1, c2 = wml.call(B + 0xE715E0, w.cid) & 0xFFFFFFFF, wml.call(B + 0xE715E0, w.hid) & 0xFFFFFFFF
+  w.ticks = w.ticks - 1
+  if c1 == 5 or c2 == 5 or w.ticks <= 0 then
+    prop_release[#prop_release + 1] = { cid = w.cid, hid = w.hid, ticks = 1 }
+    proto_wait = nil
+    return "wouldn't load"
+  end
+  if c1 == 4 and c2 == 4 then
+    if P.console(0x989D90, w.name .. " " .. (w.slot + 1) .. " primary") ~= 0 then
+      prop_release[#prop_release + 1] = { cid = w.cid, hid = w.hid, ticks = 1 }
+      proto_wait = nil
+      return "refused"
+    end
+    w.given = 10
+  end
+  return nil
+end
+-- A gun in your hands with no damage of its own at all, as some NPC prefabs have (the keys read
+-- 0.0 for damage_avatar and damage): it can't hurt anyone, so it gets a rifle's damage.
+local ZERO_AVATAR, ZERO_ALL = 184102078, 2685072847
+function P.fix_zero_damage()
+  local ok, str = wml.game("return tostring(gml_get_local_player_weapon())")
+  local id = ok and tonumber((str or ""):match("object (%x+)") or "", 16)
+  if not id or id == 0 then return end
+  local buf = wml.buffer(13)
+  wml.write_u32(buf, id)
+  local entry = wml.call(wml.base + 0x1C1F420, buf)
+  local comp = entry ~= 0 and wml.call(wml.base + 0x49F8A0, entry) or 0
+  if comp == 0 then return end
+  local list, n = wml.read_u64(comp + 0x138), wml.read_u16(comp + 0x140)
+  if list == 0 or n > 200 then return end
+  local av, all
+  for i = 0, n - 1 do
+    local p = list + i * 24
+    local key = wml.read_u32(p)
+    if wml.read_u32(p + 0x10) == 1 then
+      if key == ZERO_AVATAR then av = p + 8 elseif key == ZERO_ALL then all = p + 8 end
+    end
+  end
+  if av and wml.read_f32(av) == 0 and (not all or wml.read_f32(all) == 0) then
+    wml.write_f32(av, 100.0)
+    if all then wml.write_f32(all, 8.0) end
+    wml.log("gave a gun with no damage some: " .. str)
+  end
+end
+function P.hq_theme(name)
+  if name then
+    local b = wml.buffer(13)
+    wml.write_u32(b, crc_of(name))
+    wml.call(wml.base + 0x6B60C0, b)
+  else wml.call(wml.base + 0x6B6E70) end
+end
 function P.remove_prop(last)
   local B, n = wml.base, 0
   for i = #P.props, 1, -1 do
@@ -1626,24 +1910,42 @@ local function prefab_id(path)
   if not prefab_ids[path] then
     local p = wml.buffer(5, path)
     local srid = wml.call(wml.base + 0xE8E370, p)
-    wml.call(wml.base + 0xE8EA40, srid, p, 7)   -- request (load) it
+    wml.call(wml.base + 0xE8EA40, srid, p, 7)   -- only records the name; loaded by loaded() below
     prefab_ids[path] = srid
   end
   return prefab_ids[path]
 end
--- Firing a model that hasn't finished loading shuts the game down with no error
--- (three times live, each within seconds of the first request; firing later
--- was fine). So: request the models, and only touch a gun some time later.
+-- Firing a model that isn't loaded shuts the game down with no error (three times live). What it
+-- takes is a full path and a real load, as props: true once both files read 4, false if one failed, nil while
+-- waiting. The references are kept: the gun needs them for as long as it fires these.
+local model_refs = {}
+local function loaded(path)
+  local B = wml.base
+  local r = model_refs[path]
+  if not r then
+    r = { wml.call(B + 0xE71120, wml.buffer(5, path .. ".cprefab_pc"), 0x12, 0), wml.call(B + 0xE71120, wml.buffer(5, path .. ".hprefab_pc"), 0x12, 0) }
+    model_refs[path] = r
+  end
+  if r[1] == 0 or r[2] == 0 then return false end
+  local a, b = wml.call(B + 0xE715E0, r[1]) & 0xFFFFFFFF, wml.call(B + 0xE715E0, r[2]) & 0xFFFFFFFF
+  if a == 5 or b == 5 then return false end
+  if a == 4 and b == 4 then return true end
+  return nil
+end
+-- { key, type (1 float, 3 enum, 0 other), value }: projectile speed, radius, explosion delay, ignore aim assist, and four unnamed.
+local ROCKET_KEYS = { { 0x799E7CD4, 1, 120.0 }, { 0x8ABECFF9, 1, 12.75 }, { 0x4A932887, 1, 0.0 }, { 0x624A69F5, 0, 1 },
+  { 0x10422728, 3, 1525979922 }, { 0x14A7C15F, 1, 0.0 }, { 0x1CFFB2C2, 1, 4.0 }, { 0x28AAFE06, 1, 0.0 }, { 0x687C2FE7, 0, 1 } }
 local rocket_wait, rocket_for = 0, nil
 function P.rockets_waiting() return rocket_wait > 0 end
 function P.update_rockets()
   local r = P.rockets
   if not r then rocket_gun, rocket_for = nil, nil; return end
   if rocket_for ~= r then
-    rocket_for, rocket_wait = r, 120   -- called every 5 frames: 10 s
-    prefab_id(r[1] .. ".cprefab_pc"); prefab_id(r[2] .. ".cprefab_pc")
+    rocket_for = r
   end
-  if rocket_wait > 0 then rocket_wait = rocket_wait - 1; return end
+  local a, b = loaded(r[1]), loaded(r[2])
+  if a == false or b == false then wml.log("rocket rounds: a model wouldn't load"); P.rockets = false; return end
+  if not (a and b) then return end
   local ok, s = wml.game("return tostring(gml_get_local_player_weapon())")
   local id = ok and tonumber((s or ""):match("object (%x+)") or "", 16)
   if not id or id == 0 or (id == rocket_gun and P.rockets_set == r) then return end
@@ -1657,12 +1959,43 @@ function P.update_rockets()
   wml.write_u32(buf + 0x10, 817162218)                    -- shot_type
   wml.write_u32(buf + 0x20, crc("projectile")); wml.write_u32(buf + 0x28, 3)
   for section = 0, 1 do wml.call(wml.base + 0x1BFF510, comp, buf + 0x10, section, buf + 0x20, name) end
+  -- What a launcher has and a gun doesn't, read off the RPG: without these the shot goes off at the muzzle.
+  for _, k in ipairs(ROCKET_KEYS) do
+    wml.write_u32(buf + 0x10, k[1])
+    for i = 0, 15, 4 do wml.write_u32(buf + 0x20 + i, 0) end
+    if k[2] == 1 then wml.write_f32(buf + 0x20, k[3]) else wml.write_u32(buf + 0x20, k[3]) end
+    wml.write_u32(buf + 0x28, k[2])
+    for section = 0, 1 do wml.call(wml.base + 0x1BFF510, comp, buf + 0x10, section, buf + 0x20, name) end
+  end
   for key, path in pairs({ shot = r[1], explosion = r[2] }) do
     wml.write_u32(buf + 0x10, crc(key))
     local srid = prefab_id(path .. ".cprefab_pc")
     for section = 0, 1 do wml.call(wml.base + 0x1C001E0, comp, buf + 0x10, section, srid, name) end
   end
   rocket_gun, P.rockets_set = id, r
+end
+
+-- Explosive punches: the melee weapon in hand's "explosion" prefab (handle_melee_impact spawns it at the hit),
+-- set like the rounds above, once that explosion's loaded.
+P.explosive_melee = false
+local melee_gun
+function P.update_explosive_melee()
+  local path = P.explosive_melee
+  if not path then melee_gun = nil; return end
+  if not loaded(path) then return end
+  local ok, s = wml.game("return tostring(gml_get_local_player_weapon())")
+  local id = ok and tonumber((s or ""):match("object (%x+)") or "", 16)
+  if not id or id == 0 or id == melee_gun then return end
+  local buf = wml.buffer(10)
+  wml.write_u32(buf, id)
+  local entry = wml.call(wml.base + 0x1C1F420, buf)
+  local comp = entry ~= 0 and wml.call(wml.base + 0x49F8A0, entry) or 0
+  if comp == 0 then return end
+  wml.write_u32(buf + 0x10, crc("explosion"))
+  local srid = prefab_id(path .. ".cprefab_pc")
+  local name = wml.buffer(11, "sr5_tweak_menu")
+  for section = 0, 1 do wml.call(wml.base + 0x1C001E0, comp, buf + 0x10, section, srid, name) end
+  melee_gun = id
 end
 
 -- No recoil on the gun in hand. A gun keeps its own copy of most of its
@@ -1871,7 +2204,11 @@ function P.update_car_extras()
     st.brake = P.car_brake_lights or false
   end
   if P.car_gravity ~= (st.gravity or 1) then
-    P.node(0x1931450, 0x2AC0B08, { { u = wml.read_u32(v + 0x58) }, { f = P.car_gravity } })
+    -- not through P.node: physics_set_gravity_factor_node (+1931450) reads node +8, and a stand-in has none: it
+    -- crashed. What it ends in is the same message No clip sends: +486C10(object, 0, 6, 0, &factor).
+    local b = wml.buffer(13)
+    wml.write_f32(b, P.car_gravity)
+    wml.call(wml.base + 0x486C10, v, 0, 6, 0, b)
     st.gravity = P.car_gravity
   end
 end
@@ -2071,7 +2408,9 @@ function P.update_hostile()
     h.ticks = h.ticks - 1
     if h.ticks > 0 then left[#left + 1] = h
     elseif P.entry_of(h.id) then
-      if h.mode == "guard" then P.make_follower(h.id) else P.make_hostile(h.id) end
+      if h.mode == "guard" then P.make_follower(h.id)
+      elseif h.mode == "army" then P.make_army(h.id)
+      else P.make_hostile(h.id) end
     end
   end
   hostile_wait = left
