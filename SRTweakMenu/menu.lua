@@ -68,6 +68,472 @@ local function wsset(key, label, help, options) return { kind = "wsset", key = k
 -- A weapon setting: Left/Right (or Enter) changes it and applies it at once.
 local function wset(key, label, help, options) return { kind = "wset", key = key, label = label, help = help, options = options, sel = 1, save_key = "weapons." .. key } end
 
+-- From the game's tables: every HQ prop by the size of spot it's meant for, props made
+-- for spawning, and every song.
+local CRIB_PROPS = {
+  { "Huge: Boot hill head cart", "crib-placeable-boot-hill-head-cart_01a" },
+  { "Huge: Boot hill medicine cart", "crib-placeable-boot-hill-medicine-cart_01a" },
+  { "Huge: Bottle liquor", "crib-placeable-bottle-liquor_08a" },
+  { "Huge: Cactus cowboy", "crib-placeable-cactus-cowboy_01a" },
+  { "Huge: Dustfaire paper airplane", "crib-placeable-dustfaire-paper-airplane_01a" },
+  { "Huge: Electric chicken", "crib-placeable-electric-chicken_01a" },
+  { "Huge: Fabulous egg", "crib-placeable-fabulous-egg_01d" },
+  { "Huge: Owl windmill installation", "crib-placeable-owl-windmill-installation_01a" },
+  { "Huge: Prop xmas tree", "crib-placeable-prop_xmas-tree_01" },
+  { "Huge: Radio station tower", "crib-placeable-radio-station-tower_01a" },
+  { "Huge: Sign golf course sculpture", "crib-placeable-sign-golf-course-sculpture_01a" },
+  { "Huge: Sign ice cream stand", "crib-placeable-sign_ice-cream-stand_01a" },
+  { "Huge: Spooky tree haunted hotel evil", "crib-placeable-spooky-tree-haunted-hotel-evil_01b" },
+  { "Huge: Statue atlas", "crib-placeable-statue-atlas_01a" },
+  { "Huge: Statue eagle", "crib-placeable-statue-eagle_01a" },
+  { "Huge: Statue saints", "crib-placeable-statue-saints_02a" },
+  { "Huge: Talltales jim rob", "crib-placeable-talltales-jim-rob_01a" },
+  { "Huge: Thunderpump lighting bolt arrow", "crib-placeable-thunderpump-lighting-bolt-arrow_01a" },
+  { "Huge: Triceratops skull", "crib-placeable-triceratops-skull_01a" },
+  { "Huge: Twin coyote sculpture", "crib-placeable-twin-coyote-sculpture_01a" },
+  { "Huge: Weird west rabbit singer", "crib-placeable-weird-west-rabbit-singer_01a" },
+  { "Huge: Weird west tirepede", "crib-placeable-weird-west-tirepede_01a" },
+  { "Huge: Weird west vulture tree", "crib-placeable-weird-west-vulture-tree_01a" },
+  { "Huge: Western chuckwagon", "crib-placeable-western-chuckwagon" },
+  { "Huge: Western novelty cowboy hat", "crib-placeable-western-novelty-cowboy-hat_01a" },
+  { "Huge: Western oversized cowboy boot", "crib-placeable-western-oversized-cowboy-boot_01a" },
+  { "Huge: Windmill dutch", "crib-placeable-windmill-dutch_01a" },
+  { "Huge: Zombie bear", "crib-placeable-zombie-bear_01a" },
+  { "Large: Armadillo gold", "crib-placeable-armadillo-gold_01a" },
+  { "Large: Banana head carrot", "crib-placeable-banana-head-carrot_01a" },
+  { "Large: Big football helmet statue gold", "crib-placeable-big-football-helmet-statue-gold_01a" },
+  { "Large: Boot hill coffin", "crib-placeable-boot-hill-coffin_01a" },
+  { "Large: Boot hill ketchumbud", "crib-placeable-boot-hill-ketchumbud_01a" },
+  { "Large: Boot hill loot chest", "crib-placeable-boot-hill-loot-chest_01a" },
+  { "Large: Boot hill medicine cart horse", "crib-placeable-boot-hill-medicine-cart-horse_01a" },
+  { "Large: Bowling art", "crib-placeable-bowling-art_01a" },
+  { "Large: Cactus jack", "crib-placeable-cactus-jack_01a" },
+  { "Large: Casino shoe light sign", "crib-placeable-casino-shoe-light-sign_01a" },
+  { "Large: Cemetery monument", "crib-placeable-cemetery-monument_01a" },
+  { "Large: Crossing gate", "crib-placeable-crossing-gate_01a" },
+  { "Large: Cutting edge lab tank", "crib-placeable-cutting-edge-lab-tank_01a" },
+  { "Large: Disc golf basket goal", "crib-placeable-disc-golf-basket-goal_01a" },
+  { "Large: Drone marshall", "crib-placeable-drone-marshall_01a" },
+  { "Large: Financial art", "crib-placeable-financial-art_01a" },
+  { "Large: Financial art", "crib-placeable-financial_art_04a" },
+  { "Large: Fountain city hall", "crib-placeable-fountain-city-hall_01a" },
+  { "Large: Games chess piece knight", "crib-placeable-games-chess-piece-knight_01a" },
+  { "Large: Games d20 dice", "crib-placeable-games-d20-dice_01a" },
+  { "Large: Gatling gun tripod", "crib-placeable-gatling-gun-tripod_01a" },
+  { "Large: Giant spider", "crib-placeable-giant-spider_01a" },
+  { "Large: Guitar guy", "crib-placeable-guitar-guy_01a" },
+  { "Large: Interstellar phone booth", "crib-placeable-interstellar-phone-booth_01a" },
+  { "Large: Jail urinal", "crib-placeable-jail-urinal_01a" },
+  { "Large: Lets pretend mannequin", "crib-placeable-lets-pretend-mannequin_05a" },
+  { "Large: Microbrewery topiary pigs", "crib-placeable-microbrewery-topiary-pigs_01a" },
+  { "Large: Mine cart", "crib-placeable-mine-cart_01a" },
+  { "Large: Prop camera movie", "crib-placeable-prop_camera-movie_01a" },
+  { "Large: Prop shark statue", "crib-placeable-prop_shark-statue_01a" },
+  { "Large: Prop statue silver siren", "crib-placeable-prop_statue_silver-siren_01a" },
+  { "Large: Rabbit statue", "crib-placeable-rabbit-statue_01a" },
+  { "Large: Rack bike sculpture", "crib-placeable-rack-bike-sculpture_01a" },
+  { "Large: Red faction brewery tank", "crib-placeable-red-faction-brewery-tank_01a" },
+  { "Large: Rodeo feather", "crib-placeable-rodeo-feather_02a" },
+  { "Large: Rs gas pump saints", "crib-placeable-rs-gas-pump_saints" },
+  { "Large: Sculpture mercado metal jackalope", "crib-placeable-sculpture-mercado-metal-jackalope_01a" },
+  { "Large: Sculpture school compass", "crib-placeable-sculpture_school-compass_01a" },
+  { "Large: Statue deer", "crib-placeable-statue-deer_01a" },
+  { "Large: Storm giant bones", "crib-placeable-storm-giant-bones_01a" },
+  { "Large: Strange santo spur statue", "crib-placeable-strange-santo-spur-statue" },
+  { "Large: Swan float", "crib-placeable-swan-float_01a" },
+  { "Large: Swole hole arm", "crib-placeable-swole-hole-arm_01a" },
+  { "Large: Talltales jackalope", "crib-placeable-talltales-jackalope_01a" },
+  { "Large: Talltales saddle nuke", "crib-placeable-talltales-saddle-nuke_01a" },
+  { "Large: Talltales wastelander throne", "crib-placeable-talltales-wastelander-throne_01a" },
+  { "Large: Toy mechaburger", "crib-placeable-toy-mechaburger_01a" },
+  { "Large: Turdis", "crib-placeable-turdis" },
+  { "Large: Weird west apple", "crib-placeable-weird-west-apple_01a" },
+  { "Large: Weird west bug driver", "crib-placeable-weird-west-bug-driver_01a" },
+  { "Large: Weird west cow", "crib-placeable-weird-west-cow_01a" },
+  { "Large: Western cowboy horse sculpture", "crib-placeable-western-cowboy-horse-sculpture_01a" },
+  { "Large: Western golden cannon", "crib-placeable-western-golden-cannon" },
+  { "Large: Western piano", "crib-placeable-western-piano_01a" },
+  { "Large: Western saddle bar stool", "crib-placeable-western-saddle-bar-stool_01a" },
+  { "Large: Wing chun wooden dummy", "crib-placeable-wing-chun-wooden-dummy_01a" },
+  { "Large: Xmas tree pole", "crib-placeable-xmas-tree-pole_01a" },
+  { "Large: Toilet portable", "crib-placeable_toilet-portable_01a" },
+  { "Normal: Boat steering wheel", "crib-placeable-boat-steering-wheel_02a" },
+  { "Normal: Boat anchor", "crib-placeable-boat_anchor_01a" },
+  { "Normal: Boot hill bear", "crib-placeable-boot-hill-bear_01a" },
+  { "Normal: Boot hill coin", "crib-placeable-boot-hill-coin_01a" },
+  { "Normal: Boot hill ketchum cane", "crib-placeable-boot-hill-ketchum-cane_01a" },
+  { "Normal: Boot hill puppet", "crib-placeable-boot-hill-puppet_01a" },
+  { "Normal: Boot hill puppet", "crib-placeable-boot-hill-puppet_02a" },
+  { "Normal: Boot hill rabbit", "crib-placeable-boot-hill-rabbit_01a" },
+  { "Normal: Cinematic stand knife", "crib-placeable-cinematic-stand-knife_02a" },
+  { "Normal: Crown reward", "crib-placeable-crown-reward_01a" },
+  { "Normal: Dreidel", "crib-placeable-dreidel_01a" },
+  { "Normal: Drug pallet", "crib-placeable-drug-pallet_01a" },
+  { "Normal: Financial art", "crib-placeable-financial_art_07a" },
+  { "Normal: Flamingo saints", "crib-placeable-flamingo-saints_01a" },
+  { "Normal: Game marble", "crib-placeable-game-marble_01a" },
+  { "Normal: Go cart trophy 01a", "crib-placeable-go-cart-trophy-01a" },
+  { "Normal: Hanukkah candle", "crib-placeable-hanukkah-candle_01a" },
+  { "Normal: Hover board", "crib-placeable-hover-board_01a" },
+  { "Normal: Keg beer painted", "crib-placeable-keg-beer-painted_01a" },
+  { "Normal: Kwanzaa candle", "crib-placeable-kwanzaa-candle_01a" },
+  { "Normal: Model plane", "crib-placeable-model-plane_01a" },
+  { "Normal: Monolith silver", "crib-placeable-monolith-silver_01a" },
+  { "Normal: Pedestal planet saints", "crib-placeable-pedestal-planet-saints_01a" },
+  { "Normal: Poker chip stack", "crib-placeable-poker-chip-stack_01a" },
+  { "Normal: Saving roll", "crib-placeable-saving-roll_01a" },
+  { "Normal: Sculpture mercado flower", "crib-placeable-sculpture_mercado-flower_01a" },
+  { "Normal: Space ship", "crib-placeable-space-ship_01a" },
+  { "Normal: Spooky black cauldron", "crib-placeable-spooky-black-cauldron_01b" },
+  { "Normal: Spooky demonic angel", "crib-placeable-spooky-demonic-angel_01b" },
+  { "Normal: Statue cutout scorpion", "crib-placeable-statue-cutout-scorpion_01a" },
+  { "Normal: Statue ramparts pig", "crib-placeable-statue-ramparts-pig_01a" },
+  { "Normal: Talltales cabbit", "crib-placeable-talltales-cabbit_01a" },
+  { "Normal: Talltales cactus santa", "crib-placeable-talltales-cactus-santa_01a" },
+  { "Normal: Talltales singing bush", "crib-placeable-talltales-singing-bush_01a" },
+  { "Normal: Talltales thors hammer", "crib-placeable-talltales-thors-hammer_01a" },
+  { "Normal: Tank chemical", "crib-placeable-tank-chemical_01a" },
+  { "Normal: Toilet golden", "crib-placeable-toilet-golden_01a" },
+  { "Normal: Trophy hummingbird codex", "crib-placeable-trophy-hummingbird-codex_01a" },
+  { "Normal: Universe diorama", "crib-placeable-universe-diorama_01a" },
+  { "Normal: Vase", "crib-placeable-vase_02a" },
+  { "Normal: Western centerpiece", "crib-placeable-western-centerpiece_01b" },
+  { "Normal: Western oversized bullet", "crib-placeable-western-oversized-bullet_01a" },
+  { "Normal: Xmas tree twig", "crib-placeable-xmas-tree-twig_01a" },
+  { "Wall: Boot hill reward wall", "crib-placeable-boot-hill-reward-wall_01a" },
+  { "Wall: Boot hill reward wall", "crib-placeable-boot-hill-reward-wall_02a" },
+  { "Wall: Casino sign queen", "crib-placeable-casino-sign-queen_01a" },
+  { "Wall: Casino sign varmint", "crib-placeable-casino-sign-varmint_01a" },
+  { "Wall: El bar visual", "crib-placeable-el-bar-visual_01a" },
+  { "Wall: Fantasy map board", "crib-placeable-fantasy-map-board_01a" },
+  { "Wall: Fox tails", "crib-placeable-fox-tails_01a" },
+  { "Wall: Shady oaks", "crib-placeable-shady-oaks_01a" },
+  { "Wall: Sign building commercial king", "crib-placeable-sign-building_commercial_king_01a" },
+  { "Wall: Sign joe cola", "crib-placeable-sign-joe-cola_01a" },
+  { "Wall: Sign neon tipsy lizard watering hole", "crib-placeable-sign-neon_tipsy_lizard_watering_hole_01a" },
+  { "Wall: Sign repo yard", "crib-placeable-sign-repo-yard_01a" },
+  { "Wall: Sign roadside route66 shield sculpture", "crib-placeable-sign-roadside-route66-shield-sculpture_01a" },
+  { "Wall: Spooky clown painting", "crib-placeable-spooky-clown-painting_01b" },
+  { "Wall: Talltales chalupacabra sign", "crib-placeable-talltales-chalupacabra-sign_01a" },
+  { "Wall: Wall relief herding cats", "crib-placeable-wall-relief-herding-cats_01a" },
+  { "Wall: Western bear rug", "crib-placeable-western-bear-rug_01a" },
+  { "Wall: Western cowboy silhouette", "crib-placeable-western-cowboy-silhouette_01a" },
+  { "Wall: Western wanted poster", "crib-placeable-western-wanted-poster_01a" }
+}
+local SPAWN_PROPS = {
+  { "World: Chaos explosive barrel", "prop_chaos-explosive-barrel_01b" },
+  { "World: Chaos toxic barrel", "prop_chaos-toxic-barrel_01a" },
+  { "World: Chaos fire barrel", "prop_chaos-fire-barrel_01a" },
+  { "World: Barrel stack dynamic", "prop_barrel_stack_dynamic" },
+  { "World: Detonator bomb", "prop_detonator-bomb_01a" },
+  { "World: Barrel toxic 01a spawn", "prop_barrel-toxic_01a_spawn" },
+  { "World: Ct bond giant penny spawnable tetherable rideable", "prop_ct_bond_giant_penny_spawnable_tetherable_rideable" },
+  { "World: Lp02 paint balloon 01a spawnable", "prop_lp02-paint-balloon_01a_spawnable" },
+  { "World: Fireworks cake launcher 01a spawn", "fireworks_cake_launcher_01a_spawn" },
+  { "World: Atm machine 01a spawnable", "prop_atm-machine_01a_spawnable" },
+  { "World: Campfire spawnable", "prop_campfire-spawnable_02a" },
+  { "World: Camp chair spawnable", "prop_camp-chair-spawnable_01a" },
+  { "World: Car 2dr muscle spawnable", "prop_car_2dr_muscle-spawnable_01a" },
+  { "World: Speaker large 01a spawn", "prop_speaker-large_01a_spawn" },
+  { "World: Boombox spawnable", "prop_boombox-spawnable_01a" },
+  { "World: Egg golden", "prop_egg-golden_01a" },
+  { "World: Coffin loot air drop boot hill", "prop_coffin-loot-air-drop-boot-hill_01a" },
+  { "World: Shooting gallery target ufo", "location_challenge_shooting_gallery_target_ufo" },
+  { "World: Roadblock construction ramp", "roadblock_construction_ramp_01" },
+  { "World: Roadblock idols ramp", "roadblock_idols_ramp_01a" },
+  { "World: Laundromat rodeo ramp", "laundromat_rodeo_ramp_01" },
+  { "World: Boot hill act doc ketchum stage", "boot_hill_act_doc_ketchum_stage" },
+  { "World: Heist rodeo stage scene", "heist_rodeo_stage_scene_01" },
+  { "Huge: Boot hill head cart", "crib-placeable-boot-hill-head-cart_01a" },
+  { "Huge: Boot hill medicine cart", "crib-placeable-boot-hill-medicine-cart_01a" },
+  { "Huge: Bottle liquor", "crib-placeable-bottle-liquor_08a" },
+  { "Huge: Cactus cowboy", "crib-placeable-cactus-cowboy_01a" },
+  { "Huge: Dustfaire paper airplane", "crib-placeable-dustfaire-paper-airplane_01a" },
+  { "Huge: Electric chicken", "crib-placeable-electric-chicken_01a" },
+  { "Huge: Fabulous egg", "crib-placeable-fabulous-egg_01d" },
+  { "Huge: Owl windmill installation", "crib-placeable-owl-windmill-installation_01a" },
+  { "Huge: Prop xmas tree", "crib-placeable-prop_xmas-tree_01" },
+  { "Huge: Radio station tower", "crib-placeable-radio-station-tower_01a" },
+  { "Huge: Sign golf course sculpture", "crib-placeable-sign-golf-course-sculpture_01a" },
+  { "Huge: Sign ice cream stand", "crib-placeable-sign_ice-cream-stand_01a" },
+  { "Huge: Spooky tree haunted hotel evil", "crib-placeable-spooky-tree-haunted-hotel-evil_01b" },
+  { "Huge: Statue atlas", "crib-placeable-statue-atlas_01a" },
+  { "Huge: Statue eagle", "crib-placeable-statue-eagle_01a" },
+  { "Huge: Statue saints", "crib-placeable-statue-saints_02a" },
+  { "Huge: Talltales jim rob", "crib-placeable-talltales-jim-rob_01a" },
+  { "Huge: Thunderpump lighting bolt arrow", "crib-placeable-thunderpump-lighting-bolt-arrow_01a" },
+  { "Huge: Triceratops skull", "crib-placeable-triceratops-skull_01a" },
+  { "Huge: Twin coyote sculpture", "crib-placeable-twin-coyote-sculpture_01a" },
+  { "Huge: Weird west rabbit singer", "crib-placeable-weird-west-rabbit-singer_01a" },
+  { "Huge: Weird west tirepede", "crib-placeable-weird-west-tirepede_01a" },
+  { "Huge: Weird west vulture tree", "crib-placeable-weird-west-vulture-tree_01a" },
+  { "Huge: Western chuckwagon", "crib-placeable-western-chuckwagon" },
+  { "Huge: Western novelty cowboy hat", "crib-placeable-western-novelty-cowboy-hat_01a" },
+  { "Huge: Western oversized cowboy boot", "crib-placeable-western-oversized-cowboy-boot_01a" },
+  { "Huge: Windmill dutch", "crib-placeable-windmill-dutch_01a" },
+  { "Huge: Zombie bear", "crib-placeable-zombie-bear_01a" },
+  { "Large: Armadillo gold", "crib-placeable-armadillo-gold_01a" },
+  { "Large: Banana head carrot", "crib-placeable-banana-head-carrot_01a" },
+  { "Large: Big football helmet statue gold", "crib-placeable-big-football-helmet-statue-gold_01a" },
+  { "Large: Boot hill coffin", "crib-placeable-boot-hill-coffin_01a" },
+  { "Large: Boot hill ketchumbud", "crib-placeable-boot-hill-ketchumbud_01a" },
+  { "Large: Boot hill loot chest", "crib-placeable-boot-hill-loot-chest_01a" },
+  { "Large: Boot hill medicine cart horse", "crib-placeable-boot-hill-medicine-cart-horse_01a" },
+  { "Large: Bowling art", "crib-placeable-bowling-art_01a" },
+  { "Large: Cactus jack", "crib-placeable-cactus-jack_01a" },
+  { "Large: Casino shoe light sign", "crib-placeable-casino-shoe-light-sign_01a" },
+  { "Large: Cemetery monument", "crib-placeable-cemetery-monument_01a" },
+  { "Large: Crossing gate", "crib-placeable-crossing-gate_01a" },
+  { "Large: Cutting edge lab tank", "crib-placeable-cutting-edge-lab-tank_01a" },
+  { "Large: Disc golf basket goal", "crib-placeable-disc-golf-basket-goal_01a" },
+  { "Large: Drone marshall", "crib-placeable-drone-marshall_01a" },
+  { "Large: Financial art", "crib-placeable-financial-art_01a" },
+  { "Large: Financial art", "crib-placeable-financial_art_04a" },
+  { "Large: Fountain city hall", "crib-placeable-fountain-city-hall_01a" },
+  { "Large: Games chess piece knight", "crib-placeable-games-chess-piece-knight_01a" },
+  { "Large: Games d20 dice", "crib-placeable-games-d20-dice_01a" },
+  { "Large: Gatling gun tripod", "crib-placeable-gatling-gun-tripod_01a" },
+  { "Large: Giant spider", "crib-placeable-giant-spider_01a" },
+  { "Large: Guitar guy", "crib-placeable-guitar-guy_01a" },
+  { "Large: Interstellar phone booth", "crib-placeable-interstellar-phone-booth_01a" },
+  { "Large: Jail urinal", "crib-placeable-jail-urinal_01a" },
+  { "Large: Lets pretend mannequin", "crib-placeable-lets-pretend-mannequin_05a" },
+  { "Large: Microbrewery topiary pigs", "crib-placeable-microbrewery-topiary-pigs_01a" },
+  { "Large: Mine cart", "crib-placeable-mine-cart_01a" },
+  { "Large: Prop camera movie", "crib-placeable-prop_camera-movie_01a" },
+  { "Large: Prop shark statue", "crib-placeable-prop_shark-statue_01a" },
+  { "Large: Prop statue silver siren", "crib-placeable-prop_statue_silver-siren_01a" },
+  { "Large: Rabbit statue", "crib-placeable-rabbit-statue_01a" },
+  { "Large: Rack bike sculpture", "crib-placeable-rack-bike-sculpture_01a" },
+  { "Large: Red faction brewery tank", "crib-placeable-red-faction-brewery-tank_01a" },
+  { "Large: Rodeo feather", "crib-placeable-rodeo-feather_02a" },
+  { "Large: Rs gas pump saints", "crib-placeable-rs-gas-pump_saints" },
+  { "Large: Sculpture mercado metal jackalope", "crib-placeable-sculpture-mercado-metal-jackalope_01a" },
+  { "Large: Sculpture school compass", "crib-placeable-sculpture_school-compass_01a" },
+  { "Large: Statue deer", "crib-placeable-statue-deer_01a" },
+  { "Large: Storm giant bones", "crib-placeable-storm-giant-bones_01a" },
+  { "Large: Strange santo spur statue", "crib-placeable-strange-santo-spur-statue" },
+  { "Large: Swan float", "crib-placeable-swan-float_01a" },
+  { "Large: Swole hole arm", "crib-placeable-swole-hole-arm_01a" },
+  { "Large: Talltales jackalope", "crib-placeable-talltales-jackalope_01a" },
+  { "Large: Talltales saddle nuke", "crib-placeable-talltales-saddle-nuke_01a" },
+  { "Large: Talltales wastelander throne", "crib-placeable-talltales-wastelander-throne_01a" },
+  { "Large: Toy mechaburger", "crib-placeable-toy-mechaburger_01a" },
+  { "Large: Turdis", "crib-placeable-turdis" },
+  { "Large: Weird west apple", "crib-placeable-weird-west-apple_01a" },
+  { "Large: Weird west bug driver", "crib-placeable-weird-west-bug-driver_01a" },
+  { "Large: Weird west cow", "crib-placeable-weird-west-cow_01a" },
+  { "Large: Western cowboy horse sculpture", "crib-placeable-western-cowboy-horse-sculpture_01a" },
+  { "Large: Western golden cannon", "crib-placeable-western-golden-cannon" },
+  { "Large: Western piano", "crib-placeable-western-piano_01a" },
+  { "Large: Western saddle bar stool", "crib-placeable-western-saddle-bar-stool_01a" },
+  { "Large: Wing chun wooden dummy", "crib-placeable-wing-chun-wooden-dummy_01a" },
+  { "Large: Xmas tree pole", "crib-placeable-xmas-tree-pole_01a" },
+  { "Large: Toilet portable", "crib-placeable_toilet-portable_01a" },
+  { "Normal: Boat steering wheel", "crib-placeable-boat-steering-wheel_02a" },
+  { "Normal: Boat anchor", "crib-placeable-boat_anchor_01a" },
+  { "Normal: Boot hill bear", "crib-placeable-boot-hill-bear_01a" },
+  { "Normal: Boot hill coin", "crib-placeable-boot-hill-coin_01a" },
+  { "Normal: Boot hill ketchum cane", "crib-placeable-boot-hill-ketchum-cane_01a" },
+  { "Normal: Boot hill puppet", "crib-placeable-boot-hill-puppet_01a" },
+  { "Normal: Boot hill puppet", "crib-placeable-boot-hill-puppet_02a" },
+  { "Normal: Boot hill rabbit", "crib-placeable-boot-hill-rabbit_01a" },
+  { "Normal: Cinematic stand knife", "crib-placeable-cinematic-stand-knife_02a" },
+  { "Normal: Crown reward", "crib-placeable-crown-reward_01a" },
+  { "Normal: Dreidel", "crib-placeable-dreidel_01a" },
+  { "Normal: Drug pallet", "crib-placeable-drug-pallet_01a" },
+  { "Normal: Financial art", "crib-placeable-financial_art_07a" },
+  { "Normal: Flamingo saints", "crib-placeable-flamingo-saints_01a" },
+  { "Normal: Game marble", "crib-placeable-game-marble_01a" },
+  { "Normal: Go cart trophy 01a", "crib-placeable-go-cart-trophy-01a" },
+  { "Normal: Hanukkah candle", "crib-placeable-hanukkah-candle_01a" },
+  { "Normal: Hover board", "crib-placeable-hover-board_01a" },
+  { "Normal: Keg beer painted", "crib-placeable-keg-beer-painted_01a" },
+  { "Normal: Kwanzaa candle", "crib-placeable-kwanzaa-candle_01a" },
+  { "Normal: Model plane", "crib-placeable-model-plane_01a" },
+  { "Normal: Monolith silver", "crib-placeable-monolith-silver_01a" },
+  { "Normal: Pedestal planet saints", "crib-placeable-pedestal-planet-saints_01a" },
+  { "Normal: Poker chip stack", "crib-placeable-poker-chip-stack_01a" },
+  { "Normal: Saving roll", "crib-placeable-saving-roll_01a" },
+  { "Normal: Sculpture mercado flower", "crib-placeable-sculpture_mercado-flower_01a" },
+  { "Normal: Space ship", "crib-placeable-space-ship_01a" },
+  { "Normal: Spooky black cauldron", "crib-placeable-spooky-black-cauldron_01b" },
+  { "Normal: Spooky demonic angel", "crib-placeable-spooky-demonic-angel_01b" },
+  { "Normal: Statue cutout scorpion", "crib-placeable-statue-cutout-scorpion_01a" },
+  { "Normal: Statue ramparts pig", "crib-placeable-statue-ramparts-pig_01a" },
+  { "Normal: Talltales cabbit", "crib-placeable-talltales-cabbit_01a" },
+  { "Normal: Talltales cactus santa", "crib-placeable-talltales-cactus-santa_01a" },
+  { "Normal: Talltales singing bush", "crib-placeable-talltales-singing-bush_01a" },
+  { "Normal: Talltales thors hammer", "crib-placeable-talltales-thors-hammer_01a" },
+  { "Normal: Tank chemical", "crib-placeable-tank-chemical_01a" },
+  { "Normal: Toilet golden", "crib-placeable-toilet-golden_01a" },
+  { "Normal: Trophy hummingbird codex", "crib-placeable-trophy-hummingbird-codex_01a" },
+  { "Normal: Universe diorama", "crib-placeable-universe-diorama_01a" },
+  { "Normal: Vase", "crib-placeable-vase_02a" },
+  { "Normal: Western centerpiece", "crib-placeable-western-centerpiece_01b" },
+  { "Normal: Western oversized bullet", "crib-placeable-western-oversized-bullet_01a" },
+  { "Normal: Xmas tree twig", "crib-placeable-xmas-tree-twig_01a" },
+  { "Wall: Boot hill reward wall", "crib-placeable-boot-hill-reward-wall_01a" },
+  { "Wall: Boot hill reward wall", "crib-placeable-boot-hill-reward-wall_02a" },
+  { "Wall: Casino sign queen", "crib-placeable-casino-sign-queen_01a" },
+  { "Wall: Casino sign varmint", "crib-placeable-casino-sign-varmint_01a" },
+  { "Wall: El bar visual", "crib-placeable-el-bar-visual_01a" },
+  { "Wall: Fantasy map board", "crib-placeable-fantasy-map-board_01a" },
+  { "Wall: Fox tails", "crib-placeable-fox-tails_01a" },
+  { "Wall: Shady oaks", "crib-placeable-shady-oaks_01a" },
+  { "Wall: Sign building commercial king", "crib-placeable-sign-building_commercial_king_01a" },
+  { "Wall: Sign joe cola", "crib-placeable-sign-joe-cola_01a" },
+  { "Wall: Sign neon tipsy lizard watering hole", "crib-placeable-sign-neon_tipsy_lizard_watering_hole_01a" },
+  { "Wall: Sign repo yard", "crib-placeable-sign-repo-yard_01a" },
+  { "Wall: Sign roadside route66 shield sculpture", "crib-placeable-sign-roadside-route66-shield-sculpture_01a" },
+  { "Wall: Spooky clown painting", "crib-placeable-spooky-clown-painting_01b" },
+  { "Wall: Talltales chalupacabra sign", "crib-placeable-talltales-chalupacabra-sign_01a" },
+  { "Wall: Wall relief herding cats", "crib-placeable-wall-relief-herding-cats_01a" },
+  { "Wall: Western bear rug", "crib-placeable-western-bear-rug_01a" },
+  { "Wall: Western cowboy silhouette", "crib-placeable-western-cowboy-silhouette_01a" },
+  { "Wall: Western wanted poster", "crib-placeable-western-wanted-poster_01a" }
+}
+local SONGS = {
+  { "The Drop: all the time", "all the time" },
+  { "The Drop: bawdy", "bawdy" },
+  { "The Drop: controller", "controller" },
+  { "The Drop: dfr", "dfr" },
+  { "The Drop: go off", "go off" },
+  { "The Drop: my high", "my high" },
+  { "The Drop: rat", "rat" },
+  { "The Drop: salsabahton", "salsabahton" },
+  { "The Drop: streets", "streets" },
+  { "The Drop: swoopin", "swoopin" },
+  { "The Drop: take control", "take control" },
+  { "The Drop: trifecta", "trifecta" },
+  { "The Drop: unconditional", "unconditional" },
+  { "The Drop: what you like", "what you like" },
+  { "Outrun: 1983", "1983" },
+  { "Outrun: arcade dreams", "arcade_dreams" },
+  { "Outrun: assault", "assault" },
+  { "Outrun: blurred lights", "blurred_lights" },
+  { "Outrun: bootloader", "bootloader" },
+  { "Outrun: feel so wavy", "feel_so_wavy" },
+  { "Outrun: grand theft audio", "grand_theft_audio" },
+  { "Outrun: laser dreams", "laser_dreams" },
+  { "Outrun: low gravity judo", "low_gravity_judo" },
+  { "Outrun: megaupload", "megaupload" },
+  { "Outrun: night driver", "night_driver" },
+  { "Outrun: nighthawk", "nighthawk" },
+  { "Outrun: redshift", "redshift" },
+  { "Outrun: time runner", "time_runner" },
+  { "Outrun: yakuza", "yakuza" },
+  { "Dos Ochos: colas", "colas" },
+  { "Dos Ochos: cumbia", "cumbia" },
+  { "Dos Ochos: feliz", "feliz" },
+  { "Dos Ochos: huapango", "huapango" },
+  { "Dos Ochos: indita mia", "indita mia" },
+  { "Dos Ochos: jarabe tapatito", "jarabe tapatito" },
+  { "Dos Ochos: la adelita", "la adelita" },
+  { "Dos Ochos: la bendecida", "la bendecida" },
+  { "Dos Ochos: las mananitas", "las mananitas" },
+  { "Dos Ochos: mariachi de amigos", "mariachi de amigos" },
+  { "Dos Ochos: mascara del diablo", "mascara del diablo" },
+  { "Dos Ochos: muneca de jalisco", "muneca de jalisco" },
+  { "Dos Ochos: sangre sinaloense", "sangre sinaloense" },
+  { "Dos Ochos: te tengo a ti", "te tengo a ti" },
+  { "Dos Ochos: tres tiros", "tres tiros" },
+  { "Overdrive: bet my brains", "bet my brains" },
+  { "Overdrive: broken boy", "broken boy" },
+  { "Overdrive: buck", "buck" },
+  { "Overdrive: cruisin the night", "cruisin the night" },
+  { "Overdrive: fairlady", "fairlady" },
+  { "Overdrive: floating features", "floating features" },
+  { "Overdrive: i wanna lose", "i wanna lose" },
+  { "Overdrive: im still here", "im still here" },
+  { "Overdrive: model village", "model village" },
+  { "Overdrive: people", "people" },
+  { "Overdrive: raw", "raw" },
+  { "Overdrive: taste", "taste" },
+  { "Overdrive: without you", "without you" },
+  { "The Cipher: aint 2 proud 2 beg", "aint 2 proud 2 beg" },
+  { "The Cipher: ante up", "ante up" },
+  { "The Cipher: feel me flow", "feel me flow" },
+  { "The Cipher: left my wallet", "left my wallet" },
+  { "The Cipher: microphone fiend", "microphone fiend" },
+  { "The Cipher: party up", "party up" },
+  { "The Cipher: runnin", "runnin" },
+  { "The Cipher: slam", "slam" },
+  { "The Cipher: sound of da police", "sound of da police" },
+  { "The Cipher: tres delinquentes", "tres delinquentes" },
+  { "The Cipher: woohah", "woohah" },
+  { "Public Radio: concerto for two trumpets", "concerto for two trumpets" },
+  { "Public Radio: farandole", "farandole" },
+  { "Public Radio: flower duet", "flower_duet" },
+  { "Public Radio: funeral of the marionettes", "funeral of the marionettes" },
+  { "Public Radio: fur elise", "fur elise" },
+  { "Public Radio: gavotte", "gavotte" },
+  { "Public Radio: hungarian dances", "hungarian dances" },
+  { "Public Radio: il travatore", "il travatore" },
+  { "Public Radio: merry wives of windsor", "merry wives of windsor" },
+  { "Public Radio: nocturne", "nocturne" },
+  { "Public Radio: piano concerto no1", "piano concerto no1" },
+  { "Public Radio: string quartet no1", "string quartet no1" },
+  { "Public Radio: symphony no40", "symphony no40" },
+  { "Public Radio: violin concerto", "violin concerto" },
+  { "Public Radio: water music", "water music" },
+  { "Tumbleweed: born to be a cowboy", "born to be a cowboy" },
+  { "Tumbleweed: campfire", "campfire" },
+  { "Tumbleweed: dribbling smile", "dribbling smile" },
+  { "Tumbleweed: in the shadow of the valley", "in the shadow of the valley" },
+  { "Tumbleweed: long road", "long road" },
+  { "Tumbleweed: making eyes", "making eyes" },
+  { "Tumbleweed: nine train", "nine train" },
+  { "Tumbleweed: old engine driver", "old engine driver" },
+  { "Tumbleweed: pound another nail", "pound another nail" },
+  { "Tumbleweed: red rock canyon", "red rock canyon" },
+  { "Tumbleweed: revolver", "revolver" },
+  { "Tumbleweed: ride stallion ride", "ride stallion ride" },
+  { "Tumbleweed: run", "run" },
+  { "Tumbleweed: squatting journey", "squatting journey" },
+  { "Tumbleweed: your lyin eyes", "your lyin eyes" },
+  { "Flex: bald", "bald" },
+  { "Flex: bang", "bang" },
+  { "Flex: blackout", "blackout" },
+  { "Flex: calm down", "calm down" },
+  { "Flex: crooked smile", "crooked smile" },
+  { "Flex: down bad", "down bad" },
+  { "Flex: future power sources", "future power sources" },
+  { "Flex: harley quinn", "harley quinn" },
+  { "Flex: ice", "ice" },
+  { "Flex: killing", "killing" },
+  { "Flex: miss the rage", "miss the rage" },
+  { "Flex: own it", "own it" },
+  { "El Latido: boleta", "boleta" },
+  { "El Latido: botellas", "botellas" },
+  { "El Latido: brillo", "brillo" },
+  { "El Latido: con altura", "con altura" },
+  { "El Latido: da da da", "da da da" },
+  { "El Latido: en la mar", "en la mar" },
+  { "El Latido: go bananas", "go bananas" },
+  { "El Latido: hazmelo", "hazmelo" },
+  { "El Latido: mariposa", "mariposa" },
+  { "El Latido: mi poni", "mi poni" },
+  { "El Latido: pam", "pam" },
+  { "El Latido: pem pem", "pem pem" },
+  { "El Latido: rebosando", "rebosando" },
+  { "El Latido: rebota", "rebota" },
+  { "El Latido: todo lo major", "todo lo major" },
+  { "Nuclear Blast: betrayer", "betrayer" },
+  { "Nuclear Blast: bleed", "bleed" },
+  { "Nuclear Blast: cloud collected", "cloud collected" },
+  { "Nuclear Blast: deconstructing self destruction", "deconstructing self destruction" },
+  { "Nuclear Blast: empire of the blind", "empire of the blind" },
+  { "Nuclear Blast: repentless", "repentless" },
+  { "Nuclear Blast: stormcrow", "stormcrow" },
+  { "Nuclear Blast: underneath the scars", "underneath the scars" },
+  { "Nuclear Blast: weight of the false self", "weight of the false self" },
+  { "Nuclear Blast: worship decay", "worship decay" },
+  { "Nuclear Blast: zombie apocalypse", "zombie apocalypse" },
+  { "Unreleased: get free", "get_free" },
+  { "Unreleased: que pasa geno g", "que_pasa_geno_g" },
+  { "Unreleased: young men dead", "young_men_dead" }
+}
 local TABS = {
   { name = "Player", rows = {
     pset("god", "God mode", "You can't die. Not the game's cheat: your save stays clean.", { { "Off", false }, { "On", true } }),
@@ -87,7 +553,7 @@ local TABS = {
     { kind = "emote_slot", slot = "primary", label = "D-pad emote 1", help = "Left/Right picks the emote on your first D-pad emote; then use the D-pad as usual.", sel = 1, options = {}, apply = true },
     { kind = "emote_slot", slot = "secondary", label = "D-pad emote 2", help = "Left/Right picks the emote on your second D-pad emote; then use the D-pad as usual.", sel = 1, options = {}, apply = true },
     { kind = "emote", label = "Play emote", help = "Experimental: Left/Right picks one of the game's emotes, Enter plays it now.", sel = 1, options = {} },
-    gchoice("Hidden emote", "Experimental: Left/Right picks an emote the game never lists, Enter plays it.", { { "Walking Frankenstein", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "walking frankenstein")) return "Walking Frankenstein"]] }, { "Crab walk", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state crab walk")) return "Crab walk"]] }, { "Broom ride", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state broom ride side")) return "Broom ride"]] }, { "Spooky floating dance", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state spooky floating dance")) return "Spooky floating dance"]] }, { "Stoney scary", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state stoney scary")) return "Stoney scary"]] }, { "Skelly show", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state skelly show")) return "Skelly show"]] }, { "Pumpkin smash", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full action pumpkin smash")) return "Pumpkin smash"]] }, { "Pumpkin throw", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "partial state pumpkin throw")) return "Pumpkin throw"]] }, { "Roachburger dance", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full action roachburger dance")) return "Roachburger dance"]] }, { "Frost speech", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "emote frost speech 01")) return "Frost speech"]] }, { "Stretch", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full action stretch")) return "Stretch"]] }, { "Outfit inspect", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full action outfit inspect 1")) return "Outfit inspect"]] }, { "Phone use", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state phone use")) return "Phone use"]] }, { "Summoning", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state summoning")) return "Summoning"]] }, { "Detonate", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "partial action detonate")) return "Detonate"]] }, { "Phone call", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "partial action phone call")) return "Phone call"]] }, { "Injured phone", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "partial body injured phone")) return "Injured phone"]] }, { "Steam", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "partial state steam")) return "Steam"]] } }),
+    gchoice("Hidden emote", "Experimental: Left/Right picks an emote the game never lists, Enter plays it.", { { "Frost speech 2", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "emote frost speech 02")) return "Frost speech 2"]] }, { "Frost speech 3", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "emote frost speech 03")) return "Frost speech 3"]] }, { "Outfit inspect 2", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full action outfit inspect 2")) return "Outfit inspect 2"]] }, { "Walking Frankenstein", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "walking frankenstein")) return "Walking Frankenstein"]] }, { "Crab walk", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state crab walk")) return "Crab walk"]] }, { "Broom ride", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state broom ride side")) return "Broom ride"]] }, { "Spooky floating dance", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state spooky floating dance")) return "Spooky floating dance"]] }, { "Stoney scary", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state stoney scary")) return "Stoney scary"]] }, { "Skelly show", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state skelly show")) return "Skelly show"]] }, { "Pumpkin smash", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full action pumpkin smash")) return "Pumpkin smash"]] }, { "Pumpkin throw", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "partial state pumpkin throw")) return "Pumpkin throw"]] }, { "Roachburger dance", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full action roachburger dance")) return "Roachburger dance"]] }, { "Frost speech", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "emote frost speech 01")) return "Frost speech"]] }, { "Stretch", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full action stretch")) return "Stretch"]] }, { "Outfit inspect", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full action outfit inspect 1")) return "Outfit inspect"]] }, { "Phone use", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state phone use")) return "Phone use"]] }, { "Summoning", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "full state summoning")) return "Summoning"]] }, { "Detonate", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "partial action detonate")) return "Detonate"]] }, { "Phone call", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "partial action phone call")) return "Phone call"]] }, { "Injured phone", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "partial body injured phone")) return "Injured phone"]] }, { "Steam", [[emote_play_in_world(vlib_info_object:get_object("collectible_emote", "partial state steam")) return "Steam"]] } }),
     { kind = "mset", key = "repeat_emote", label = "Repeat emote", help = "Plays the emote picked in Play emote again and again; Stop emote ends it.", options = { { "Off", false }, { "Every 3 s", 180 }, { "Every 6 s", 360 }, { "Every 12 s", 720 } }, sel = 1 },
     { kind = "emote_stop", label = "Stop emote", help = "Stops the emote you're playing (and Repeat emote)." },
     { kind = "gchoice", apply = true, label = "Facial expression", help = "Your face holds this expression until you pick Normal.", sel = 1, options = { { "Normal", "selfie_mode_facial_expression_clear() return 'Normal'" },
@@ -107,13 +573,13 @@ local TABS = {
       return n .. " dismissed"
     ]]),
     pset("homies", "Homie limit", "Experimental: how many homies can follow you at once (if you don't own the extra-homies perk).", { { "Game's", 1 }, { "2", 2 }, { "3", 3 }, { "4", 4 } }),
-    pset("no_clip", "No clip", "Experimental: fly through anything. W A S D move, Space up, Ctrl down, Shift fast.", { { "Off", false }, { "On", true } }),
+    pset("no_clip", "No clip", "Experimental: fly where you look. Left stick or W A S D, RT or Space up, LT or Ctrl down. Click the stick to go fast, or hold Shift. Guns won't fire on the triggers while it's on.", { { "Off", false }, { "On", true } }),
     pset("no_ragdoll", "No ragdoll", "Experimental: whenever you're knocked over, you're straight back up.", { { "Off", false }, { "On", true } }),
     { kind = "homie", label = "Summon homie", help = "Experimental: Left/Right picks a homie, Enter calls them in (if the game lets you).", sel = 1, options = {} },
-    wsset("cooldown", "Wingsuit boosts", "How soon you can boost again (the game's: 15 s).", { { "Game's", 1 }, { "Every 2 s", "short" }, { "Unlimited", "none" } }),
+    wsset("cooldown", "Wingsuit boosts", "The game gives you one boost until you land. Every 2 s, or Unlimited (once the last one ends).", { { "Game's", 1 }, { "Every 2 s", "short" }, { "Unlimited", "none" } }),
     wsset("boost", "Wingsuit boost power", "Boost speed, acceleration and length.", { { "Game's", 1 }, { "x1.5", 1.5 }, { "x2", 2 }, { "x3", 3 } }),
     wsset("speed", "Wingsuit top speed", "Top speed without boosting, launch speed, landing speed cap.", { { "Game's", 1 }, { "x1.5", 1.5 }, { "x2", 2 }, { "x3", 3 } }),
-    wsset("glide", "Wingsuit glide", "Floaty: half gravity. Level: barely drops, no stall. Climb: gains height as you fly.", { { "Game's", "game" }, { "Floaty", "floaty" }, { "Level", "level" }, { "Climb", "climb" } }),
+    wsset("glide", "Wingsuit glide", "Floaty: half gravity. Level: barely drops, no stall. Climb: gains height, and pull back (stick or S) to go up any time.", { { "Game's", "game" }, { "Floaty", "floaty" }, { "Level", "level" }, { "Climb", "climb" } }),
     toggle("invincibility", "Invincibility (game's)", "The game's Invincibility cheat."),
     action("cash", "Give cash", "The game's cash cheat."),
     action("max level", "Max level", "Jumps you to the top level."),
@@ -124,7 +590,7 @@ local TABS = {
     { kind = "play_as", back = false, label = "Play as spawned person", help = "Experimental: become the last person you spawned (World > Spawn person). Don't save while you're them." },
     { kind = "play_as", back = true, label = "Back to yourself", help = "Back to your own character. Remove spawned people does it too." },
     { kind = "outfit", label = "Saved look", help = "Experimental: Left/Right picks a character you saved in the game, Enter puts you back in it: body and outfit.", sel = 1, options = {} },
-    { kind = "look_preset", label = "Character preset", help = "Experimental, press twice: replaces your whole character with the game's preset. Only a look saved in the game brings you back (Saved look).", sel = 1, options = {} },
+    { kind = "look_preset", label = "Character preset", help = "Experimental, press twice: replaces your whole character with the game's preset. Undo my look puts you back.", sel = 1, options = {} },
     gcall("Customize character", "Opens the game's character screen anywhere (through the phone). Esc back, Esc closes the phone.", [[gml_ui_gem_raise_event("ui_cell_phone_open", 1, "requested_screen", string_crci("cell_home_open_profile")) return "open: close this menu"]]),
     pset("all_perks", "All perks on", "Experimental: every perk's effect at once, no slots (not the two that cost you).", { { "Off", false }, { "On", true } }),
     pset("flow", "Unlimited Flow", "Your ability meter stays full, as the game does in some missions.", { { "Off", false }, { "On", true } }),
@@ -161,7 +627,7 @@ local TABS = {
       { "Game's", 1 }, { "x2", 2 }, { "x5", 5 }, { "No reload", "no_reload" } }),
     pset("money_gun", "Money gun", "Experimental: every shot throws $50 out ahead of you (it stays in your save).", { { "Off", false }, { "On", true } }),
     gcall("Remove this weapon", "Press twice: takes the gun in your hands out of your inventory.", "weapon_clear_inventory_slot(player_local_inventory_get_active_slot()) return 'Removed'", true),
-    gchoice("Special weapon", "Experimental: Left/Right picks a mission-only weapon no store sells, Enter puts it in your inventory.", { { "Minigun", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_temporary_marshall_minigun") weapon_swap_to_inventory(w) return "Minigun"]] }, { "Riot shield", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_temporary_riot_shield") weapon_swap_to_inventory(w) return "Riot shield"]] }, { "DJ staff", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_temporary_djstaff") weapon_swap_to_inventory(w) return "DJ staff"]] }, { "Maul", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_temporary_panteros_maul") weapon_swap_to_inventory(w) return "Maul"]] }, { "Idols SMG", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_temporary_idols_smg") weapon_swap_to_inventory(w) return "Idols SMG"]] }, { "Heavy sword", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_2hand_heavy_sword_ct_icon") weapon_swap_to_inventory(w) return "Heavy sword"]] }, { "Toy hammer", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_2hand_toy_hammer_ct_icon") weapon_swap_to_inventory(w) return "Toy hammer"]] }, { "Nahualli knife", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_1hand_nahualli_knife") weapon_swap_to_inventory(w) return "Nahualli knife"]] }, { "Butterfly knife", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_1hand_nahualli_butterfly_knife") weapon_swap_to_inventory(w) return "Butterfly knife"]] }, { "Nahualli machete", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_nahualli_machete") weapon_swap_to_inventory(w) return "Nahualli machete"]] }, { "Dojo baton", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_1hand_dojo_baton") weapon_swap_to_inventory(w) return "Dojo baton"]] }, { "Dojo bat", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_2hand_dojo_bat") weapon_swap_to_inventory(w) return "Dojo bat"]] }, { "Dojo crutch", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_2hand_dojo_crutch") weapon_swap_to_inventory(w) return "Dojo crutch"]] }, { "Dojo sledgehammer", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_2hand_dojo_sledgehammer") weapon_swap_to_inventory(w) return "Dojo sledgehammer"]] }, { "Mime invisible pistol", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_pistol_wastelander_invisible") weapon_swap_to_inventory(w) return "Mime invisible pistol"]] }, { "NPC rocket launcher", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_launcher_rpg_npc") weapon_swap_to_inventory(w) return "NPC rocket launcher"]] }, { "Death Blossom", [[local w = vlib_info_object:get_object("inventory_weapon_info", "larp_death_blossom_inventory") weapon_swap_to_inventory(w) return "Death Blossom"]] }, { "Smokescreen", [[local w = vlib_info_object:get_object("inventory_weapon_info", "larp_smokescreen_inventory") weapon_swap_to_inventory(w) return "Smokescreen"]] }, { "Berserk", [[local w = vlib_info_object:get_object("inventory_weapon_info", "larp_berserk_inventory") weapon_swap_to_inventory(w) return "Berserk"]] }, { "Frost grenade", [[local w = vlib_info_object:get_object("inventory_weapon_info", "frostlander_grenade_inventory") weapon_swap_to_inventory(w) return "Frost grenade"]] }, { "Flashbang", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_grenade_flashbang") weapon_swap_to_inventory(w) return "Flashbang"]] }, { "Smoke grenade", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_grenade_smoke") weapon_swap_to_inventory(w) return "Smoke grenade"]] } }),
+    gchoice("Special weapon", "Experimental: Left/Right picks a mission-only weapon no store sells, Enter puts it in your inventory.", { { "Boss pistol", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_pistol_nahualli") weapon_swap_to_inventory(w) return "Boss pistol"]] }, { "Nahualli pistol", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_pistol_nahualli_subgrunt") weapon_swap_to_inventory(w) return "Nahualli pistol"]] }, { "Marshall burst rifle", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_rifle_marshall_burst") weapon_swap_to_inventory(w) return "Marshall burst rifle"]] }, { "Idols pistol SMG", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_smg_pistol_idols_ct_icon") weapon_swap_to_inventory(w) return "Idols pistol SMG"]] }, { "NPC minigun", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_temporary_marshall_minigun_npc") weapon_swap_to_inventory(w) return "NPC minigun"]] }, { "Dojo crowbar", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_1hand_dojo_crowbar") weapon_swap_to_inventory(w) return "Dojo crowbar"]] }, { "Flashcracker", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_grenade_flashcracker") weapon_swap_to_inventory(w) return "Flashcracker"]] }, { "Smoke grenade", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_grenade_smoke") weapon_swap_to_inventory(w) return "Smoke grenade"]] }, { "Molotov", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_grenade_molotov") weapon_swap_to_inventory(w) return "Molotov"]] }, { "Frag grenade", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_grenade_frag") weapon_swap_to_inventory(w) return "Frag grenade"]] }, { "Boot Hill fist cannon", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_fist_cannon_boothill") weapon_swap_to_inventory(w) return "Boot Hill fist cannon"]] }, { "Boot Hill pickaxe", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_2hand_pickaxe_boothill") weapon_swap_to_inventory(w) return "Boot Hill pickaxe"]] }, { "Boot Hill elephant rifle", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_rifle_elephant_boothill") weapon_swap_to_inventory(w) return "Boot Hill elephant rifle"]] }, { "Boot Hill tactical SMG", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_smg_tac_boothill") weapon_swap_to_inventory(w) return "Boot Hill tactical SMG"]] }, { "Boot Hill heavy SMG", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_smg_hi_volume_boothill") weapon_swap_to_inventory(w) return "Boot Hill heavy SMG"]] }, { "Boot Hill sawed-off", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_shotgun_sawedoff_boothill") weapon_swap_to_inventory(w) return "Boot Hill sawed-off"]] }, { "Boot Hill pistol", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_pistol_tacpistol_boothill") weapon_swap_to_inventory(w) return "Boot Hill pistol"]] }, { "Boot Hill box launcher", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_launcher_box_boothill") weapon_swap_to_inventory(w) return "Boot Hill box launcher"]] }, { "Boot Hill RPG", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_launcher_rpg_boothill") weapon_swap_to_inventory(w) return "Boot Hill RPG"]] }, { "Minigun", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_temporary_marshall_minigun") weapon_swap_to_inventory(w) return "Minigun"]] }, { "Riot shield", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_temporary_riot_shield") weapon_swap_to_inventory(w) return "Riot shield"]] }, { "DJ staff", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_temporary_djstaff") weapon_swap_to_inventory(w) return "DJ staff"]] }, { "Maul", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_temporary_panteros_maul") weapon_swap_to_inventory(w) return "Maul"]] }, { "Idols SMG", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_temporary_idols_smg") weapon_swap_to_inventory(w) return "Idols SMG"]] }, { "Heavy sword", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_2hand_heavy_sword_ct_icon") weapon_swap_to_inventory(w) return "Heavy sword"]] }, { "Toy hammer", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_2hand_toy_hammer_ct_icon") weapon_swap_to_inventory(w) return "Toy hammer"]] }, { "Nahualli knife", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_1hand_nahualli_knife") weapon_swap_to_inventory(w) return "Nahualli knife"]] }, { "Butterfly knife", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_1hand_nahualli_butterfly_knife") weapon_swap_to_inventory(w) return "Butterfly knife"]] }, { "Nahualli machete", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_nahualli_machete") weapon_swap_to_inventory(w) return "Nahualli machete"]] }, { "Dojo baton", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_1hand_dojo_baton") weapon_swap_to_inventory(w) return "Dojo baton"]] }, { "Dojo bat", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_2hand_dojo_bat") weapon_swap_to_inventory(w) return "Dojo bat"]] }, { "Dojo crutch", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_2hand_dojo_crutch") weapon_swap_to_inventory(w) return "Dojo crutch"]] }, { "Dojo sledgehammer", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_melee_2hand_dojo_sledgehammer") weapon_swap_to_inventory(w) return "Dojo sledgehammer"]] }, { "Mime invisible pistol", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_pistol_wastelander_invisible") weapon_swap_to_inventory(w) return "Mime invisible pistol"]] }, { "NPC rocket launcher", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_launcher_rpg_npc") weapon_swap_to_inventory(w) return "NPC rocket launcher"]] }, { "Death Blossom", [[local w = vlib_info_object:get_object("inventory_weapon_info", "larp_death_blossom_inventory") weapon_swap_to_inventory(w) return "Death Blossom"]] }, { "Smokescreen", [[local w = vlib_info_object:get_object("inventory_weapon_info", "larp_smokescreen_inventory") weapon_swap_to_inventory(w) return "Smokescreen"]] }, { "Berserk", [[local w = vlib_info_object:get_object("inventory_weapon_info", "larp_berserk_inventory") weapon_swap_to_inventory(w) return "Berserk"]] }, { "Frost grenade", [[local w = vlib_info_object:get_object("inventory_weapon_info", "frostlander_grenade_inventory") weapon_swap_to_inventory(w) return "Frost grenade"]] }, { "Flashbang", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_grenade_flashbang") weapon_swap_to_inventory(w) return "Flashbang"]] }, { "Smoke grenade", [[local w = vlib_info_object:get_object("inventory_weapon_info", "weapon_grenade_smoke") weapon_swap_to_inventory(w) return "Smoke grenade"]] } }),
     { kind = "giveweapon", label = "Give weapon", help = "Experimental: Left/Right picks one of the game's weapons, Enter puts it in your inventory.", sel = 1, options = {} },
     { kind = "refill_ammo", label = "Refill all ammo", help = "Every weapon's magazine and reserve full, free (the game's infinite-ammo refill)." },
     toggle("infinite_ammo", "Infinite ammo", "Your reserve ammo never runs out (the game's cheat; your save stays clean)."),
@@ -205,7 +671,7 @@ local TABS = {
     { kind = "car_act", key = "boost", label = "Boost now", help = "Experimental: three seconds of boost (some vehicles refuse)." },
     { kind = "car_act", key = "jump", label = "Jump this vehicle", help = "Experimental: throws the vehicle you're in upward." },
     { kind = "car_act", key = "paint", label = "Next paint", help = "Experimental: each press changes the vehicle you're in to the next paint." },
-    { kind = "special_car", label = "Special vehicle", help = "Experimental: Left/Right picks a vehicle missing from the spawn list, Enter spawns it. Boats need water.", sel = 1, options = { { "Bus", "bus_01", "bus_01_ambient" }, { "Bus, roadblock", "bus_01", "bus_01_road_block" }, { "Tank", "tank_01", "tank_01_ambient" }, { "Police tank", "tank_01", "tank_01_police" }, { "Yacht", "boat_yacht_01", "boat_yacht_01_ambient" }, { "Sailboat", "boat_sail_01", "boat_sail_01_ambient" }, { "Jet ski", "jet_ski", "jet_ski_ambient" }, { "Fire truck", "fire_01", "fire_01_ambient" }, { "Hearse", "hearse_01", "hearse_01_ambient" }, { "ATV", "atv_01", "atv_01_ambient" }, { "Attack helicopter", "heli_fighter_01_nahualli", "heli_fighter_01_nahualli" }, { "VTOL", "vanguard_vtol_02", "vanguard_vtol_02_ambient" }, { "Armored muscle", "muscle_01_armored", "muscle_01_armored_panteros" }, { "Police car", "police_01", "police_01_police" }, { "SWAT car", "police_01", "police_01_swat" }, { "Marshall luxury", "luxury_04", "luxury_04_marshall" }, { "Hoverboard", "hoverboard_01", "hoverboard_01_ambient" } } },
+    { kind = "special_car", label = "Special vehicle", help = "Experimental: Left/Right picks a vehicle missing from the spawn list, Enter spawns it. Boats need water.", sel = 1, options = { { "Fireworks flatbed", "flatbed_fireworks", "flatbed_01_ambient" }, { "Toxic flatbed", "flatbed_toxic", "flatbed_01_beater" }, { "Statue flatbed", "flatbed_choplifter_statue", "flatbed_01_beater" }, { "Fuel tanker", "quickshot_tanker_truck", "truck_base_tanker" }, { "Armored truck", "truck_armored_01", "truck_armored_01_ambient" }, { "Casino armored truck", "truck_armored_01", "truck_armored_01_casino" }, { "APC", "sp_apc_01", "apc_01_ambient" }, { "National Guard APC", "sp_apc_01", "apc_01_ng" }, { "Turret pickup", "pickup_03_turret", "pickup_03_marshall" }, { "Panteros turret truck", "truck_classic_02_turret", "truck_classic_02_panteros" }, { "Turret helicopter", "heli_standard_02_turret", "heli_standard_02_activity" }, { "Police spotlight helicopter", "heli_police_spotlight", "heli_police_01_police" }, { "Idols helicopter", "helicopter_police_idol_01", "heli_police_01_idols" }, { "Saints wingsuit helicopter", "heli_wingsuit_deploy", "heli_police_01_saints" }, { "Tether helicopter", "heli_standard_02_choplifter", "heli_standard_02_tether" }, { "Rotorhead", "heli_standard_03_rotorhead", "heli_standard_03_rotorhead_reward" }, { "Armored boss boat", "ct_idols_boss_boat", "boat_speed_01_armored" }, { "Boot Hill boat", "boat_speed_01_boothill", "boat_speed_01_boothill" }, { "Boat", "boat_standard_01", "boat_standard_01_ambient" }, { "Armored muscle 3", "muscle_03_armored", "muscle_03_armored_panteros" }, { "Monster, Panteros", "monster_02_ct_road", "monster_02_panteros" }, { "RV", "rv_01", "sp_rv_01_ambient" }, { "Meth lab RV", "rv_01_meth_lab", "sp_rv_01_meth_lab" }, { "Roofless Idols compact", "compact_01_idol_stream", "compact_01_ambient_idol_no_roof" }, { "Ned's compact", "compact_01_ned", "compact_01_ned_mission" }, { "Weiner truck", "foodtruck_01", "food_01_weiner" }, { "Sushi truck", "foodtruck_01", "food_01_sushi" }, { "Ice cream truck", "foodtruck_01", "food_01_ice_cream" }, { "Junk go-kart", "go_cart_ms_faire_b", "go_cart_junker" }, { "Covered cart, Marshall", "cart_01_covered", "cart_01_covered_marshall" }, { "Golf cart", "cart_02", "cart_02_reward" }, { "Reward wagon", "wagon_09", "wagon_09_reward" }, { "Sports 1", "sport_01", "sports_01_ambient" }, { "Sports 2", "sport_02", "sports_02_ambient" }, { "Muscle 1", "muscle_01", "muscle_01_ambient" }, { "Muscle 5", "muscle_05", "muscle_05_ambient" }, { "Classic 3", "classic_03", "classic_03_ambient" }, { "Utility truck", "utility_01", "sp_utility_01_ambient" }, { "Van 4", "van_04", "van_04_ambient" }, { "Bomb car", "wt_gas_bombcar", "sports_01_ambient" }, { "Mission tank", "tank_mh_pay_01", "tank_02_mh_pay" }, { "Bus", "bus_01", "bus_01_ambient" }, { "Bus, roadblock", "bus_01", "bus_01_road_block" }, { "Tank", "tank_01", "tank_01_ambient" }, { "Police tank", "tank_01", "tank_01_police" }, { "Yacht", "boat_yacht_01", "boat_yacht_01_ambient" }, { "Sailboat", "boat_sail_01", "boat_sail_01_ambient" }, { "Jet ski", "jet_ski", "jet_ski_ambient" }, { "Fire truck", "fire_01", "fire_01_ambient" }, { "Hearse", "hearse_01", "hearse_01_ambient" }, { "ATV", "atv_01", "atv_01_ambient" }, { "Attack helicopter", "heli_fighter_01_nahualli", "heli_fighter_01_nahualli" }, { "VTOL", "vanguard_vtol_02", "vanguard_vtol_02_ambient" }, { "Armored muscle", "muscle_01_armored", "muscle_01_armored_panteros" }, { "Police car", "police_01", "police_01_police" }, { "SWAT car", "police_01", "police_01_swat" }, { "Marshall luxury", "luxury_04", "luxury_04_marshall" }, { "Hoverboard", "hoverboard_01", "hoverboard_01_ambient" } } },
     gcall("Deliver to garage", "Experimental, press twice: saves the vehicle you're in to your garage (saved in your game).", "return vehicle_save_vehicle_to_garage(enemy_get_occupied_vehicle(gml_get_local_player()))", true),
     { kind = "car_act", key = "remove", label = "Remove spawned vehicles", help = "Experimental: removes vehicles the menu spawned, except the one you're in." },
     pset("cam_delay", "Car camera resets after", "Experimental: how long the camera waits before swinging back behind the vehicle.", { { "Game's", false }, { "2 s", 2 }, { "10 s", 10 }, { "Never", 9999 } }),
@@ -256,7 +722,91 @@ local TABS = {
     { kind = "wdset", key = "pause", label = "Pause world", help = "Everything stops, you too (the game's own pause); the menu still works.", options = { { "Off", false }, { "On", true } }, sel = 1 },
     { kind = "person", label = "Spawn person", help = "Left/Right picks one of the game's characters, Enter spawns them beside you.", sel = 1, options = {} },
     pset("spawn_hostile", "Spawned people", "Experimental. What people you spawn do from now on: wander off, stay with you as bodyguards, or fight you.", { { "Passive", false }, { "Bodyguards", "guard" }, { "Fight you", true } }),
-    { kind = "special_person", label = "Special person", help = "Left/Right picks a boss, ghost, skeleton, mascot or other hard-to-find character, Enter spawns them. Some may just stand there.", sel = 1, options = { { "Sergio, Panteros boss", 0xDCE51BE6 }, { "Atticus, Marshall boss", 0x034278F8 }, { "Atticus, formal", 0xAAA6FDA8 }, { "Gwen", 0x28A8EC7B }, { "Gwen, battle gear", 0x15908C61 }, { "Gwen, gala", 0xDC5AF17A }, { "Dust King", 0x1D515B0E }, { "Nahualli boss", 0x0C716465 }, { "Nahualli, prison", 0x7DA925AA }, { "Wally", 0x67B9A90C }, { "Frostlander Queen", 0xBC931455 }, { "Karl as Thegn", 0x5BCBA1B8 }, { "Myra Starr", 0x54F025E6 }, { "JimRob, Marshall", 0xD6942A10 }, { "Evil spirit", 0xB20AA33D }, { "Doc Ketchum", 0x6A6005F3 }, { "Genki", 0x7A86E560 }, { "Mr Big", 0x7755874D }, { "John Blande", 0x5237E8B8 }, { "Stab Lincoln", 0x1A53AAB9 }, { "Skeleton, red", 0x9DBA3030 }, { "Skeleton, blue", 0x14E5AF45 }, { "Skeleton, green", 0x077C1307 }, { "Shotdog", 0x54BEFCD2 }, { "Assassin, female", 0xA6B16C9D }, { "Assassin, male", 0x36EFBC36 }, { "Furloughed soldier", 0x8302786E }, { "Chicken", 0x14BECB08 }, { "Big chicken", 0x3D30397E }, { "Mime", 0x3AC8420F }, { "Grandma", 0x56B3FA95 }, { "Necromancer", 0x081D88E9 }, { "Thrall", 0x7FE1AE66 }, { "Panteros Gigante", 0x8046C9D3 }, { "Wrestler mascot", 0xC9EC39AC }, { "Thumper", 0xF20C6DB8 }, { "Idols enforcer, cop", 0x749A38DE }, { "Police tank crew", 0x53F6572A }, { "Ghost, businessman", 0x58421D8D }, { "Ghost, conductor", 0x6E8323A5 }, { "Ghost, girl", 0x7F26949D }, { "Ghost, prospector", 0xC05EF71E }, { "Ghost Saint", 0x9498E2CF }, { "Coyote", 0x7932AF07 }, { "Hotdog mascot", 0x9470E338 }, { "Hot sauce mascot", 0x02EC61BD }, { "Ketchup mascot", 0xEA958148 }, { "Bunny mascot", 0x2761093B }, { "Cat mascot", 0x795A97A1 }, { "Coyote mascot", 0x02A90DA4 }, { "Dog mascot", 0x32D42A32 }, { "Leopard mascot", 0xB6E229D9 }, { "Alien", 0x554C38BC }, { "Bodysuit", 0xB491B1CF }, { "Taco terror", 0x2109925B }, { "Furry Saint", 0x50F2C4B9 }, { "Hitman Saint", 0xFE75544E }, { "Nixon", 0x28CED4F9 }, { "Reagan", 0x1F2F0947 }, { "Mannequin", 0x19290B59 }, { "Hazmat", 0x109C2A4D }, { "GI", 0xBB62C8DB }, { "Scrubs", 0x0D7B17F6 }, { "Dancer", 0xFE77057A }, { "Sandy Kraken", 0x5FB8E1E8 } } },
+    gchoice("Radio station", "Experimental: Left/Right picks, Enter tunes the vehicle you're in. Premium stations too.", { { "Off", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("off", false) return 'Off']] }, { "88.7 Dos Ochos", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("dos ochos", false) return '88.7 Dos Ochos']] }, { "90.5 Public Radio", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("public radio", false) return '90.5 Public Radio']] }, { "93.3 Tumbleweed", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("tumbleweed", false) return '93.3 Tumbleweed']] }, { "95.7 The Drop", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("thedrop", false) return '95.7 The Drop']] }, { "99.5 The Cipher", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("the cipher", false) return '99.5 The Cipher']] }, { "101.1 Outrun", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("outrun", false) return '101.1 Outrun']] }, { "103.3 Overdrive", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("overdrive", false) return '103.3 Overdrive']] }, { "201 Flex", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("flex", false) return '201 Flex']] }, { "203 El Latido", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("el_latido", false) return '203 El Latido']] }, { "204 Nuclear Blast", [[if not radio_get_current_station():is_valid() then return 'Get in a vehicle first' end radio_wheel_set_station("nuclear_blast", false) return '204 Nuclear Blast']] } }),
+    gchoice("Music anywhere", "Experimental: Left/Right picks a station's songs, Enter plays them anywhere, on foot too, no DJ or ads.", { { "Stop", [[playlist_stop() return 'Music off']] }, { "The Drop", [[playlist_play(vlib_info_object:get_object("playlist_info", "kbpm_thedrop")) return 'Playing The Drop']] }, { "Outrun", [[playlist_play(vlib_info_object:get_object("playlist_info", "kfdr_outrun")) return 'Playing Outrun']] }, { "Dos Ochos", [[playlist_play(vlib_info_object:get_object("playlist_info", "kfst_dosochos")) return 'Playing Dos Ochos']] }, { "Overdrive", [[playlist_play(vlib_info_object:get_object("playlist_info", "kfvzz_overdrive")) return 'Playing Overdrive']] }, { "The Cipher", [[playlist_play(vlib_info_object:get_object("playlist_info", "kjmz_thecipher")) return 'Playing The Cipher']] }, { "Public Radio", [[playlist_play(vlib_info_object:get_object("playlist_info", "ksipr_santopublic")) return 'Playing Public Radio']] }, { "Tumbleweed", [[playlist_play(vlib_info_object:get_object("playlist_info", "kwpke_tumbleweed")) return 'Playing Tumbleweed']] }, { "Flex", [[playlist_play(vlib_info_object:get_object("playlist_info", "sm1_flex")) return 'Playing Flex']] }, { "El Latido", [[playlist_play(vlib_info_object:get_object("playlist_info", "sm3_ellatido")) return 'Playing El Latido']] }, { "Nuclear Blast", [[playlist_play(vlib_info_object:get_object("playlist_info", "sm4_nuclearblast")) return 'Playing Nuclear Blast']] } }),
+    { kind = "song", label = "Play song", help = "Experimental: Left/Right picks any song, including three no station plays, Enter plays it anywhere.", sel = 1, options = SONGS },
+    { kind = "skip_track", label = "Skip track", help = "Experimental: the next track on the music or the radio." },
+    gcall("Pause or resume music", "Experimental: pauses Music anywhere, or starts it again.", [[if not playlist_is_playing() and not playlist_is_paused() then return 'No music on' end if playlist_is_paused() then playlist_resume() return 'Resumed' end playlist_pause() return 'Paused']]),
+    gcall("Now playing", "Experimental: shows what's on.", [[if playlist_is_playing() then local s = playlist_get_active_song() if s:is_valid() then return vint_insert_values_in_string("{1:text_tag} - {2:text_tag}", s.m_artist:get_handle(), s.m_title:get_handle()) end end local t, a = radio_get_playing_title() if not t or t == 0 then return 'Nothing playing' end if a and a ~= 0 then return vint_insert_values_in_string("{1:text_tag} - {2:text_tag}", a, t) end return vint_insert_values_in_string("{1:text_tag}", t)]]),
+    { kind = "spawn_prop", label = "Spawn prop", help = "Experimental: Left/Right picks a prop, Enter loads it and puts it in front of you. Gone when you reload.", sel = 1, options = SPAWN_PROPS },
+    { kind = "remove_prop", last = true, label = "Remove last prop", help = "Removes the prop you spawned last." },
+    { kind = "remove_prop", label = "Remove all props", help = "Removes every prop you've spawned." },
+    { kind = "hq_spot", label = "HQ spot", help = "Experimental: picks a spot in your headquarters for HQ prop.", sel = 1, options = { { "Armory normal 1", "hq_prop_anchor_armory_normal_01" }, { "Armory wall 1", "hq_prop_anchor_armory_wall_01" }, { "Bar large 1", "hq_prop_anchor_bar_large_01" }, { "Bar large 2", "hq_prop_anchor_bar_large_02" }, { "Bar normal 1", "hq_prop_anchor_bar_normal_01" }, { "Bar wall 1", "hq_prop_anchor_bar_wall_01" }, { "Exterior huge 1", "hq_prop_anchor_exterior_huge_01" }, { "Exterior huge 2", "hq_prop_anchor_exterior_huge_02" }, { "Exterior large 1", "hq_prop_anchor_exterior_large_01" }, { "Exterior large 2", "hq_prop_anchor_exterior_large_02" }, { "Gameroom large 1", "hq_prop_anchor_gameroom_large_01" }, { "Gameroom normal 1", "hq_prop_anchor_gameroom_normal_01" }, { "Gameroom wall 1", "hq_prop_anchor_gameroom_wall_01" }, { "Hall huge 1", "hq_prop_anchor_hall_huge_01" }, { "Hall large 1", "hq_prop_anchor_hall_large_01" }, { "Hall large 2", "hq_prop_anchor_hall_large_02" }, { "Hall large 3", "hq_prop_anchor_hall_large_03" }, { "Sunshine large 1", "sunshine_hq_anchor_large_01" }, { "Sunshine large 2", "sunshine_hq_anchor_large_02" }, { "Sunshine large 3", "sunshine_hq_anchor_large_03" }, { "Sunshine large 4", "sunshine_hq_anchor_large_04" }, { "Sunshine normal 1", "sunshine_hq_anchor_normal_01" } } },
+    { kind = "hq_prop", label = "HQ prop", help = "Experimental: Left/Right picks a prop, owned or not, any size, Enter puts it on the HQ spot from anywhere (saved with your game; big ones may clip).", sel = 1, options = CRIB_PROPS },
+    { kind = "hq_clear", label = "Clear this HQ spot", help = "Experimental: empties the HQ spot." },
+    { kind = "look_undo", label = "Undo my look", help = "Experimental, press twice: back to how you looked before you first used Saved look or Character preset this session, or at your last snapshot." },
+    { kind = "look_snap", label = "Take a look snapshot", help = "Experimental: Undo my look will come back to how you look now. Lasts until you quit." },
+    pset("friendly_fire", "Friendly fire", "Experimental: the game's shots do nothing to anyone friendly to you, followers and gang allies too. Half or Full lets them hurt.", { { "Game's (none)", false }, { "Half", 1 }, { "Full", 2 } }),
+    pset("body_muscular", "Body: muscle", "Experimental: past the slider's top. Only on screen: your save keeps your real body.", { { "Game's", false }, { "x1.5", 1.5 }, { "x2", 2.0 }, { "x3", 3.0 }, { "x5", 5.0 } }),
+    pset("body_large", "Body: fat", "Experimental: past the slider's top. Only on screen.", { { "Game's", false }, { "x1.5", 1.5 }, { "x2", 2.0 }, { "x3", 3.0 }, { "x5", 5.0 } }),
+    pset("body_thin", "Body: thin", "Experimental: past the slider's top. Only on screen.", { { "Game's", false }, { "x1.5", 1.5 }, { "x2", 2.0 }, { "x3", 3.0 }, { "x5", 5.0 } }),
+    pset("body_breasts", "Body: chest", "Experimental: past the slider's top. Only on screen.", { { "Game's", false }, { "x1.5", 1.5 }, { "x2", 2.0 }, { "x3", 3.0 }, { "x5", 5.0 } }),
+    pset("body_gender", "Body: blend", "Experimental: the masculine to feminine slider, past both ends. Only on screen.", { { "Game's", false }, { "-0.5", -0.5 }, { "0", 0.0001 }, { "0.5", 0.5 }, { "1", 1.0 }, { "1.5", 1.5 } }),
+    pset("body_head", "Face: head shape", "Experimental: past the slider's top. Only on screen.", { { "Game's", false }, { "1", 1.0 }, { "2", 2.0 }, { "3", 3.0 } }),
+    pset("body_eyes", "Face: eye size", "Experimental: past the slider's top. Only on screen.", { { "Game's", false }, { "0", 0.0001 }, { "1", 1.0 }, { "2", 2.0 }, { "3", 3.0 }, { "5", 5.0 } }),
+    pset("body_nose", "Face: nose size", "Experimental: past the slider's top. Only on screen.", { { "Game's", false }, { "0", 0.0001 }, { "1", 1.0 }, { "2", 2.0 }, { "3", 3.0 }, { "5", 5.0 } }),
+    pset("body_mouth", "Face: mouth size", "Experimental: past the slider's top. Only on screen.", { { "Game's", false }, { "0", 0.0001 }, { "1", 1.0 }, { "2", 2.0 }, { "3", 3.0 }, { "5", 5.0 } }),
+    { kind = "body_back", label = "Back to my real body", help = "Sets all of these back to the game's." },
+    pset("game_speed", "Game speed", "Experimental: slow motion, or the whole game faster. Your character too.", { { "Normal", false }, { "x0.1", 10.0 }, { "x0.25", 4.0 }, { "x0.5", 2.0 }, { "x2", 0.5 }, { "x4", 0.25 } }),
+    pset("force_combat", "Stay in combat", "Experimental: the game thinks you're always in a fight.", { { "Off", false }, { "On", true } }),
+    { kind = "go_to_hour", label = "Go to time", help = "Left/Right picks, Enter moves the clock there at once.", sel = 1, options = { { "Dawn", 6 }, { "Morning", 9 }, { "Noon", 12 }, { "Afternoon", 15 }, { "Dusk", 18 }, { "Evening", 20 }, { "Midnight", 0.01 }, { "Small hours", 3 } } },
+    pset("warp_map", "Warp from map", "Experimental: the game's dev teleport: on the big map, look for DEBUG WARP. You arrive 300 m up: use God mode or the wingsuit.", { { "Off", false }, { "On", true } }),
+    opt("Dev: never die", "Experimental: a developer switch left in the game. Effect unknown.", "global_script_variable_get_bool('never_die')", "global_script_variable_set_bool('never_die', %s)", { { "Off", false }, { "On", true } }),
+    opt("Dev: never die, AI", "Experimental: a developer switch. Effect unknown.", "global_script_variable_get_bool('never_die_ai')", "global_script_variable_set_bool('never_die_ai', %s)", { { "Off", false }, { "On", true } }),
+    opt("Dev: Shawn mode", "Experimental: a developer switch named after someone. Effect unknown.", "global_script_variable_get_bool('shawn_mode')", "global_script_variable_set_bool('shawn_mode', %s)", { { "Off", false }, { "On", true } }),
+    opt("Dev: capture mode", "Experimental: a developer switch, for filming. Effect unknown.", "global_script_variable_get_bool('capture_mode')", "global_script_variable_set_bool('capture_mode', %s)", { { "Off", false }, { "On", true } }),
+    opt("Dev: auto sprint", "Experimental: a developer switch.", "global_script_variable_get_bool('auto_sprint_enable')", "global_script_variable_set_bool('auto_sprint_enable', %s)", { { "Off", false }, { "On", true } }),
+    opt("Dev: infinite ammo", "A developer switch read by the game: no cheat flag on your save.", "global_script_variable_get_bool('infinite_ammo')", "global_script_variable_set_bool('infinite_ammo', %s)", { { "Off", false }, { "On", true } }),
+    opt("Dev: infinite magazine", "A developer switch: no cheat flag on your save.", "global_script_variable_get_bool('infinite_magazine')", "global_script_variable_set_bool('infinite_magazine', %s)", { { "Off", false }, { "On", true } }),
+    opt("Dev: radio on", "A developer switch: off silences the radio.", "global_script_variable_get_bool('radio_enabled')", "global_script_variable_set_bool('radio_enabled', %s)", { { "Off", false }, { "On", true } }),
+    opt("Dev: vehicle ramps", "Experimental: a developer switch.", "global_script_variable_get_bool('vehicle_ramp_override')", "global_script_variable_set_bool('vehicle_ramp_override', %s)", { { "Off", false }, { "On", true } }),
+    opt("Dev: weapon raycasts", "Experimental: a developer switch; may draw nothing in this build.", "global_script_variable_get_bool('debug_weapon_raycasts')", "global_script_variable_set_bool('debug_weapon_raycasts', %s)", { { "Off", false }, { "On", true } }),
+    opt("Dev: notoriety bubbles", "Experimental: a developer switch; may draw nothing in this build.", "global_script_variable_get_bool('debug_render_notoriety_bubbles')", "global_script_variable_set_bool('debug_render_notoriety_bubbles', %s)", { { "Off", false }, { "On", true } }),
+    opt("Dev: HQ mask off", "Experimental: a developer switch.", "global_script_variable_get_bool('hq_mask_disabled')", "global_script_variable_set_bool('hq_mask_disabled', %s)", { { "Off", false }, { "On", true } }),
+    { kind = "console_row", label = "Freeze emote", handler = 0xA914F0, help = "Experimental: freezes the emote you're doing mid-pose, or lets it go." },
+    { kind = "outfit_any", label = "Hidden outfit", help = "Experimental: Left/Right picks clothes the wardrobe doesn't list, Enter wears them. Undo my look puts you back.", sel = 1, options = { { "Armadillo mascot", "clo_suit_armadillo_mascot_01" }, { "Cookie suit", "clo_suit_cookie_suit_01" }, { "Demon bodysuit", "clo_suit_demon_bodysuit_01" }, { "Halloween cat", "clo_suit_halloween_bodysuit_cat_01" }, { "Halloween devil", "clo_suit_halloween_bodysuit_devil_01" }, { "Pumpkin", "clo_suit_pumpkin_01" }, { "Stripes", "clo_suit_stripes_01" }, { "Wetsuit", "clo_suit_wetsuit_01" }, { "Marshall subgrunt", "clo_suit_marshall_subgrunt_01" }, { "Marshall grunt", "clo_suit_marshall_grunt_02" }, { "Star band hat", "clo_hat_starband" }, { "Devil horns", "clo_head_devil_horns_headband_01" }, { "Large horns", "clo_head_large_horns_headband_01" }, { "Firefighter", "clo_suit_firefighter_01" } } },
+    pset("gang_war", "Gang war", "Experimental: gangs near you fight each other, without you. Go where they are, or use Send in a gang twice.", { { "Off", false }, { "Panteros vs Idols", { { 0xCFD91205, 0xAF91816E } } }, { "Panteros vs Marshall", { { 0xCFD91205, 0xAD77A00A } } }, { "Idols vs Marshall", { { 0xAF91816E, 0xAD77A00A } } }, { "All three gangs", { { 0xCFD91205, 0xAF91816E }, { 0xCFD91205, 0xAD77A00A }, { 0xAF91816E, 0xAD77A00A } } }, { "Gangs vs police", { { 0xCFD91205, 0x55BEF8FA }, { 0xAF91816E, 0x55BEF8FA }, { 0xAD77A00A, 0x55BEF8FA } } }, { "Everyone", { { 0xCFD91205, 0xAF91816E }, { 0xCFD91205, 0xAD77A00A }, { 0xAF91816E, 0xAD77A00A }, { 0xCFD91205, 0x55BEF8FA }, { 0xAF91816E, 0x55BEF8FA }, { 0xAD77A00A, 0x55BEF8FA } } } }),
+    pset("fight_damage", "NPC fight damage", "Experimental: how hard people hurt each other (not you). The game's is 0.6, which is why their fights drag.", { { "Game's", false }, { "1", 1.0 }, { "2", 2.0 }, { "5", 5.0 } }),
+    pset("combative_peds", "Pedestrians fight back", "Experimental: passers-by fight instead of running.", { { "Off", false }, { "On", true } }),
+    pset("ai_combat", "Everyone battle ready", "Experimental: every AI stays in combat mode.", { { "Off", false }, { "On", true } }),
+    pset("world_gravity", "World gravity", "Experimental: gravity for everything loose: people, grenades, things. Cars hold the road better than most. Upward sends what's loose away.", { { "Game's", false }, { "x0.5", 0.5 }, { "x0.25", 0.25 }, { "x0.1", 0.1 }, { "x2", 2.0 }, { "x3", 3.0 }, { "Upward", -0.2 } }),
+    pset("blast_size", "Explosion size", "Experimental: how far every explosion reaches, yours and everyone's. The fireball itself stays the same size.", { { "Game's", false }, { "x2", 2.0 }, { "x3", 3.0 }, { "x5", 5.0 }, { "x10", 10.0 } }),
+    pset("blast_force", "Explosion force", "Experimental: how hard every explosion throws things.", { { "Game's", false }, { "x3", 3.0 }, { "x10", 10.0 }, { "x30", 30.0 } }),
+    pset("blast_damage", "Explosion damage", "Experimental: some explosions take their damage from the weapon instead.", { { "Game's", false }, { "x2", 2.0 }, { "x5", 5.0 } }),
+    pset("own_blast", "Hurting yourself", "Experimental: the damage you do to yourself, as from your own explosions.", { { "Game's", false }, { "None", 0.0001 } }),
+    { kind = "launch_car", label = "Launch this vehicle", help = "Experimental: Left/Right picks, Enter throws the car you're in, or the nearest, into the air.", sel = 1, options = { { "Small", 30000 }, { "Big", 80000 }, { "Moon", 200000 } } },
+    { kind = "crowd_act", key = "launch", label = "Launch everyone near", help = "Experimental: everyone within 40 m flies up." },
+    pset("peds", "Pedestrians", "Experimental: how many people the district keeps around. Watch your frame rate.", { { "Game's", false }, { "Few", 0.25 }, { "x2", 2 }, { "x3", 3 } }),
+    pset("traffic", "Traffic", "Experimental: how many cars the district keeps around. Watch your frame rate.", { { "Game's", false }, { "Few", 0.25 }, { "x2", 2 }, { "x3", 3 } }),
+    pset("traffic_far", "Traffic pop-in", "Experimental: how far away traffic appears.", { { "Game's", false }, { "Further", 300.0 }, { "Far", 500.0 } }),
+    pset("rain_crowd", "Crowds in the rain", "Experimental: the streets normally empty when it rains.", { { "Game's", false }, { "Same as sunny", 1.0 } }),
+    pset("enemy_aim", "Enemy aim", "Experimental: how far enemies' shots are meant to miss by. If it changes nothing right away, try on fresh enemies.", { { "Game's", false }, { "Laser", 0.0001 }, { "Poor", 3 }, { "Stormtroopers", 8 } }),
+    pset("back_stab", "Back shot damage", "Experimental: the bonus for hits from behind (the game's is x2.5).", { { "Game's", false }, { "None", 1.0 }, { "x5", 5.0 }, { "x10", 10.0 } }),
+    pset("no_flinch", "No flinch", "Experimental: taking a hit doesn't make you flinch.", { { "Off", false }, { "On", 100000.0 } }),
+    pset("dodge_ms", "Dodge safe time", "Experimental: how long a dodge keeps you from harm.", { { "Game's", false }, { "1 s", 1000 }, { "2 s", 2000 }, { "5 s", 5000 } }),
+    { kind = "revive_me", label = "Get up", help = "Experimental: the co-op revive, on yourself: use it when you're down." },
+    { kind = "car_effect", label = "Effect on this car", help = "Experimental: Left/Right picks one, Enter: the car you're in, or the nearest, gets it for 30 seconds.", sel = 1,
+      options = { { "Slippery", "slippery" }, { "Super grip", "supergrip" }, { "Plow", "plow" }, { "Vehicular manslaughter", "vehicular_manslaughter" } } },
+    { kind = "proto_weapon", label = "Prototype weapon", help = "Experimental, press twice: a weapon no list in the game names. May not work, or may crash: save first.", sel = 1,
+      options = { { "Full-auto police shotgun", "weapon_shotgun_police_full_auto", 5 }, { "Idols miniboss SMG", "weapon_smg_idols_miniboss_hidden", 3 }, { "Idols knife", "weapon_melee_idols_subgrunt_knife", 1 }, { "Panther claws", "weapon_panteros_specialist_melee", 1 }, { "Coyote's bite", "weapon_melee_coyote", 1 }, { "Frost shield", "weapon_frostlander_shield_player", 8 }, { "Sticky bomb", "weapon_special_sticky_proximity_bomb", 7 }, { "Small mine", "weapon_proximity_mine_small", 12 } } },
+    { kind = "unlock", key = "tidy", label = "Remove test guns", help = "Press twice: takes the 41 dev test guns and vehicle mounts that Own every weapon adds (the TEMP ICON ones) out of your wheel and your save. Own every weapon brings them back." },
+    { kind = "unlock", key = "skins", label = "Unlock all weapon skins", help = "Press twice: every weapon skin is yours, in the game's weapon screen. Stays in your save." },
+    { kind = "near_effect", label = "Status on everyone near", help = "Experimental: Left/Right picks one, Enter: everyone within 40 m gets it for a few seconds.", sel = 1,
+      options = { { "Flee", "flee", 8 }, { "Shock", "electrified", 8 }, { "Panic", "panic", 8 }, { "Blind", "blindness", 8 }, { "Slip", "slippery", 8 }, { "Stagger", "stagger", 3 }, { "Stagger sideways", "side_stagger", 3 }, { "Reel", "reeling", 3 }, { "Fall over", "eat food ragdoll", 3 }, { "Chill", "chill", 8 }, { "Prank fire", "prank_fire", 8 }, { "Prank dissolve", "prank_dissolve", 8 } } },
+    { kind = "me_effect", label = "Effect on you", help = "Experimental: a skill's effect for 30 seconds, with no Flow.", sel = 1,
+      options = { { "Berserker", "berserk" }, { "Transfusion", "vampire" }, { "Tough Mother", "get_tough" }, { "Overwatch", "overwatch" }, { "Quick Draw", "quick_draw" } } },
+    { kind = "wing_now", label = "Wingsuit now", help = "Experimental: opens the wingsuit straight away, putting you 40 m up first if you're on the ground." },
+    gcall("Signature ability (this gun)", "Experimental: switches this gun's signature ability on or off, with no challenge to finish (saved with your game).",
+      [[local i = player_local_inventory_get_item_info(player_local_inventory_get_active_slot()) local d = weapon_get_ultimate_data(i) if d == 0 then return 'This gun has none' end weapon_set_ultimate_activate_state(i, not d.activated) return d.activated and 'Signature ability off' or 'Signature ability on']]),
+    gcall("All signature abilities", "Experimental, press twice: every gun's signature ability on (saved with your game).",
+      [[local n = 0 for _, w in vlib_info_object:ipairs("inventory_weapon_info") do if weapon_get_ultimate_data(w) ~= 0 then weapon_set_ultimate_activate_state(w, true) n = n + 1 end end return n .. ' signature abilities on']], true),
+    { kind = "surf", label = "Surf nearest car", help = "Experimental: puts you on the nearest vehicle within 15 m, as the game's car surfing does." },
+    { kind = "surf_stop", label = "Stop surfing", help = "Experimental: gets you off the vehicle you're surfing." },
+    { kind = "send_gang", label = "Send in a gang", help = "Experimental: Left/Right picks who, Enter sets their notoriety to 3 stars and calls in a wave.", sel = 1,
+      options = { { "Panteros", 0xCFD91205 }, { "Idols", 0xAF91816E }, { "Marshall", 0xAD77A00A }, { "Police", 0x55BEF8FA } } },
+    pset("free_cam", "Free camera", "Experimental: the camera flies free while you stay put. Left stick or W A S D, RT or Space up, LT or Ctrl down, click the stick or Shift to go fast. You can't walk while it's on.", { { "Off", false }, { "On", true } }),
+    pset("skip_intro", "Skip intro", "Experimental: skips the logos at start-up, if you have a save. Save tweaks to keep it: it works from the next start.", { { "Off", false }, { "On", true } }),
+    { kind = "special_person", label = "Special person", help = "Left/Right picks a boss, ghost, skeleton, mascot or other hard-to-find character, Enter spawns them. Some may just stand there.", sel = 1, options = { { "Sergio, Panteros boss", 0xDCE51BE6 }, { "Atticus, Marshall boss", 0x034278F8 }, { "Atticus, formal", 0xAAA6FDA8 }, { "Gwen", 0x28A8EC7B }, { "Gwen, battle gear", 0x15908C61 }, { "Gwen, gala", 0xDC5AF17A }, { "Dust King", 0x1D515B0E }, { "Nahualli boss", 0x0C716465 }, { "Nahualli, prison", 0x7DA925AA }, { "Wally", 0x67B9A90C }, { "Frostlander Queen", 0xBC931455 }, { "Karl as Thegn", 0x5BCBA1B8 }, { "Myra Starr", 0x54F025E6 }, { "JimRob, Marshall", 0xD6942A10 }, { "Evil spirit", 0xB20AA33D }, { "Doc Ketchum", 0x6A6005F3 }, { "Genki", 0x7A86E560 }, { "Mr Big", 0x7755874D }, { "John Blande", 0x5237E8B8 }, { "Stab Lincoln", 0x1A53AAB9 }, { "Skeleton, red male", 0x9DBA3030 }, { "Skeleton, red female", 0x14E5AF45 }, { "Skeleton, blue male", 0x077C1307 }, { "Skeleton, blue female", 0x2685E4C5 }, { "Skeleton, green male", 0xD4C79E63 }, { "Skeleton, green female", 0xB41D6640 }, { "Chicken, female", 0x2915B12E }, { "Thrall, female", 0x39F1A42A }, { "Ghost, victim", 0x4B8E3E08 }, { "Ghost Saint 2", 0x513FDC41 }, { "Ghost Saint 3", 0x7C03058B }, { "Ghost Saint 4", 0xB9A43B05 }, { "Oldesteel mascot", 0xAF39DC23 }, { "Twisty mascot", 0xA56D935B }, { "Roadrunner mascot", 0xA09AD9B5 }, { "Hostile mascot 1", 0x3693E344 }, { "Hostile mascot 2", 0x41225090 }, { "Hostile mascot 3", 0x7A992D13 }, { "Hostile mascot 4", 0x10F7555B }, { "Hostile mascot 5", 0x00D35732 }, { "Hostile mascot 6", 0x43EC16C0 }, { "Mannequin 2", 0x820BC491 }, { "Furry 2", 0x697FF87C }, { "Gimp 1", 0x23B092ED }, { "Gimp 2", 0xE664D346 }, { "Grindler Davis", 0x878F797C }, { "Movie star", 0x52343131 }, { "Shotdog", 0x54BEFCD2 }, { "Assassin, female", 0xA6B16C9D }, { "Assassin, male", 0x36EFBC36 }, { "Furloughed soldier", 0x8302786E }, { "Chicken", 0x14BECB08 }, { "Big chicken", 0x3D30397E }, { "Mime", 0x3AC8420F }, { "Grandma", 0x56B3FA95 }, { "Necromancer", 0x081D88E9 }, { "Thrall", 0x7FE1AE66 }, { "Panteros Gigante", 0x8046C9D3 }, { "Wrestler mascot", 0xC9EC39AC }, { "Thumper", 0xF20C6DB8 }, { "Idols enforcer, cop", 0x749A38DE }, { "Police tank crew", 0x53F6572A }, { "Ghost, businessman", 0x58421D8D }, { "Ghost, conductor", 0x6E8323A5 }, { "Ghost, girl", 0x7F26949D }, { "Ghost, prospector", 0xC05EF71E }, { "Ghost Saint", 0x9498E2CF }, { "Coyote", 0x7932AF07 }, { "Hotdog mascot", 0x9470E338 }, { "Hot sauce mascot", 0x02EC61BD }, { "Ketchup mascot", 0xEA958148 }, { "Bunny mascot", 0x2761093B }, { "Cat mascot", 0x795A97A1 }, { "Coyote mascot", 0x02A90DA4 }, { "Dog mascot", 0x32D42A32 }, { "Leopard mascot", 0xB6E229D9 }, { "Alien", 0x554C38BC }, { "Bodysuit", 0xB491B1CF }, { "Taco terror", 0x2109925B }, { "Furry Saint", 0x50F2C4B9 }, { "Hitman Saint", 0xFE75544E }, { "Nixon", 0x28CED4F9 }, { "Reagan", 0x1F2F0947 }, { "Mannequin", 0x19290B59 }, { "Hazmat", 0x109C2A4D }, { "GI", 0xBB62C8DB }, { "Scrubs", 0x0D7B17F6 }, { "Dancer", 0xFE77057A }, { "Sandy Kraken", 0x5FB8E1E8 } } },
     { kind = "crowd", label = "Spawn a crowd", help = "Ten of the character picked above, in a ring around you." },
     { kind = "random_people", label = "Spawn 10 random people", help = "Ten of the game's characters, picked at random, around you." },
     { kind = "despawn", label = "Remove spawned people", help = "Experimental: removes everyone the menu spawned." },
@@ -280,9 +830,9 @@ local TABS = {
     pset("side_gang", "Gang on your side", "Experimental: this gang counts as your ally. Use Never wanted too, as notoriety still sends them after you.", { { "None", false }, { "Idols", "idol" }, { "Panteros", "panteros" }, { "Marshal", "marshal" }, { "Police", "police" }, { "All", "all" } }),
     pset("saints_enemies", "Saints are enemies", "Experimental: Saints in the world count you as hostile.", { { "Off", false }, { "On", true } }),
     pset("forget_fast", "Notoriety forgets fast", "Experimental: out of sight, notoriety clears in a second instead of the game's seven.", { { "Off", false }, { "On", true } }),
-    { kind = "crowd_act", key = "float", label = "Float everyone near", help = "Experimental: everyone within 40 m floats up for a few seconds." },
-    { kind = "crowd_act", key = "dissolve", label = "Dissolve everyone near", help = "Experimental: everyone within 40 m gets the disintegrate effect." },
-    { kind = "crowd_act", key = "toxic", label = "Poison everyone near", help = "Experimental: everyone within 40 m gets the toxic effect." },
+    { kind = "crowd_act", key = "float", label = "Float everyone near", help = "Experimental: everyone within 40 m floats up about 14 m, then comes back down." },
+    { kind = "crowd_act", key = "dissolve", label = "Dissolve everyone near", help = "Experimental: everyone within 40 m dissolves and is gone in 2 seconds." },
+    { kind = "crowd_act", key = "toxic", label = "Poison everyone near", help = "Experimental: everyone within 40 m gets the toxic effect and loses health until they drop, about 6 s." },
     pset("no_call_ins", "No reinforcements", "Experimental: wanted factions don't call in more people.", { { "Off", false }, { "On", true } }),
     pset("no_roadblocks", "No roadblocks", "Experimental: no roadblocks when you're wanted.", { { "Off", false }, { "On", true } }),
     pset("no_escape", "Can't lose them", "Experimental: you can't evade a pursuit by getting away.", { { "Off", false }, { "On", true } }),
@@ -353,45 +903,52 @@ for _, t in ipairs(TABS) do for _, r in ipairs(t.rows) do if APPLY_ON_PICK[r.lab
 -- the game's own phone cheats. A row not named here stays at the end of its tab.
 local LAYOUT = {
   { "Player", {
-    { "Health and survival", "God mode, health, and what can't hurt you.", { "God mode", "Health", "Refill health", "Health regen", "No fall damage", "No ragdoll", "Bulletproof", "Explosion-proof", "Crash-proof", "Kill yourself" } },
+    { "Health and survival", "God mode, health, and what can't hurt you.", { "God mode", "Health", "Refill health", "Health regen", "No fall damage", "No ragdoll", "No flinch", "Dodge safe time", "Bulletproof", "Explosion-proof", "Crash-proof", "Get up", "Kill yourself" } },
     { "Movement", "How you run, jump and fall.", { "Run speed", "Jump height", "Air control", "Swim speed", "Your gravity", "No clip", "Movement style", "Walk style" } },
-    { "Wingsuit", "Boosts, power, speed and glide.", { "Wingsuit boosts", "Wingsuit boost power", "Wingsuit top speed", "Wingsuit glide", "Wingsuit from low down" } },
-    { "Flow and abilities", "Your ability meter, skills and takedowns.", { "All perks on", "Unlimited Flow", "Free skills", "Flow gain", "Extra Flow bars", "Flow never drains", "Rampage at full Flow", "Takedown cooldown" } },
-    { "Emotes and voice", "Emotes, expressions and how you sound.", { "D-pad emote 1", "D-pad emote 2", "Play emote", "Hidden emote", "Repeat emote", "Stop emote", "Facial expression", "Your voice", "Voice pitch", "Say a line" } },
+    { "Wingsuit", "Boosts, power, speed and glide.", { "Wingsuit boosts", "Wingsuit boost power", "Wingsuit top speed", "Wingsuit glide", "Wingsuit from low down", "Wingsuit now" } },
+    { "Flow and abilities", "Your ability meter, skills and takedowns.", { "All perks on", "Effect on you", "Unlimited Flow", "Free skills", "Flow gain", "Extra Flow bars", "Flow never drains", "Rampage at full Flow", "Takedown cooldown" } },
+    { "Emotes and voice", "Emotes, expressions and how you sound.", { "D-pad emote 1", "D-pad emote 2", "Play emote", "Hidden emote", "Repeat emote", "Freeze emote", "Stop emote", "Facial expression", "Your voice", "Voice pitch", "Say a line" } },
     { "Homies", "Who's with you.", { "Summon homie", "Call in Saints", "Dismiss homies", "Homie limit" } },
-    { "Your look", "Who you are and what you're wearing.", { "Play as spawned person", "Back to yourself", "Saved look", "Character preset", "Customize character", "Prank yourself" } },
+    { "Your look", "Who you are and what you're wearing.", { "Play as spawned person", "Back to yourself", "Saved look", "Character preset", "Hidden outfit", "Undo my look", "Take a look snapshot", "Customize character", "Prank yourself" } },
+    { "Body beyond limits", "Past the sliders' ends. Only on screen: your save keeps your real body.", { "Body: muscle", "Body: fat", "Body: thin", "Body: chest", "Body: blend", "Face: head shape", "Face: eye size", "Face: nose size", "Face: mouth size", "Back to my real body" } },
     { "Money and progress", "XP, skill points, cash and prices.", { "Give XP", "Give skill points", "Add cash", "Free shopping", "Free ventures", "Start mission", "Insurance Fraud here" } },
-    { "Unlocks", "Skills, perks, weapons, clothing and more. These stay in your save.", { "Unlock EVERYTHING", "Unlock fast travel points", "Own every weapon", "Unlock all skills", "Unlock all perks", "Unlock gang and homies", "Unlock all clothing", "Unlock everything in the stores", "Unlock all collectibles" } },
+    { "Unlocks", "Skills, perks, weapons, clothing and more. These stay in your save.", { "Unlock EVERYTHING", "Unlock fast travel points", "Own every weapon", "Unlock all skills", "Unlock all perks", "Unlock gang and homies", "Unlock all clothing", "Unlock everything in the stores", "Unlock all weapon skins", "Unlock all collectibles" } },
   } },
   { "Weapons", {
-    { "Gun tuning", "Fire rate, damage, recoil and the rest of how guns behave.", { "Fire rate", "Full auto", "Damage", "Magazine", "Reload speed", "No recoil", "Perfect aim", "Range", "Knockback", "No warm-up", "No overheat" } },
+    { "Gun tuning", "Fire rate, damage, recoil and the rest of how guns behave.", { "Fire rate", "Full auto", "Damage", "Magazine", "Reload speed", "No recoil", "Perfect aim", "Range", "Knockback", "Friendly fire", "Back shot damage", "No warm-up", "No overheat" } },
     { "Special ammo", "What your shots do.", { "Special ammo", "Money gun" } },
-    { "Get weapons", "Give, fill, upgrade or remove.", { "Give weapon", "Special weapon", "Refill all ammo", "Max every weapon's upgrades", "Remove this weapon" } },
+    { "Get weapons", "Give, fill, upgrade or remove.", { "Give weapon", "Special weapon", "Refill all ammo", "Max every weapon's upgrades", "Prototype weapon", "Signature ability (this gun)", "All signature abilities", "Remove this weapon", "Remove test guns" } },
     "Weapons back to normal",
   } },
   { "Vehicles", {
     { "Spawning", "Getting vehicles and getting rid of them.", { "Spawn vehicle", "Special vehicle", "Remove spawned vehicles", "Deliver to garage" } },
     { "Handling", "Power, grip and how it sits on the road.", { "Engine power", "Grip", "Steering", "Vehicle top speed", "Suspension", "Vehicle gravity", "Heavy vehicle" } },
     { "Toughness", "Keeping it in one piece, or not.", { "Vehicle god mode", "No collision damage", "Bulletproof tires", "Keep vehicle repaired", "Destroy this vehicle" } },
-    { "Abilities and combat", "Vehicle abilities, rams and takedowns.", { "Vehicle ability", "Tow hook", "Boost now", "Jump this vehicle", "Vehicle jump power", "No ability cooldowns", "Ram power", "Takedowns at any speed" } },
+    { "Abilities and combat", "Vehicle abilities, rams and takedowns.", { "Vehicle ability", "Tow hook", "Boost now", "Effect on this car", "Launch this vehicle", "Jump this vehicle", "Surf nearest car", "Stop surfing", "Vehicle jump power", "No ability cooldowns", "Ram power", "Takedowns at any speed" } },
     { "Look and camera", "Paint, lights and the driving camera.", { "Next paint", "Brake lights stay on", "Car camera resets after", "Free camera in cars" } },
   } },
   { "Teleport", {
-    "Go to waypoint", "Auto-teleport to waypoint", "Store", "Map place", "Fast travel point",
+    "Go to waypoint", "Auto-teleport to waypoint", "Warp from map", "Store", "Map place", "Fast travel point",
     { "Saved places", "Your own spots.", { "Save this spot", "Go to", "Delete that place" } },
     "Go up", "Where am I",
   } },
   { "World", {
-    { "Time and weather", "The clock, the sky and pausing.", { "Weather (all)", "Freeze clock", "Clock speed", "Pause world" } },
+    { "Time and weather", "The clock, the sky and pausing.", { "Game speed", "Weather (all)", "Freeze clock", "Clock speed", "Go to time", "Pause world" } },
+    { "Developer switches", "Left in the game by its developers. Most do unknown things.", { "Dev: never die", "Dev: never die, AI", "Dev: Shawn mode", "Dev: capture mode", "Dev: auto sprint", "Dev: infinite ammo", "Dev: infinite magazine", "Dev: radio on", "Dev: vehicle ramps", "Dev: weapon raycasts", "Dev: notoriety bubbles", "Dev: HQ mask off" } },
     { "Spawn people", "Who to spawn, and what they do.", { "Spawn person", "Special person", "Spawned people", "Spawn a crowd", "Spawn 10 random people", "Remove spawned people" } },
-    { "Everyone near", "Everyone within 40 m.", { "Everyone near", "Make everyone near follow you", "Everyone near dance", "Make everyone near friendly", "Make everyone near hostile", "Disarm everyone near", "Re-arm everyone near", "Stun everyone near", "Ragdoll everyone near", "Float everyone near", "Set everyone near on fire", "Dissolve everyone near", "Poison everyone near", "Kill everyone near", "Blow up cars near" } },
-    { "Notoriety and gangs", "Who's after you, and whose side they're on.", { "Never wanted", "Notoriety forgets fast", "No reinforcements", "No roadblocks", "Can't lose them", "Gangs and police without guns", "Gang on your side", "Saints are enemies" } },
+    { "Everyone near", "Everyone within 40 m.", { "Everyone near", "Status on everyone near", "Make everyone near follow you", "Everyone near dance", "Make everyone near friendly", "Make everyone near hostile", "Disarm everyone near", "Re-arm everyone near", "Stun everyone near", "Ragdoll everyone near", "Float everyone near", "Set everyone near on fire", "Dissolve everyone near", "Poison everyone near", "Kill everyone near", "Blow up cars near" } },
+    { "Notoriety and gangs", "Who's after you, and whose side they're on.", { "Never wanted", "Enemy aim", "Send in a gang", "Stay in combat", "Notoriety forgets fast", "No reinforcements", "No roadblocks", "Can't lose them", "Gangs and police without guns", "Gang on your side", "Saints are enemies" } },
+    { "Gang war", "Gangs and people fighting each other.", { "Gang war", "NPC fight damage", "Pedestrians fight back", "Everyone battle ready" } },
+    { "Physics and explosions", "Gravity, blasts and sending things flying.", { "World gravity", "Explosion size", "Explosion force", "Explosion damage", "Hurting yourself", "Launch everyone near" } },
+    { "Population", "How busy the streets are.", { "Pedestrians", "Traffic", "Traffic pop-in", "Crowds in the rain" } },
+    { "Music", "Stations, songs and playing them anywhere.", { "Radio station", "Music anywhere", "Play song", "Skip track", "Pause or resume music", "Now playing" } },
+    { "Props and HQ", "Spawn props anywhere, or dress your headquarters.", { "Spawn prop", "Remove last prop", "Remove all props", "HQ spot", "HQ prop", "Clear this HQ spot" } },
     { "Money and drops", "Cash and weapons on the ground.", { "Drop cash", "Drop weapon", "Money rain" } },
     { "Difficulty", "The pause menu's custom sliders.", { "Difficulty: player health", "Difficulty: player damage", "Difficulty: enemies", "Difficulty: vehicles", "Difficulty: notoriety", "Difficulty: ammo reserve", "Difficulty: timer speed" } },
     "Empty streets", "Show activities on the map",
   } },
   { "Visual", {
-    { "Camera", "Where the camera sits and how it moves.", { "Field of view", "Camera distance", "Shoulder camera", "Turn speed", "Camera shake", "Looping camera shake", "Camera bobbing", "Photo mode" } },
+    { "Camera", "Where the camera sits and how it moves.", { "Field of view", "Camera distance", "Shoulder camera", "Turn speed", "Camera shake", "Looping camera shake", "Camera bobbing", "Photo mode", "Free camera" } },
     { "Screen", "What's drawn.", { "Brightness", "Hide from view", "Low health screen", "Show only people", "Letterbox", "Hide HUD" } },
   } },
   { "Cheats", {
@@ -404,7 +961,7 @@ local LAYOUT = {
   } },
   { "Settings", {
     "Save tweaks for next time",
-    { "Game", "Cutscenes, saving and tutorials.", { "Skip cutscene", "Pause / resume cutscene", "Quick save", "Load last save", "Tutorial popups" } },
+    { "Game", "Cutscenes, saving and tutorials.", { "Skip intro", "Skip cutscene", "Pause / resume cutscene", "Quick save", "Load last save", "Tutorial popups" } },
     { "Menu", "How the menu looks and opens.", { "All tweaks", "Hold Back opens the menu", "Keep my save clean", "Menu opacity" } },
     "What's on", "Turn every cheat off", "Everything back to normal", "Forget saved tweaks", "Close menu",
   } },
@@ -712,8 +1269,15 @@ function unlock_queue(key, q)
     add_awards(q, { "gang_customization", "gang_vehicle_customization", "homie_info", "homie_outfit" })
   elseif key == "clothing" then
     q[#q + 1] = { clothing = true, first = 0 }
+  elseif key == "skins" then
+    for _ = 1, 10 do q[#q + 1] = { refused = { "weapon_skin", "weapon_skin_state" } } end
+  elseif key == "tidy" then
+    for _, o in ipairs(names_of_objects("inventory_weapon_info")) do
+      if P.weapon_is_internal(o.name) then q[#q + 1] = { disown = o.name } end
+    end
+    q[#q + 1] = { clear_slots = true }
   elseif key == "everything" then
-    for _, k in ipairs({ "travel", "weapons", "stores", "clothing", "skills", "perks", "gang", "collectibles", "icons" }) do unlock_queue(k, q) end
+    for _, k in ipairs({ "travel", "weapons", "skins", "stores", "clothing", "skills", "perks", "gang", "collectibles", "icons" }) do unlock_queue(k, q) end
   else
     add_awards(q, COLLECTIBLES)
     q[#q + 1] = { refused = REFUSED[1] }
@@ -772,6 +1336,12 @@ local function step_unlock()
       u.items = (u.items or 0) + #awards
       u.done = u.done + 1
     end
+  elseif item and item.disown then
+    if P.disown_weapon(item.disown) then u.items = (u.items or 0) + 1 end
+    u.done = u.done + 1
+  elseif item and item.clear_slots then
+    P.clear_internal_slots()
+    u.done = u.done + 1
   elseif item and item.refused then
     local r = table.pack(wml.game([[local o = {} for _, x in vlib_info_object:ipairs("]] .. item.refused[1] .. [[") do
       local d = x:get_data("]] .. item.refused[2] .. [[")
@@ -825,8 +1395,9 @@ local function step_unlock()
 end
 
 local CROWD = { ragdoll = { "ragdoll_near", "ragdolled" }, kill = { "kill_near", "killed" }, fire = { "fire_near", "set on fire" },
-  stun = { "stun_near", "stunned" }, follow = { "follow_near", "following you" }, float = { "float_near", "floating" }, dissolve = { "dissolve_near", "dissolving" }, toxic = { "toxic_near", "poisoned" }, dance = { "dance_near", "dancing" }, hostile = { "hostile_near", "turned on you" }, friendly = { "friendly_near", "on your side" } }
+  stun = { "stun_near", "stunned" }, launch = { "launch_near", "launched" }, follow = { "follow_near", "following you" }, float = { "float_near", "floating" }, dissolve = { "dissolve_near", "dissolving" }, toxic = { "toxic_near", "poisoned" }, dance = { "dance_near", "dancing" }, hostile = { "hostile_near", "turned on you" }, friendly = { "friendly_near", "on your side" } }
 local function select_row(row)
+  wml.log("row: " .. tostring(row.label) .. (row.options and row.options[row.sel] and (" = " .. tostring(row.options[row.sel][1])) or ""))   -- so a crash log says what was last pressed
   if M.stash then M.stash[row] = nil end   -- changed while All tweaks is off: keep the new choice
   if row.kind == "toggle" or row.kind == "action" then
     fire(row.cheat, row, row.label)
@@ -914,6 +1485,7 @@ local function select_row(row)
   elseif row.kind == "outfit" then
     local o = row.options[row.sel]
     if not o then say("No saved looks", "warn") else
+      P.look_first()
       local ok, err = wml.game([[local n, c = 0, gml_get_local_player():get_component_by_type("gml_component_character_customization")
         for _, p in vlib_info_data_object:ipairs("char_cust_player_saved_preset_data") do n = n + 1
           if n == ]] .. o[2] .. [[ then gml_customization_apply_player_preset(c, p, true, true) return end end]])
@@ -925,9 +1497,80 @@ local function select_row(row)
     elseif M.pending_confirm ~= row then M.pending_confirm = row; say(row.label .. ": " .. o[1] .. ": press again to replace your character", "warn")
     else
       M.pending_confirm = nil
+      P.look_first()
       local ok, err = wml.game([[gml_customization_apply_preset(gml_get_local_player():get_component_by_type("gml_component_character_customization"), vlib_info_object:get_object("char_cust_preset", ]] .. string.format("%q", o[2]) .. [[))]])
       say(ok and ("Now " .. o[1]) or tostring(err), ok and "status" or "warn")
     end
+  elseif row.kind == "song" then
+    local o = row.options[row.sel]
+    local ok, err = wml.game([[local pv = vlib_info_object:get_object("playlist_info", "custom_preview") playlist_remove_all_songs(pv) playlist_add_song(pv, vlib_info_object:get_object("radio_song_info", ]] .. string.format("%q", o[2]) .. [[)) playlist_play(pv)]])
+    say(ok and ("Playing " .. o[1]) or tostring(err), ok and "status" or "warn")
+  elseif row.kind == "skip_track" then
+    say(P.radio_skip())
+  elseif row.kind == "spawn_prop" then
+    say(P.spawn_prop(row.options[row.sel][2]) and ("Loading " .. row.options[row.sel][1] .. "...") or "Couldn't load that", "status")
+  elseif row.kind == "remove_prop" then
+    local n = P.remove_prop(row.last)
+    say(n == 0 and "No props to remove" or (n .. (n == 1 and " prop" or " props") .. " removed"))
+  elseif row.kind == "hq_spot" then
+    say("Now pick the prop on HQ prop")
+  elseif row.kind == "hq_prop" or row.kind == "hq_clear" then
+    local spot
+    for _, r in ipairs(all_rows()) do if r.kind == "hq_spot" then spot = r.options[r.sel] end end
+    local prop = row.kind == "hq_prop" and string.format("%q", row.options[row.sel][2]) or [[vlib_info_object:invalid("building_customization_prop_info")]]
+    local ok, err = wml.game("hq_customization_set_prop(" .. string.format("%q", spot[2]) .. ", " .. prop .. ")")
+    say(not ok and tostring(err) or (row.kind == "hq_prop" and (row.options[row.sel][1] .. " on " .. spot[1]) or (spot[1] .. " cleared")), ok and "status" or "warn")
+  elseif row.kind == "look_undo" then
+    if M.pending_confirm ~= row then M.pending_confirm = row; say(row.label .. ": press again to confirm", "warn")
+    else M.pending_confirm = nil; say(P.look_restore() and "Back to your snapshot" or "Nothing to undo", "status") end
+  elseif row.kind == "look_snap" then
+    say(P.look_snapshot() and "Snapshot taken" or "Couldn't right now", "status")
+  elseif row.kind == "body_back" then
+    P.body_back()
+    for _, r in ipairs(all_rows()) do if r.key and r.key:find("^body_") then r.sel = 1 end end
+    M.save_tweaks()
+    say("Your real body")
+  elseif row.kind == "go_to_hour" then
+    local o = row.options[row.sel]
+    say(P.go_to_hour(o[2]) and (o[1] .. " it is") or "The game won't move the clock right now", "status")
+  elseif row.kind == "console_row" then
+    say(P.console(row.handler) == 0 and (row.label .. ": done") or "The game refused", "status")
+  elseif row.kind == "outfit_any" then
+    local o = row.options[row.sel]
+    P.look_first()
+    say(P.console(0x13DE6D0, o[2]) == 0 and ("Wearing " .. o[1]) or "The game refused", "status")
+  elseif row.kind == "launch_car" then
+    local o = row.options[row.sel]
+    say(P.launch_car(o[2]) and (o[1] .. "!") or "No vehicle near", "status")
+  elseif row.kind == "revive_me" then
+    say(P.revive_me() and "Up you get" or "Couldn't right now", "status")
+  elseif row.kind == "car_effect" then
+    local o = row.options[row.sel]
+    local car = P.vehicle_object() or P.nearest_car(30)
+    if not car then say("No vehicle near", "warn")
+    else say(P.effect_on(car, o[2], 30) and (o[1] .. " for 30 s") or "That vehicle won't take it", "status") end
+  elseif row.kind == "proto_weapon" then
+    local o = row.options[row.sel]
+    if M.pending_confirm ~= row then M.pending_confirm = row; say(o[1] .. ": press again. Save first", "warn")
+    else M.pending_confirm = nil; say(P.give_prefab_weapon(o[2], o[3]) and (o[1] .. ": switch to that slot") or "The game refused", "status") end
+  elseif row.kind == "near_effect" then
+    local o = row.options[row.sel]
+    local n = P.near_effect(o[2], o[3], 40)
+    say(n == 0 and "Nobody near" or (n .. (n == 1 and " person: " or " people: ") .. o[1]))
+  elseif row.kind == "me_effect" then
+    local o = row.options[row.sel]
+    say(P.effect_on(P.object(), o[2], 30) and (o[1] .. " for 30 s") or "Couldn't right now", "status")
+  elseif row.kind == "wing_now" then
+    say(P.wingsuit_now() and "Wingsuit" or "Couldn't right now", "status")
+  elseif row.kind == "surf" then
+    local ok, why = P.surf_nearest()
+    say(ok and "Surf's up" or why, ok and "status" or "warn")
+  elseif row.kind == "surf_stop" then
+    say(P.surf_stop() and "Off the car" or "Couldn't right now", "status")
+  elseif row.kind == "send_gang" then
+    local o = row.options[row.sel]
+    P.send_gang(o[2], 3)
+    say(o[1] .. " on their way")
   elseif row.kind == "special_person" then
     local o = row.options[row.sel]
     say(P.spawn_npc(o[2], 2, 4) and (o[1] .. " spawned") or "Couldn't spawn them right now", "status")
@@ -1201,7 +1844,7 @@ local function row_value(row)
     return "Enter", "off"
   elseif row.kind == "voiceline" and not row.loaded then
     return "Enter to load", "off"
-  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" or row.kind == "crowd_act" or row.kind == "arms" or row.kind == "destroy_car" or row.kind == "kill_self" or row.kind == "car_act" or row.kind == "play_as" then
+  elseif row.kind == "active" or row.kind == "normal" or row.kind == "random_people" or row.kind == "emote_stop" or row.kind == "waypoint" or row.kind == "despawn" or row.kind == "refill_ammo" or row.kind == "unlock" or row.kind == "crowd_act" or row.kind == "arms" or row.kind == "destroy_car" or row.kind == "kill_self" or row.kind == "car_act" or row.kind == "play_as" or row.kind == "revive_me" or row.kind == "console_row" or row.kind == "look_undo" or row.kind == "look_snap" or row.kind == "body_back" or row.kind == "wing_now" or row.kind == "surf" or row.kind == "surf_stop" or row.kind == "skip_track" or row.kind == "remove_prop" or row.kind == "hq_clear" then
     return "Enter", "off"
   elseif row.kind == "page" then
     return #row.rows .. "  >", "off"
@@ -1210,7 +1853,7 @@ local function row_value(row)
   elseif row.kind == "mset" then
     local o = row.options[row.sel]
     return "<  " .. o[1] .. "  >", row.sel == 1 and "off" or "on"
-  elseif row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" or row.kind == "giveweapon" or row.kind == "voiceline" or row.kind == "gchoice" or row.kind == "weathernode" or row.kind == "cash_drop" or row.kind == "weapon_drop" or row.kind == "reaction" or row.kind == "map_place" or row.kind == "outfit" or row.kind == "look_preset" or row.kind == "call_saints" or row.kind == "prank" or row.kind == "car_ability" or row.kind == "special_person" or row.kind == "special_car" or row.kind == "mission" then
+  elseif row.kind == "launch_car" or row.kind == "go_to_hour" or row.kind == "outfit_any" or row.kind == "car_effect" or row.kind == "proto_weapon" or row.kind == "song" or row.kind == "spawn_prop" or row.kind == "hq_spot" or row.kind == "hq_prop" or row.kind == "near_effect" or row.kind == "me_effect" or row.kind == "send_gang" or row.kind == "lift" or row.kind == "warp" or row.kind == "deliver" or row.kind == "homie" or row.kind == "emote" or row.kind == "emote_slot" or row.kind == "giveweapon" or row.kind == "voiceline" or row.kind == "gchoice" or row.kind == "weathernode" or row.kind == "cash_drop" or row.kind == "weapon_drop" or row.kind == "reaction" or row.kind == "map_place" or row.kind == "outfit" or row.kind == "look_preset" or row.kind == "call_saints" or row.kind == "prank" or row.kind == "car_ability" or row.kind == "special_person" or row.kind == "special_car" or row.kind == "mission" then
     local o = row.options[row.sel]
     return o and ("<  " .. o[1] .. "  >") or "none", o and "row" or "off"
   elseif row.kind == "gcall" then
@@ -1542,6 +2185,14 @@ end
 local frame = 0
 function M.update()
   frame = frame + 1
+  -- Skip intro: the logos are the "legal" screen; these are what its skip key calls.
+  if P.skip_intro and not M.intro_done then
+    if C.loaded then M.intro_done = true
+    else
+      local ok, r = wml.game([[if vint_document_find("legal") ~= 0 then legal_input_skip() legal_screen_autosave_complete() return true end]])
+      if ok and r then M.intro_done = true; wml.log("skipped the intro at frame " .. frame) end
+    end
+  end
   local buttons = wml.pad() or 0
   local pressed = buttons & ~pad_prev
   -- RB alone (pressed and let go without D-pad Down) changes tab.
@@ -1570,7 +2221,7 @@ function M.update()
   end
   if C.loaded and frame % 30 == 20 and (P.car_on() or M.car_was_on) then P.update_car(); M.car_was_on = P.car_on()
   end
-  if P.keep_repaired and C.loaded and frame % 60 == 30 and C.by_name.vehicle_health then C.activate("vehicle_health") end
+  if P.keep_repaired and C.loaded and frame % 60 == 30 and C.by_name.vehicle_health and P.vehicle_object() then C.activate("vehicle_health") end
   if C.loaded and frame % 15 == 10 and P.vgod_active() then P.update_vehicle() end
   if C.loaded and frame % 30 == 25 and P.regen_active() then P.update_regen() end
   if Cam.any_on() then Cam.update(frame) end
@@ -1623,7 +2274,25 @@ function M.update()
   if C.loaded and frame % 30 == 7 and P.car_active() then P.update_car_extras() end
   if C.loaded and P.cam_delay ~= (M.cam_delay_was or false) then P.update_cam_delay(); M.cam_delay_was = P.cam_delay end
   if C.loaded and P.walk_style ~= (M.walk_was or false) then P.update_walk(); M.walk_was = P.walk_style end
-  if C.loaded and P.clip_active() then P.update_clip() end
+  if C.loaded and P.clip_active() then P.update_clip(M.open) end
+  if C.loaded and frame % 60 == 41 and P.poison_active() then P.update_poison() end
+  if C.loaded and P.free_cam_active() then P.update_free_cam(M.open) end
+  if C.loaded and P.wing_pending() then P.update_wing() end
+  if P.prop_release_pending() then P.update_prop_release() end
+  if C.loaded then WS.update_lift(P); WS.update_boost(P) end
+  if C.loaded and frame % 60 == 49 and P.tunes_active() then P.update_tunes() end
+  if C.loaded and (P.blast_size ~= M.bs_was or P.blast_force ~= M.bf_was or P.blast_damage ~= M.bd_was) then P.update_blast(); M.bs_was, M.bf_was, M.bd_was = P.blast_size, P.blast_force, P.blast_damage end
+  if C.loaded and frame % 30 == 53 then P.update_switches(); P.update_enemy_aim() end
+  if C.loaded and frame % 60 == 55 and P.war_active() then P.update_war() end
+  if C.loaded and (P.game_speed or M.speed_was) and frame % 30 == 16 then P.update_speed(); M.speed_was = P.game_speed end
+  if C.loaded and (P.force_combat or M.combat_was) and frame % 60 == 46 then P.update_force_combat(); M.combat_was = P.force_combat end
+  if C.loaded and (P.warp_map or M.warp_was) and frame % 15 == 8 then P.update_warp(); M.warp_was = P.warp_map end
+  if C.loaded and (P.friendly_fire or M.ff_was) and frame % 60 == 44 then P.update_friendly_fire(); M.ff_was = P.friendly_fire end
+  if C.loaded and frame % 120 == 47 and P.body_active() then P.update_body() end
+  if C.loaded and P.prop_pending() then
+    local r = P.update_prop()
+    if r then say(r == "spawned" and "Prop spawned" or ("Prop " .. r), r == "spawned" and "status" or "warn") end
+  end
   if C.loaded and frame % 30 == 12 then P.update_gravity() end
   if C.loaded and frame % 30 == 17 and (P.tires or P.tires_set) then P.update_tires() end
   if C.loaded and frame % 30 == 22 and (P.spring ~= 1 or M.spring_was) then P.update_spring(); M.spring_was = P.spring ~= 1 end

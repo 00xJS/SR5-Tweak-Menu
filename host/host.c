@@ -364,6 +364,9 @@ typedef DWORD (WINAPI *xget_t)(DWORD, xstate_t *);
 // (GetAsyncKeyState, its own XInput), so it isn't affected.
 static volatile uint8_t g_block_vk[256];
 static volatile int g_block_pad;
+static volatile int g_pad_mask;            // buttons kept from the game
+static volatile int g_pad_no_triggers;     // and its triggers
+static volatile int g_pad_no_lstick;       // and its left stick
 
 typedef UINT (WINAPI *raw_data_t)(HRAWINPUT, UINT, LPVOID, PUINT, UINT);
 typedef BOOL (WINAPI *peek_t)(LPMSG, HWND, UINT, UINT, UINT);
@@ -433,6 +436,9 @@ static DWORD WINAPI my_game_xget(DWORD user, xstate_t *st)
 {
     DWORD r = g_game_xget(user, st);
     if (r == 0 && st && g_block_pad) st->buttons = 0;   // the sticks and triggers still reach the game
+    if (r == 0 && st) st->buttons &= (WORD)~g_pad_mask;
+    if (r == 0 && st && g_pad_no_triggers) st->lt = st->rt = 0;
+    if (r == 0 && st && g_pad_no_lstick) st->lx = st->ly = 0;
     if (r == 0 && st && g_autofire && !g_block_pad && st->rt > 30 && autofire_phase()) st->rt = 0;
     return r;
 }
@@ -499,6 +505,7 @@ static int l_block_input(lua_State *s)
     return 0;
 }
 
+static int l_aoe_scale(lua_State *s);
 static xget_t g_xget;
 static int l_pad(lua_State *s)
 {
@@ -512,7 +519,17 @@ static int l_pad(lua_State *s)
     xstate_t st;
     if (!g_xget || g_xget(0, &st) != 0 || !game_focused()) return 0;
     lua_pushinteger(s, st.buttons); lua_pushinteger(s, st.lt); lua_pushinteger(s, st.rt);
-    return 3;
+    lua_pushinteger(s, st.lx); lua_pushinteger(s, st.ly); lua_pushinteger(s, st.rx); lua_pushinteger(s, st.ry);
+    return 7;
+}
+// pad_mask(buttons [, triggers [, left stick]]): these buttons, and the triggers and
+// left stick if asked, don't reach the game until it's called again.
+static int l_pad_mask(lua_State *s)
+{
+    g_pad_mask = (int)luaL_checkinteger(s, 1);
+    g_pad_no_triggers = lua_toboolean(s, 2);
+    g_pad_no_lstick = lua_toboolean(s, 3);
+    return 0;
 }
 
 // ------------------------------------------------------------------ settings, log, callbacks
@@ -573,7 +590,7 @@ static void start_lua(void)
         { "block_input", l_block_input }, { "auto_fire", l_auto_fire },
         { "on_frame", l_on_frame }, { "game", l_game }, { "call", l_call }, { "callf", l_callf },
         { "buffer", l_buffer }, { "read_string", l_read_string },
-        { "pad", l_pad }, { "f2u", l_f2u }, { "u2f", l_u2f },
+        { "pad", l_pad }, { "pad_mask", l_pad_mask }, { "aoe_scale", l_aoe_scale }, { "f2u", l_f2u }, { "u2f", l_u2f },
         { NULL, NULL }
     };
     luaL_newlib(L, api);
@@ -691,9 +708,36 @@ static const uint8_t FRAME_FN_PROLOGUE[16] = {
     0x8D, 0x41, 0xFF,               // lea eax, [rcx-1]
 };
 
+// Every explosion's area of effect goes through +973E80 with byte +0x110 set the one time it
+// goes off: scaled there, on that component only, so this is safe on a job thread.
+typedef void (*aoe_fn_t)(char *, void *);
+static aoe_fn_t g_aoe_orig;
+static volatile float g_aoe_radius = 1, g_aoe_force = 1, g_aoe_damage = 1;
+static void my_aoe(char *c, void *ctx)
+{
+    if (c[0x110]) {
+        *(float *)(c + 0x40) *= g_aoe_radius;
+        *(float *)(c + 0x00) *= g_aoe_force;
+        *(float *)(c + 0x04) *= g_aoe_force;
+        *(float *)(c + 0x70) *= g_aoe_damage;
+        *(float *)(c + 0x74) *= g_aoe_damage;
+    }
+    g_aoe_orig(c, ctx);
+}
+static int l_aoe_scale(lua_State *s)
+{
+    g_aoe_radius = (float)luaL_checknumber(s, 1);
+    g_aoe_force = (float)luaL_checknumber(s, 2);
+    g_aoe_damage = (float)luaL_checknumber(s, 3);
+    lua_pushboolean(s, g_aoe_orig != NULL);
+    return 1;
+}
+static const uint8_t AOE_PROLOGUE[15] = { 0x48, 0x89, 0x5C, 0x24, 0x18, 0x48, 0x89, 0x54, 0x24, 0x10, 0x55, 0x56, 0x57, 0x41, 0x54 };
+
 static void install_hooks(void)
 {
     g_frame_orig = (frame_fn_t)detour(RVA_FRAME_FN, FRAME_FN_PROLOGUE, sizeof FRAME_FN_PROLOGUE, (void *)my_frame_fn, "the main loop's frame call");
+    g_aoe_orig = (aoe_fn_t)detour(0x973E80, AOE_PROLOGUE, sizeof AOE_PROLOGUE, (void *)my_aoe, "explosions");
 }
 
 // ------------------------------------------------------------------ DirectInput proxy
