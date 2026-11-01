@@ -93,13 +93,13 @@ Weapons back to normal
 
 ### Vehicles
 
-- **Get a vehicle:** From my garage, Keep earlier spawns, Spawn vehicle, Special vehicle, Vehicle type, Any vehicle, Any vehicle version, Save vehicle to garage, Remove spawned vehicles
+- **Get a vehicle:** From my garage, Spawn vehicle, Special vehicle, Vehicle type, Any vehicle, Any vehicle version, Keep earlier spawns, Get in when spawned, Get in nearest, Get out, Remove spawned vehicles
 - **Speed and boost:** Engine power, Vehicle top speed, Vehicle speed limit, Air drag, Vehicle gravity, Vehicle time, Boat speed, Boost tank, Boost refill, Boost power, Boost now
 - **Grip, brakes and steering:** Grip, Off-road grip, Front grip, Rear grip, Brakes, Steering, Drift angle, Burnout, Tank steering, Bike lean, Downforce
 - **Body and weight:** Suspension, Ride height, Vehicle size, Wheel size, Weight balance, Heavy vehicle, Bouncy car, Slippery body, Twitchy body, Spin drag, Auto-flip
 - **Toughness:** Vehicle god mode, No collision damage, Bulletproof tires, Keep vehicle repaired, Engine catches fire, Fire burn speed, Crash force, Floats on water, Never sink, Destroy this vehicle
 - **Aircraft and hover:** Aircraft speed, VTOL boost, Helicopter agility, Helicopter lift, Flight mode, Hover rise and lower, Hover top speed, Hover height, Hover jump, Hover guns
-- **Upgrades and parts:** Vehicle upgrade, Upgrade level, Rims, Tires, Off-road kit anywhere, Part slot, Part
+- **Upgrades and parts:** Vehicle upgrade, Upgrade level, Rims, Tires, Off-road kit anywhere, Part slot, Part, Save vehicle to garage
 - **Paint:** Next paint, Any paint, Paint area, Paint colour, Pattern area, Pattern, Any colour: material, Any colour
 - **Lights and sound:** Underglow preset, Underglow colour, Underglow brightness, Headlights on, Brake lights stay on, Always tire marks, Always tire smoke, Any horn, Any engine sound
 - **Abilities:** Vehicle ability, Fire that ability, Stop that ability, Remove that ability, No ability cooldowns, Vehicle jump power, Crab steering strength, Air control strength, Honk blast strength, Ejector cannon, Hoverboard slam
@@ -145,7 +145,7 @@ Go to waypoint, Go to travel point, Go to store, Go to map place, Go up, Auto-te
 
 - **Camera:** Field of view, Camera distance, Shoulder camera, Turn speed, Camera shake, Looping camera shake, Camera bobbing, Camera through walls, Photo mode, Free camera
 - **Driving camera:** Car camera resets after, Free camera in cars, Car camera follows the nose, Car camera field of view, Car camera distance
-- **HUD:** Hide HUD, Minimap size, Crosshair size, HUD style, High contrast, All caps text, Fake objective
+- **HUD:** Hide HUD, Minimap size, Crosshair size, HUD style, High contrast, Takedown outlines, All caps text, Fake objective
 - **Screen effects:** Brightness, Low health screen, Letterbox, Screen tint, Tunnel vision, Radial blur, Depth of field, Aim blur, Shift view, Colour vision filter, Camera effects
 - **What's drawn:** Stop drawing, Show only people, Blackout, Blacklight world, World material, Censor mosaic, Video on screens, Video off
 - **Sun, moon and stars:** Sun size, Moon size, Sun speed, Sun position, Sun colour, Moon colour, Star brightness, Star colour

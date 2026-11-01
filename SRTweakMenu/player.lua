@@ -2462,43 +2462,44 @@ function P._hover_keep(X, addr)
   if X.hover_orig[addr] == nil then X.hover_orig[addr] = wml.read_f32(addr) end
   return X.hover_orig[addr]
 end
--- The board has no aim state and its controls never send "weapon fire", so the shot's made directly: weapon_do_shot_type
--- (+1C083C0: gun, section, start and end in world ints, spread, target, shot type, recoil), from 3 m ahead of the camera to where
--- it looks, at the gun's own refire (component +0x7B8, ms). No ammo is used, and no muzzle flash or sound comes with it.
-function P.hover_shoot(X)
-  local B = wml.base
-  X.hover_gun_wait = (X.hover_gun_wait or 0) - 1
-  if X.hover_gun_wait <= 0 then
-    local ok, s = wml.game("return tostring(gml_get_local_player_weapon())")
-    X.hover_gun = ok and tonumber((s or ""):match("object (%x+)") or "", 16)
-    X.hover_gun_wait = 20
-    X.hover_comp, X.hover_shot = nil, nil
-    if X.hover_gun and X.hover_gun ~= 0 then
-      local buf = wml.buffer(10)
-      wml.write_u32(buf, X.hover_gun)
-      local entry = wml.call(B + 0x1C1F420, buf)
-      X.hover_comp = entry ~= 0 and wml.call(B + 0x49F8A0, entry) or nil
-      if X.hover_comp == 0 then X.hover_comp = nil end
-      if X.hover_comp then
-        local list, n = wml.read_u64(X.hover_comp + 0x138), wml.read_u16(X.hover_comp + 0x140)
-        for i = 0, n - 1 do
-          if wml.read_u32(list + i * 24) == 817162218 then X.hover_shot = wml.read_u32(list + i * 24 + 8) end
+-- The board's controls never send "weapon fire", so the trigger's pressed for it: weapon_activate_section (+1C07870) and _deactivate (+1C078F0),
+-- as the gun's own script does. Flash, sound, ammo and hits all come with it, and the game's fire script aims at where the camera looks.
+-- A gun that fires once a pull stops counting (+0x1CE8), so it's pulled again. A direct weapon_do_shot_type left no marks on a car or a person.
+function P._gun_of_hand()
+  local ok, s = wml.game("return tostring(gml_get_local_player_weapon())")
+  local id = ok and tonumber((s or ""):match("object (%x+)") or "", 16)
+  if not id or id == 0 then return nil end
+  local buf = wml.buffer(10)
+  wml.write_u32(buf, id)
+  local entry = wml.call(wml.base + 0x1C1F420, buf)
+  local comp = entry ~= 0 and wml.call(wml.base + 0x49F8A0, entry) or 0
+  if comp == 0 then return nil end
+  return id, comp
+end
+function P._hover_fire(X, on)
+  if on then
+    if not X.hover_firing then
+      local id, comp = P._gun_of_hand()
+      if id then
+        P.node(0x1C07870, 0x2AF7468, { { u = id }, { u = 0 } })
+        X.hover_firing, X.hover_fire_comp, X.hover_fire_n, X.hover_fire_wait = id, comp, wml.read_u32(comp + 0x1CE8), 15
+      end
+    else
+      X.hover_fire_wait = X.hover_fire_wait - 1
+      if X.hover_fire_wait <= 0 then
+        X.hover_fire_wait = 15
+        local n = wml.read_u32(X.hover_fire_comp + 0x1CE8)
+        if n == X.hover_fire_n then
+          P.node(0x1C078F0, 0x2AF5558, { { u = X.hover_firing }, { u = 0 } })
+          P.node(0x1C07870, 0x2AF7468, { { u = X.hover_firing }, { u = 0 } })
         end
+        X.hover_fire_n = n
       end
     end
+  elseif X.hover_firing then
+    P.node(0x1C078F0, 0x2AF5558, { { u = X.hover_firing }, { u = 0 } })
+    X.hover_firing, X.hover_fire_comp = nil, nil
   end
-  if not X.hover_comp then return end
-  local now = wml.read_u32(B + 0x2E80878)
-  if X.hover_next and now < X.hover_next then return end
-  X.hover_next = now + math.max(60, wml.read_u32(X.hover_comp + 0x7B8))
-  local function s32(x) return x >= 0x80000000 and x - 0x100000000 or x end
-  local cx, cy, cz = s32(wml.read_u32(B + 0x41E1AB0)), s32(wml.read_u32(B + 0x41E1AB4)), s32(wml.read_u32(B + 0x41E1AB8))
-  local f = B + 0x41E1AC0 + 0x20
-  local fx, fy, fz = wml.read_f32(f), wml.read_f32(f + 4), wml.read_f32(f + 8)
-  local function at(d)
-    return { math.floor(cx + fx * d * 10000) & 0xFFFFFFFF, math.floor(cy + fy * d * 10000) & 0xFFFFFFFF, math.floor(cz + fz * d * 10000) & 0xFFFFFFFF }
-  end
-  P.node(0x1C083C0, 0x2AF94F8, { { u = X.hover_gun }, { u = 0 }, { i = at(3) }, { i = at(300) }, { f = 0.0 }, { u = wml.read_u32(B + 0x48E778C) }, { u = X.hover_shot or 0xD57E1B94 }, { u = 1 } })
 end
 function P.update_hover(menu_open)
   local B, X, v = wml.base, SR5TM_EXTRA, P.vehicle_object()
@@ -2509,6 +2510,7 @@ function P.update_hover(menu_open)
     P._hover_row_set(a and v, P.hover_guns)
     X.hover_row_on = P.hover_guns and true or nil
     X.hover_equipped = nil
+    P._hover_fire(X, false)
     if not P.hover_guns and X.hover_reticle then
       wml.game("hud_reticle_set_visible(true, true, false)")
       X.hover_reticle = nil
@@ -2518,6 +2520,7 @@ function P.update_hover(menu_open)
   if not a then
     if X.hover_seen then P._restore_hover(X) end
     X.hover_equipped = nil
+    P._hover_fire(X, false)
     -- getting off mid-flight: the lift ceiling is everyone's, so it goes back here too
     X.hover_flying = nil
     if X.hover_ceiling then wml.write_f32(B + 0x2EB2504, X.hover_ceiling); X.hover_ceiling = nil end
@@ -2578,7 +2581,8 @@ function P.update_hover(menu_open)
     wml.write_f32(B + 0x2EB2504, 5000)      -- the height where lift brakes, 400 m
     if l1 and wml.read_f32(l1 + 0x658) > 0 then
       -- the locomotion's own lift state, m/s2, along the board's up, leaving horizontal speed alone
-      if not low then wml.write_f32(l1 + 0x4D0, math.max(-25, math.min(25, (want - vy) * 4))) end
+      -- what holds that speed (measured: 10.2 m/s2 held 3.45 m/s, about 3 for each m/s), plus a push to get there
+      if not low then wml.write_f32(l1 + 0x4D0, math.max(-60, math.min(60, want * 3 + (want - vy) * 4))) end
     elseif not low then
       local dv = math.max(-0.5, math.min(0.5, (want - vy) * 0.08))
       if math.abs(dv) > 0.02 then P.node(0x192F280, 0x2ABBA60, { { u = id }, { v = { 0, dv, 0 } }, { u = none } }) end
@@ -2628,7 +2632,7 @@ function P.update_hover(menu_open)
       wml.game("hud_reticle_set_visible(false, true, false)")
       X.hover_reticle = true
     end
-    if rt and rt > 40 then P.hover_shoot(X) end
+    P._hover_fire(X, rt and rt > 40)
   end
 end
 -- Aircraft and boats, which the Handling rows can't reach: aerial locomotion 0x15, water 0x16. Originals per component.
@@ -2644,12 +2648,14 @@ local VEH_TUNE = {
   water_float = { 6, { 0xD8, 0xDC } },
   engine_fire = { 0x8A, { 0x2F0 }, set = true },
   brake_torque = { 0x12, { 0x1AC, 0x36C }, flag = true },   -- each axle's most brake torque, set with Brakes
+  brake_lock = { 0x12, { 0x428 } },                         -- how long the wheels take to lock, the value read each frame
 }
 SR5TM_VEH_ORIG = SR5TM_VEH_ORIG or {}
 function P._update_veh_tune()
   local v = P.vehicle_object()
   if not v then return end
   P.brake_torque = P.car.brake ~= 1 and P.car.brake or false
+  P.brake_lock = P.car.brake ~= 1 and 1 / P.car.brake or false
   -- Off-road grip: the off-road profiles are shared records, so this is every vehicle's, put back by address.
   local XO = SR5TM_EXTRA
   if (P.offroad_grip or false) ~= (XO.offroad_grip or false) then
@@ -4344,6 +4350,7 @@ function P.update_car_watch()
   car_watch.frames = car_watch.frames - 1
   if id ~= car_watch.was and id ~= 0 then
     P.spawned_cars[#P.spawned_cars + 1] = id
+    if P.get_in_spawned then P._enter_wait = { id = id, frames = 45 } end
     if car_watch.name then P.spawn_note = { car_watch.name .. " is next to you", "status" } end
     car_watch = nil
   elseif car_watch.frames <= 0 then

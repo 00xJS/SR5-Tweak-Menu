@@ -73,7 +73,7 @@ function P.car_apply(src, key, val)
   end
   return P._car_lua(string.format("vehicle_material_set_texture_choice(%s, %s, %d)", CUST, key, val), "Pattern on")
 end
--- Any colour on one material's colour params. R, G, B in 0..1 is a guess (M): if every colour comes out white, use 0..255.
+-- Any colour on one material's colour params. R, G, B run 0 to 255: read live, 1.0 comes out nearly black.
 P.car_rgb_mat = 0
 function P.car_rgb(col)
   return P._car_lua(string.format([[local c = %s
@@ -123,40 +123,29 @@ function P.car_guns(v)
   end
   return out
 end
--- Each gun shoots at its own refire from where it sits to where the camera looks. Recoil input 0: +1C01680 is for a held gun.
+-- Holding the button pulls each gun's trigger, as hover guns do: weapon_activate_section, _deactivate on letting go, or on getting out. The barrel doesn't turn.
 P.wheel_guns = false
 function P.update_wheel_guns(menu_open)
   local B, X, v = wml.base, SR5TM_EXTRA, P.vehicle_object()
-  if not v then X.wheel_list, X.wheel_id = nil, nil; return end
+  local function stop()
+    for _, g in ipairs(X.wheel_firing or {}) do P.node(0x1C078F0, 0x2AF5558, { { u = g }, { u = 0 } }) end
+    X.wheel_firing = nil
+  end
+  if not v then stop(); X.wheel_list, X.wheel_id = nil, nil; return end
   local id = wml.read_u32(v + 0x58)
   X.wheel_wait = (X.wheel_wait or 0) - 1
   if X.wheel_id ~= id or X.wheel_wait <= 0 then
+    if X.wheel_id ~= id then stop() end
     X.wheel_list, X.wheel_id, X.wheel_wait = P.car_guns(v), id, 120
   end
   local b = wml.pad() or 0
-  if menu_open or not ((b & 0x80) ~= 0 or wml.key_down("G")) then return end
-  local function s32(x) return x >= 0x80000000 and x - 0x100000000 or x end
-  local now = wml.read_u32(B + 0x2E80878)
-  local f = B + 0x41E1AC0 + 0x20
-  local cx, cy, cz = s32(wml.read_u32(B + 0x41E1AB0)), s32(wml.read_u32(B + 0x41E1AB4)), s32(wml.read_u32(B + 0x41E1AB8))
-  local tx, ty, tz = cx + wml.read_f32(f) * 3000000, cy + wml.read_f32(f + 4) * 3000000, cz + wml.read_f32(f + 8) * 3000000   -- 300 m
-  local none = wml.read_u32(B + 0x48E778C)
-  local function int3(x, y, z) return { math.floor(x) & 0xFFFFFFFF, math.floor(y) & 0xFFFFFFFF, math.floor(z) & 0xFFFFFFFF } end
+  if menu_open or not ((b & 0x80) ~= 0 or wml.key_down("G")) then stop(); return end
+  if X.wheel_firing then return end
+  X.wheel_firing = {}
   for _, g in ipairs(X.wheel_list) do
-    if wml.read_u32(g.entry + 0x58) == g.id and (not g.next or now >= g.next) then
-      g.next = now + math.max(60, wml.read_u32(g.comp + 0x7B8))
-      local gx, gy, gz = s32(wml.read_u32(g.entry + 0x30)), s32(wml.read_u32(g.entry + 0x34)), s32(wml.read_u32(g.entry + 0x38))
-      local dx, dy, dz = tx - gx, ty - gy, tz - gz
-      local len = math.sqrt(dx * dx + dy * dy + dz * dz)
-      if len > 0 then
-        local k = 20000 / len   -- 2 m out, past the vehicle's own body
-        local shot = 0xD57E1B94
-        local list, n = wml.read_u64(g.comp + 0x138), wml.read_u16(g.comp + 0x140)
-        for i = 0, n - 1 do
-          if wml.read_u32(list + i * 24) == 817162218 then shot = wml.read_u32(list + i * 24 + 8) end
-        end
-        P.node(0x1C083C0, 0x2AF94F8, { { u = g.id }, { u = 0 }, { i = int3(gx + dx * k, gy + dy * k, gz + dz * k) }, { i = int3(tx, ty, tz) }, { f = 0.0 }, { u = none }, { u = shot }, { u = 0 } })
-      end
+    if wml.read_u32(g.entry + 0x58) == g.id then
+      P.node(0x1C07870, 0x2AF7468, { { u = g.id }, { u = 0 } })
+      X.wheel_firing[#X.wheel_firing + 1] = g.id
     end
   end
 end
@@ -345,6 +334,55 @@ function P._update_flight_mode(v)
     wml.write_u32(a + 0x438, row)
     for s = 0, 3 do if bits & (1 << s) ~= 0 then wml.call(B + 0xB77F10, c, s, 1) end end
   end
+end
+
+-- Getting in and out, by the station manager (comp 0xD) as its nodes do. The request: +0 who, +4 which seat, +8 -1, +C how it's chosen (0 that seat,
+-- 1 best free), +10 flags: going in, 1 teleport, 8 scripted, 0x100 teleport if it can't walk there; going out, 1 teleport, 2 scripted.
+local function station_request(fn, st, who, seat, how, flags)
+  local b = wml.buffer(13)
+  wml.write_u32(b, who); wml.write_u32(b + 4, seat)
+  wml.write_u32(b + 8, 0xFFFFFFFF); wml.write_u32(b + 0xC, how)
+  wml.write_u32(b + 0x10, flags); wml.write_u32(b + 0x14, 0)
+  return wml.call(wml.base + fn, st, b) & 0xFF ~= 0
+end
+function P.enter_vehicle(v, instant)
+  local e, st = P.object(), P.component(0xD, v)
+  if not e or not st then return false end
+  return station_request(0x1AB0030, st, wml.read_u32(e + 0x58), 0, 0, instant and 1 or 0x100)
+end
+function P.get_out(instant)
+  local e, v = P.object(), P.vehicle_object()
+  local st = v and P.component(0xD, v)
+  if not st then return "You're not in a vehicle" end
+  return station_request(0x1AB3A10, st, wml.read_u32(e + 0x58), 0, 0, instant and 1 or 0) and "Getting out" or "The game refused"
+end
+-- Anything with seats, boards and aircraft too. The nearest with its driver's seat free comes first, or you'd pull someone out.
+function P.get_in(instant)
+  if P.vehicle_object() then return "You're already in one" end
+  local px, py, pz = P.position()
+  if not px then return "Not now" end
+  local best, bd
+  for _, o in ipairs(P._objects_near(30, 0x8A)) do
+    if P.component(0xD, o.entry) then
+      local dx, dy, dz = wml.read_u32(o.entry + 0x30), wml.read_u32(o.entry + 0x34), wml.read_u32(o.entry + 0x38)
+      local function m(v) return (v >= 0x80000000 and v - 0x100000000 or v) / 10000 end
+      local d = (m(dx) - px) ^ 2 + (m(dy) - py) ^ 2 + (m(dz) - pz) ^ 2
+      if not bd or d < bd then best, bd = o.entry, d end
+    end
+  end
+  if not best then return "No vehicle within 30 m" end
+  return P.enter_vehicle(best, instant) and "Getting in" or "The game refused"
+end
+-- Get in when spawned: a moment after the spawn check sees the car.
+P.get_in_spawned = false
+function P.update_enter_wait()
+  local w = P._enter_wait
+  if not w then return end
+  w.frames = w.frames - 1
+  if w.frames > 0 then return end
+  P._enter_wait = nil
+  local e = P.entry_of(w.id)
+  if e and wml.read_u32(e + 0x58) == w.id and not P.vehicle_object() then P.enter_vehicle(e, true) end
 end
 
 return P
