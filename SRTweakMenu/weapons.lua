@@ -248,7 +248,7 @@ function W.update_gun(force)
   local id = ok and tonumber((str or ""):match("object (%x+)") or "", 16)
   if not id or id == 0 then return end
   if id ~= gun_id then
-    gun_id, gun_orig, force = id, {}, true
+    gun_id, gun_orig, W._last, force = id, {}, {}, true
     W.gun_single = false
   end
   if not force then return end
@@ -281,11 +281,15 @@ function W.update_gun(force)
             if what == "single_shot" and section == 0 and orig ~= 0 then W.gun_single = true end
           end
           local want = wanted({ t = t, what = what, orig = orig })
-          if read(p + 8, t) ~= want then write(p + 8, t, want) end
+          -- only what this pass changed or is changing: other rows use some of the same keys
+          local last = W._last[slot]
+          if (want ~= orig or (last ~= nil and last ~= orig)) and read(p + 8, t) ~= want then write(p + 8, t, want) end
+          W._last[slot] = want
         end
       end
     end
   end
+  if not W.any_on() then gun_id, gun_orig = nil, nil end
 end
 function W.gun_active() return W.any_on() or gun_orig ~= nil end
 

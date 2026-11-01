@@ -86,7 +86,11 @@ function P.update_tp_hold()
       for i = 0, 8, 4 do wml.write_f32(c + 0x3A0 + i, 0) end
     end
   end
-  if h.ticks <= 0 or (h.ticks % 15 == 0 and h.ticks < 340 and P._ground_ready(h.at)) then tp_hold = nil end
+  if h.ticks <= 0 or (h.ticks % 15 == 0 and h.ticks < 340 and P._ground_ready(h.at)) then
+    tp_hold = nil
+    local c = h.on_foot and P.component(0x10)
+    if c then wml.write_f32(c + 0x2A8, P.no_clip and 0 or P.move.gravity) end
+  end
 end
 -- A travel point's real place: city_warp_find_object (+66A200: point, out object). Only found if that object exists now.
 function P.warp_position(name)
@@ -154,7 +158,19 @@ end
 -- object userdata (payload: its id); ids map to object table entries through
 -- *(+5CB5440) (& 0x3FFFFFFF), entries are 0x90 bytes at *(+45E8458), as the
 -- game's get_health_from_object does.
+-- Once a frame: many updates ask, and each lookup is a call into the game's Lua. P._tick is the menu's frame.
+P._tick, P._veh_tick = 0, -1
 function P.vehicle_object()
+  if P._veh_tick ~= P._tick then P._veh, P._veh_tick = P._vehicle_lookup(), P._tick end
+  return P._veh
+end
+-- An original kept per component: a pool slot is reused, so it only counts for the vehicle it came from.
+function P._car_slot(t, c, v)
+  local o = t[c]
+  if o and o.id ~= wml.read_u32(v + 0x58) then t[c] = nil; return nil end
+  return o
+end
+function P._vehicle_lookup()
   local ok, v = wml.game("local v = enemy_get_occupied_vehicle(gml_get_local_player()) if v == nil or tostring(v) == 'Invalid' then return nil end return v")
   local ud = ok and type(v) == "string" and tonumber(v:match("(%x+)>$") or "", 16)
   if not ud then return nil end
@@ -461,10 +477,11 @@ end
 P.tires = false
 P.spring = 1
 local tires_car, spring_orig = nil, {}
+P._spring_orig = spring_orig
 function P.update_tires()
   local v = P.vehicle_object()
   local c = v and P.component(0x6A, v)
-  if not c then tires_car = nil; return end
+  if not c then tires_car = nil; if not P.tires then P.tires_set = nil end; return end
   if c ~= tires_car or P.tires ~= P.tires_set then
     wml.call(wml.base + 0x1B91B60, c, P.tires and 1 or 0)
     tires_car, P.tires_set = c, P.tires
@@ -478,10 +495,12 @@ function P.update_spring()
   local arr = hv ~= 0 and wml.read_u64(hv + 0x438) or 0
   local n = wml.read_u8(c + 0x1B8) + wml.read_u8(c + 0x378)
   if arr == 0 or n == 0 or n > 12 then return end
+  local id = wml.read_u32(v + 0x58)
   local o = spring_orig[c]
+  if o and (o.id ~= id or o.n ~= n) then o = nil end
   if not o then
-    if P.spring == 1 then return end
-    o = {}
+    if P.spring == 1 then spring_orig[c] = nil; return end
+    o = { id = id, n = n }
     for i = 0, n * 3 - 1 do o[i] = wml.read_f32(arr + i * 4) end
     spring_orig[c] = o
   end
@@ -491,6 +510,7 @@ function P.update_spring()
     if wml.read_f32(arr + i * 4) ~= want then wml.write_f32(arr + i * 4, want); changed = true end
   end
   if changed then wml.write_u8(c + 0x232B, wml.read_u8(c + 0x232B) | 0x40) end
+  if P.spring == 1 then spring_orig[c] = nil end
 end
 
 -- Owning a weapon: +988830(record, 1), what buying one does; +988AA0(record)
@@ -588,14 +608,14 @@ end
 P.side_gang, P.saints_enemies = false, false
 local GANGS = { "idol", "panteros", "marshal", "police" }
 function P.update_sides()
-  if P.side_gang ~= SR5TM_SIDE_WAS then
+  if (P.side_gang or false) ~= (SR5TM_SIDE_WAS or false) then
     for _, g in ipairs(GANGS) do
       if SR5TM_SIDE_WAS == g or SR5TM_SIDE_WAS == "all" then set_side(g, "saints") end
       if P.side_gang == g or P.side_gang == "all" then set_side(g, "saints", 5) end
     end
     SR5TM_SIDE_WAS = P.side_gang
   end
-  if P.saints_enemies ~= SR5TM_ENEMIES_WAS then
+  if (P.saints_enemies or false) ~= (SR5TM_ENEMIES_WAS or false) then
     for _, f in ipairs({ "saints friendly", "saints_hq", "saints_hostile" }) do set_side(f, "saints", P.saints_enemies and 1 or nil) end
     SR5TM_ENEMIES_WAS = P.saints_enemies
   end
@@ -677,6 +697,12 @@ function P.update_perks()
   if stats and stats ~= perk_stats then
     perk_stats, perk_set, all_perks_set = stats, {}, false
     for class, m in pairs(P.perk_dial) do perk(class, m, true) end
+    -- so does what's sent once and remembered: forget it, and each row sends again
+    local X = SR5TM_EXTRA
+    for _, k in ipairs({ "no_shove", "short_takedowns", "time_stop", "flame_me", "aim_anywhere", "no_wind", "surf_safe", "ice_body", "callin_speed", "chase_speed", "satchels", "no_autosave", "hover_slam", "notoriety_min", "notoriety_max" }) do X[k] = nil end
+    P.immune = {}
+    P._switches_reset = true
+    if P.move_style and P.update_move_style then P.update_move_style() end
   end
   if (P.all_perks or false) ~= all_perks_set then
     for _, a in ipairs(ALL_PERKS) do perk(a[1], a[2], P.all_perks) end
@@ -1425,6 +1451,7 @@ end
 P.combative_peds, P.ai_combat = false, false
 local switch_was = {}
 function P.update_switches()
+  if P._switches_reset then switch_was, P._switches_reset = {}, nil end
   local list = { { "combative_peds", 0xAE21A0, 0x29EB1F8, 0xAE21E0, 0x29DB5F0 }, { "ai_combat", 0xAE9C60, 0x29E8AB0, 0xAE9C80, 0x29EB238 },
     { "always_execute", 0x69E930, 0x29ACBA0, 0x69E970, 0x29A6AF0 }, { "notoriety_uncapped", 0x706520, 0x29CDAD0, 0x706560, 0x2990690 },
     { "no_boundary", 0x9C2DD0, 0x29DBBA0, 0x9C2D90, 0x29EBF80 }, { "quiet_streets", 0x1866900, 0x2AC4950, 0x1866940, 0x2AD3C00 }, { "quiet_homies", 0xA9C870, 0x2A009C0, 0xA9C8A0, 0x29E3BE0 },
@@ -1706,9 +1733,9 @@ function P._update_ride()
   if not c then return end
   local X = SR5TM_EXTRA
   X.ride = X.ride or {}
-  local o = X.ride[c]
+  local o = P._car_slot(X.ride, c, v)
   if not o and not P.ride_height then return end
-  if not o then o = { wml.read_f32(c + 0x19C), wml.read_f32(c + 0x35C) }; X.ride[c] = o end
+  if not o then o = { wml.read_f32(c + 0x19C), wml.read_f32(c + 0x35C), id = wml.read_u32(v + 0x58) }; X.ride[c] = o end
   wml.write_f32(c + 0x19C, o[1] * (P.ride_height or 1))
   wml.write_f32(c + 0x35C, o[2] * (P.ride_height or 1))
   if not P.ride_height then X.ride[c] = nil end
@@ -2023,7 +2050,10 @@ function P._update_extras2(e)
     P.node(0xAD8B70, 0x2A17718, { { u = P.no_autosave and 0 or 1 } })
     X.no_autosave = P.no_autosave or nil
   end
-  if P.city_noise then wml.game('gml_audio_set_rtpc(nil, "Walla_Peds_Panic_Near", ' .. P.city_noise .. ')') end
+  if P.city_noise or X.city_noise then
+    wml.game('gml_audio_set_rtpc(nil, "Walla_Peds_Panic_Near", ' .. (P.city_noise or 0) .. ')')
+    X.city_noise = P.city_noise or nil
+  end
 end
 -- Sky and atmosphere: the time-of-day override store. +1B04900(index, float) and +1B049B0(index, 4 floats) set one,
 -- +1B04970 and +1B04A20 clear it; it's merged every frame. A reload drops the store, so what's on is sent again now and then.
@@ -2055,6 +2085,7 @@ local SKY_COL = {
 }
 P.sky_any = {}
 function P.sky_active()
+  if P.sky_look then return true end
   for k in pairs(SKY) do if P[k] or SR5TM_EXTRA[k] then return true end end
   for k in pairs(SKY_COL) do if P[k] or SR5TM_EXTRA[k] then return true end end
   return next(P.sky_any) ~= nil
@@ -2067,20 +2098,24 @@ function P._sky_colour(i, c)
 end
 function P.update_sky(force)
   local X, B = SR5TM_EXTRA, wml.base
+  -- Look fills in what the rows leave at Game's: a row that's set wins
+  local L = P.sky_look or {}
   for k, list in pairs(SKY) do
-    if force or P[k] ~= (X[k] or false) then
+    local val = P[k] or L[k] or false
+    if (force and val) or val ~= (X[k] or false) then
       for _, i in ipairs(list) do
-        if P[k] then wml.callf(B + 0x1B04900, i, P[k] + 0.0) else wml.call(B + 0x1B04970, i) end
+        if val then wml.callf(B + 0x1B04900, i, val + 0.0) else wml.call(B + 0x1B04970, i) end
       end
-      X[k] = P[k] or nil
+      X[k] = val or nil
     end
   end
   for k, list in pairs(SKY_COL) do
-    if force or P[k] ~= (X[k] or false) then
+    local val = P[k] or L[k] or false
+    if (force and val) or val ~= (X[k] or false) then
       for _, i in ipairs(list) do
-        if P[k] then P._sky_colour(i, P[k]) else wml.call(B + 0x1B04A20, i) end
+        if val then P._sky_colour(i, val) else wml.call(B + 0x1B04A20, i) end
       end
-      X[k] = P[k] or nil
+      X[k] = val or nil
     end
   end
   if force then for i, v in pairs(P.sky_any) do wml.callf(B + 0x1B04900, i, v + 0.0) end end
@@ -2282,6 +2317,12 @@ function P.play_anim(o)
   local id = wml.read_u32(e + 0x58)
   local tag, set, group = o[2], o[3], o[4]
   if not P._own_set(set) and not P.second_set(e, set) then return "That animation's set isn't loaded here" end
+  -- nothing carried over from the animation before: a held pose, or its group
+  if P.anim_mode ~= "hold" then local a0 = P.component(2, e); if a0 then wml.write_u32(a0 + 0x2C8, 0xFFFFFFFF) end end
+  if anim_group and (group == "default" or group:find("^default_")) then
+    P.node(0x18EA440, 0x2ABCF20, { { u = id } }); anim_group = nil
+    if P.move_style then P.update_move_style() end
+  end
   if group ~= "default" and not group:find("^default_") then
     P.node(0x18EA2C0, 0x2ABE208, { { u = id }, { p = wml.buffer(5, group) }, { u = 1 } })
     anim_group = true
@@ -2295,6 +2336,7 @@ function P.play_anim(o)
   end
   local ok, err = wml.game(string.format('gml_anim_request_action(gml_get_local_player(), "human_emote", %q, %q, "emote_priority")', P.anim_mode == "once" and "taunt" or "looping taunt", tag))
   if P.anim_speed then P._anim_speed_on(e, P.anim_speed) end
+  P._anim_on = true
   return ok and ("Playing: " .. tag) or tostring(err)
 end
 -- How fast an emote plays: the anim float "player emote speed scalar", set by +FA36A0 (state, id, value, 0, source, 0, 1) as the game's own emote pause (+A914F0) does.
@@ -2312,6 +2354,7 @@ end
 function P.stop_anim()
   local e = P.object()
   if not e then return "Not now" end
+  P._anim_on = nil
   wml.game("emote_attempt_stop()")
   -- A loop asked for by request_action isn't the emote system's, so it's stopped by its handle (gail_action_stop +1534B90). The counter's last few cover it.
   local gail = wml.call(wml.base + 0x1534D80, e)
@@ -2328,7 +2371,10 @@ function P.stop_anim()
   local a = P.component(2, e)
   if a then wml.write_u32(a + 0x2C8, 0xFFFFFFFF); wml.write_f32(a + 0x2CC, 0.3) end
   P.second_set(e, nil)
-  if anim_group then P.node(0x18EA440, 0x2ABCF20, { { u = wml.read_u32(e + 0x58) } }); anim_group = nil end
+  if anim_group then
+    P.node(0x18EA440, 0x2ABCF20, { { u = wml.read_u32(e + 0x58) } }); anim_group = nil
+    if P.move_style then P.update_move_style() end
+  end
   return "Stopped"
 end
 -- On everyone near, as the dance. Their chain doesn't hold the emotes, so the tag's set goes in +0x38.
@@ -2486,6 +2532,15 @@ function P.update_hover(menu_open)
     wml.log(string.format("hover: on %08X h %.2f %.2f grav %.2f %.2f jump %.1f %.1f kind %d seat %s top %s %s", id, wml.read_f32(a + 0x90), wml.read_f32(a + 0x15C), wml.read_f32(a + 0x9C), wml.read_f32(a + 0xA0),
       wml.read_f32(a + 0xA8), wml.read_f32(a + 0xAC), wml.read_u8(a + 0x432), c0 and tostring(wml.read_u32(c0 + 0x68C)) or "-", l0 and tostring(wml.read_f32(l0 + 0xA4)) or "-", l0 and tostring(wml.read_f32(l0 + 0xA0)) or "-"))
   end
+  -- a row changed while riding: back to the board's own first, then only what's on now
+  local hk = tostring(P.hover_fly) .. tostring(P.hover_speed) .. tostring(P.hover_height) .. tostring(P.hover_jump)
+  if X.hover_key ~= hk then
+    if X.hover_key then
+      P._restore_hover(X); X.hover_seen, X.hover_flying = id, nil
+      if X.hover_ceiling and not P.hover_fly then wml.write_f32(B + 0x2EB2504, X.hover_ceiling); X.hover_ceiling = nil end
+    end
+    X.hover_key = hk
+  end
   local buttons, lt, rt, lx, ly = wml.pad()
   if menu_open or not buttons then buttons, rt, ly = 0, 0, 0 end
   local y, dt = wml.read_u32(v + 0x34), wml.read_f32(B + 0x2E80848)
@@ -2588,31 +2643,50 @@ local VEH_TUNE = {
   boost_tank = { 0x87, { 0x160 } }, boost_refill = { 0x87, { 0x170 } }, boost_punch = { 0x87, { 0x16C, 0x164, 0x168, 0x18C } }, launch_power = { 0x87, { 0x1D0, 0x1D4, 0x1D8 } },
   water_float = { 6, { 0xD8, 0xDC } },
   engine_fire = { 0x8A, { 0x2F0 }, set = true },
+  brake_torque = { 0x12, { 0x1AC, 0x36C }, flag = true },   -- each axle's most brake torque, set with Brakes
 }
 SR5TM_VEH_ORIG = SR5TM_VEH_ORIG or {}
 function P._update_veh_tune()
   local v = P.vehicle_object()
   if not v then return end
-  for key, t in pairs(VEH_TUNE) do
+  P.brake_torque = P.car.brake ~= 1 and P.car.brake or false
+  -- Off-road grip: the off-road profiles are shared records, so this is every vehicle's, put back by address.
+  local XO = SR5TM_EXTRA
+  if (P.offroad_grip or false) ~= (XO.offroad_grip or false) then
+    local recs = P.engine_records("gml_vehicle_off_road_handling_profile")
+    for _, band in ipairs({ "m_low_modifiers", "m_high_modifiers" }) do
+      for _, axle in ipairs({ "m_front_axle", "m_rear_axle" }) do
+        local path = band .. "." .. axle .. ".m_friction_gain"
+        if XO.offroad_grip then P.engine_apply("gml_vehicle_off_road_handling_profile", recs, path, false, { "back" }) end
+        if P.offroad_grip then P.engine_apply("gml_vehicle_off_road_handling_profile", recs, path, false, { "mul", P.offroad_grip }) end
+      end
+    end
+    XO.offroad_grip = P.offroad_grip or nil
+  end
+  local vid, tune_any = wml.read_u32(v + 0x58), next(SR5TM_VEH_ORIG) ~= nil
+  if not tune_any then for key in pairs(VEH_TUNE) do if P[key] then tune_any = true; break end end end
+  if tune_any then for key, t in pairs(VEH_TUNE) do
     local c = P.component(t[1], v)
     if c then
       for _, off in ipairs(t[2]) do
         local a = c + off
+        local o = SR5TM_VEH_ORIG[a]
+        if o and (type(o) ~= "table" or o[1] ~= vid) then o = nil; SR5TM_VEH_ORIG[a] = nil end
         if P[key] then
-          SR5TM_VEH_ORIG[a] = SR5TM_VEH_ORIG[a] or wml.read_f32(a)
-          local want = t.set and P[key] or SR5TM_VEH_ORIG[a] * P[key]
+          if not o then o = { vid, wml.read_f32(a) }; SR5TM_VEH_ORIG[a] = o end
+          local want = t.set and P[key] or o[2] * P[key]
           if wml.read_f32(a) ~= want then
             wml.write_f32(a, want)
             if t.flag then wml.write_u8(c + 0x232B, wml.read_u8(c + 0x232B) | 0x10) end
           end
-        elseif SR5TM_VEH_ORIG[a] then
-          wml.write_f32(a, SR5TM_VEH_ORIG[a])
+        elseif o then
+          wml.write_f32(a, o[2])
           SR5TM_VEH_ORIG[a] = nil
           if t.flag then wml.write_u8(c + 0x232B, wml.read_u8(c + 0x232B) | 0x10) end
         end
       end
     end
-  end
+  end end
   local X, id = SR5TM_EXTRA, wml.read_u32(v + 0x58)
   local k = P.component(0x8A, v)
   if k and P.never_sink then
@@ -2621,7 +2695,7 @@ function P._update_veh_tune()
   end
   if k and (P.stay_on_bike or X.bike_bail) then
     if P.stay_on_bike then
-      X.bike_bail = X.bike_bail or { k, wml.read_u32(k + 0x3D8) }
+      if not X.bike_bail or X.bike_bail[1] ~= k then X.bike_bail = { k, wml.read_u32(k + 0x3D8) } end
       wml.write_u32(k + 0x3D8, 0)
     elseif X.bike_bail then
       if X.bike_bail[1] == k then wml.write_u32(k + 0x3D8, X.bike_bail[2]) end
@@ -2631,9 +2705,11 @@ function P._update_veh_tune()
   if P.auto_flip or X.auto_flip then
     local c = P.component(0x12, v)
     if c then
-      X.flip_orig = X.flip_orig or wml.read_u8(c + 0x2318)
-      wml.write_u8(c + 0x2318, P.auto_flip and P.auto_flip - 1 or X.flip_orig)
-      if not P.auto_flip then X.flip_orig = nil end
+      X.flip_by = X.flip_by or {}
+      local o = P._car_slot(X.flip_by, c, v)
+      if not o then o = { id = id, val = wml.read_u8(c + 0x2318) }; X.flip_by[c] = o end
+      wml.write_u8(c + 0x2318, P.auto_flip and P.auto_flip - 1 or o.val)
+      if not P.auto_flip then X.flip_by[c] = nil end
       X.auto_flip = P.auto_flip or nil
     end
   end
@@ -2645,7 +2721,13 @@ function P._update_veh_tune()
   end
   if P.tank_steer or X.tank_steer then
     local c = P.component(0x12, v)
-    if c then wml.write_u8(c + 0xBD2, P.tank_steer and 1 or 0) end
+    if c then
+      X.tank_by = X.tank_by or {}
+      local o = P._car_slot(X.tank_by, c, v)
+      if not o then o = { id = id, val = wml.read_u8(c + 0xBD2) }; X.tank_by[c] = o end
+      wml.write_u8(c + 0xBD2, P.tank_steer and 1 or o.val)
+      if not P.tank_steer then X.tank_by[c] = nil end
+    end
     X.tank_steer = P.tank_steer or nil
   end
   if (P.windshield and id or false) ~= (X.windshield or false) then
@@ -2774,6 +2856,7 @@ function P.scale_me(s)
   local e = P.object()
   if not e then return "Not now" end
   P._set_scale(wml.read_u32(e + 0x58), s)
+  P._me_scaled = s ~= 1
   return "Your size: x" .. s
 end
 function P.scale_car(s)
@@ -2855,6 +2938,10 @@ function P.update_moves(menu_open)
   if P.jetpack and jump and air then
     wml.write_f32(c + 0x3A4, P.jetpack)
     wml.write_f32(c + 0x2A8, 0.1)
+    X.jet_grav = true
+  elseif X.jet_grav then
+    wml.write_f32(c + 0x2A8, P.move.gravity)
+    X.jet_grav = nil
   end
   if P.air_dash and dash and not X.dash_was and air then X.dash_frames = 15 end
   if X.dash_frames and X.dash_frames > 0 then
@@ -2895,7 +2982,9 @@ function P._update_moon()
     X.moon_was = { P.world_gravity, P.move.gravity }
     P.world_gravity, P.move.gravity = 0.17, 0.17
   elseif X.moon_was then
-    P.world_gravity, P.move.gravity = X.moon_was[1], X.moon_was[2]
+    -- only what moon mode set: a row changed meanwhile keeps its own value
+    if P.world_gravity == 0.17 then P.world_gravity = X.moon_was[1] end
+    if P.move.gravity == 0.17 then P.move.gravity = X.moon_was[2] end
   end
   X.moon = P.moon or nil
   if P.update_tunes then P.update_tunes() end
@@ -2942,9 +3031,9 @@ function P._update_downforce()
   if not c then return end
   local X = SR5TM_EXTRA
   X.df = X.df or {}
-  local o = X.df[c]
+  local o = P._car_slot(X.df, c, v)
   if not o and not P.downforce then return end
-  if not o then o = { wml.read_f32(c + 0x1FFC), wml.read_f32(c + 0x2000) }; X.df[c] = o end
+  if not o then o = { wml.read_f32(c + 0x1FFC), wml.read_f32(c + 0x2000), id = wml.read_u32(v + 0x58) }; X.df[c] = o end
   local want = o[1] * (P.downforce or 1)
   if wml.read_f32(c + 0x1FFC) ~= want then
     wml.write_f32(c + 0x1FFC, want)
@@ -2981,9 +3070,12 @@ function P.update_extras()
   P._update_veh_tune()
   P._update_ai_bools()
   P._update_moon()
-  if P.cam_through and e then
+  if (P.cam_through or X.cam_through) and e then
     local cam = wml.call(wml.base + 0x1FCD10, wml.call(wml.base + 0x1B434C0, e + 0x58))
-    if cam ~= 0 then wml.write_u8(cam + 0x8F8, 0) end
+    if cam ~= 0 then
+      if P.cam_through then X.cam_through = X.cam_through or wml.read_u8(cam + 0x8F8); wml.write_u8(cam + 0x8F8, 0)
+      else wml.write_u8(cam + 0x8F8, X.cam_through); X.cam_through = nil end
+    end
   end
   if P.tire_smoke or X.tire_smoke then
     local v = P.vehicle_object()
@@ -3381,6 +3473,7 @@ local PROTO_HOST = { [1] = "weapon_melee_1hand_nahualli_knife", [3] = "weapon_sm
 local proto_wait
 function P.proto_pending() return proto_wait ~= nil end
 function P.give_prefab_weapon(name, slot)
+  P._proto_given = true
   if proto_wait then return false end
   local B, path = wml.base, PROTO_PATHS[name] .. name
   local cid = wml.call(B + 0xE71120, wml.buffer(5, path .. ".cprefab_pc"), PROP_GROUP, 0)
@@ -3715,9 +3808,17 @@ local rocket_wait, rocket_for = 0, nil
 local rocket_flags
 P.round_blast, P.round_stick, P.round_lob = false, false, false
 function P.rockets_waiting() return rocket_wait > 0 end
+-- Taking the gun out again rebuilds it from its record, which is what puts a round or a punch back.
+function P._reequip()
+  local e = P.object()
+  if not e or P.vehicle_object() then return end
+  local inv = wml.call(wml.base + 0x4BB340, e)
+  if inv ~= 0 then wml.call(wml.base + 0x98E720, inv, wml.read_u32(inv + 0x578), 1, 0) end
+end
 function P.update_rockets()
   local r = P.rockets
-  if not r then rocket_gun, rocket_for = nil, nil; return end
+  if not r then rocket_gun, rocket_for, P.rockets_set = nil, nil, nil; P._reequip(); return end
+  P.rockets_set = true
   if rocket_for ~= r then
     rocket_for = r
   end
@@ -3920,7 +4021,7 @@ function P.sig_active() return P.sig_key or P.sig_was end
 local melee_gun
 function P.update_explosive_melee()
   local path = P.explosive_melee
-  if not path then melee_gun = nil; return end
+  if not path then melee_gun = nil; if P._melee_on then P._melee_on = nil; P._reequip() end; return end
   if not loaded(path) then return end
   local ok, s = wml.game("return tostring(gml_get_local_player_weapon())")
   local id = ok and tonumber((s or ""):match("object (%x+)") or "", 16)
@@ -3937,7 +4038,7 @@ function P.update_explosive_melee()
   for section = 0, 3 do
     if wml.read_u16(comp + section * 0x6A0 + 0x140) > 0 then wml.call(wml.base + 0x1C001E0, comp, buf + 0x10, section, srid, name) end
   end
-  melee_gun = id
+  melee_gun, P._melee_on = id, true
 end
 
 -- Melee lunge. Animations send "correct_melee" (+9B9540): at a target, a dash limited by the weapon's
@@ -4011,7 +4112,7 @@ function P.update_recoil(force)
     for k in pairs(RECOIL) do set(k, 0) end
   elseif not P.no_recoil and recoil_orig[id] then
     for k, v in pairs(recoil_orig[id]) do set(k, v) end
-    recoil_orig[id] = nil
+    for k in pairs(recoil_orig) do recoil_orig[k] = nil end
   elseif P.no_recoil then
     -- already done for this id, but ids come back and a gun's values can be refilled
     for section = 0, 1 do
@@ -4139,11 +4240,21 @@ P.car_no_crash, P.car_heavy, P.car_gravity = false, false, 1
 local car_state = {}
 P.car_brake_lights = false
 function P.car_active() return P.car_no_crash or P.car_heavy or P.car_brake_lights or P.car_gravity ~= 1 or next(car_state) ~= nil end
+function P._car_extras_back(st)
+  local v = st.car
+  if wml.read_u32(v + 0x58) ~= st.id then return end
+  local h, w = P.component(0x44, v), P.component(0x12, v)
+  if st.crash and h then wml.write_u8(h + 0x54, st.crash) end
+  if st.heavy and w then wml.call(wml.base + 0x5A4C40, v, 0, wml.read_u8(w + 0x2310)) end
+  if st.brake then local lc = P.component(0x4F, v); if lc then wml.call(wml.base + 0x1BB22F0, lc, 0) end end
+  if st.gravity and st.gravity ~= 1 then local b = wml.buffer(13); wml.write_f32(b, 1); wml.call(wml.base + 0x486C10, v, 0, 6, 0, b) end
+end
 function P.update_car_extras()
   local v = P.vehicle_object()
   local h, w = v and P.component(0x44, v), v and P.component(0x12, v)
-  if not h then car_state = {}; return end
-  if car_state.car ~= v then car_state = { car = v } end
+  if car_state.car and car_state.car ~= v then P._car_extras_back(car_state); car_state = {} end
+  if not h then return end
+  if car_state.car ~= v then car_state = { car = v, id = wml.read_u32(v + 0x58) } end
   local st = car_state
   if P.car_no_crash then
     if not st.crash then st.crash = wml.read_u8(h + 0x54) end
@@ -4193,7 +4304,24 @@ end
 -- Spawned cars: the drop-car cheat's callback leaves the new car's id in +3C2261C.
 P.spawned_cars = {}
 local car_watch
-function P.watch_spawned_car() car_watch = { was = wml.read_u32(wml.base + 0x3C2261C), frames = 600 } end
+function P.watch_spawned_car(name) car_watch = { was = wml.read_u32(wml.base + 0x3C2261C), frames = 300, name = name } end
+-- Keep earlier spawns: the drop-car cheat deletes whatever id it holds at +3C2261C (+660E61), so it's given "none" first, with the
+-- reference count that assignment makes (+660EBB). At most 10 are kept, oldest removed.
+P.keep_spawns = false
+function P.keep_prior_spawn()
+  if not P.keep_spawns then return end
+  local B = wml.base
+  local none, cur = wml.read_u32(B + 0x3C1F3F8), wml.read_u32(B + 0x3C2261C)
+  if cur == none then return end
+  while #P.spawned_cars >= 10 do
+    local id = table.remove(P.spawned_cars, 1)
+    local e = P.entry_of(id)
+    if e and e ~= P.vehicle_object() and wml.read_u32(e + 0x58) == id then wml.call(B + 0x1E6920, e + 0x58) end
+  end
+  local refs = wml.read_u64(B + 0x2EB2330)
+  wml.write_u32(refs + none * 4, wml.read_u32(refs + none * 4) + 1)
+  wml.write_u32(B + 0x3C2261C, none)
+end
 -- The minimap is one script thread (Vdo_minimap:minimap_update_thread): one Lua error ends it until the HUD next loads, the map stuck on
 -- its last picture. This only notes when that happens, for working out why. Restarting it from here crashed the game, so it doesn't.
 local minimap_wait, minimap_dead = 0, false
@@ -4214,8 +4342,14 @@ function P.update_car_watch()
   if not car_watch then return end
   local id = wml.read_u32(wml.base + 0x3C2261C)
   car_watch.frames = car_watch.frames - 1
-  if id ~= car_watch.was and id ~= 0 then P.spawned_cars[#P.spawned_cars + 1] = id; car_watch = nil
-  elseif car_watch.frames <= 0 then car_watch = nil end
+  if id ~= car_watch.was and id ~= 0 then
+    P.spawned_cars[#P.spawned_cars + 1] = id
+    if car_watch.name then P.spawn_note = { car_watch.name .. " is next to you", "status" } end
+    car_watch = nil
+  elseif car_watch.frames <= 0 then
+    if car_watch.name then P.spawn_note = { car_watch.name .. ": no car came. Try somewhere with more room", "warn" } end
+    car_watch = nil
+  end
 end
 function P.remove_spawned_cars()
   local mine, n = P.vehicle_object(), 0
@@ -4324,6 +4458,7 @@ local function held_gun()
       local c = e ~= 0 and wml.call(wml.base + 0x49F8A0, e) or 0
       if c ~= 0 then gun_comp = c end
     end
+    P._held_id = id
   end
   return gun_comp
 end
@@ -4352,6 +4487,8 @@ function P._footballs(fn)
   end
 end
 local throw_frame, throw_held = 0, false
+-- Holding the trigger keeps throwing: the host pulses it as for Full auto, each press and release as long as one throw (its ms is a half-pulse). No Throw speed, no pulse.
+function P.throw_pulse_ms() return P.throw_rate and throw_held and math.max(60, math.floor(P.throw_rate / 2)) or false end
 function P.update_thrustbuster()
   local T = SR5TM_THROW
   throw_frame = throw_frame + 1
@@ -4363,6 +4500,8 @@ function P.update_thrustbuster()
   P._throw_flag(P.throw_rate and true or false)
   local c = throw_held and held_gun()
   if c then
+    T.ids = T.ids or {}
+    if T.ids[c] ~= P._held_id then T.delay[c], T.ids[c] = nil, P._held_id end
     if P.throw_rate then
       if not T.delay[c] then T.delay[c] = wml.read_u32(c + 0x7B8) end
       wml.write_u32(c + 0x7B8, math.max(100, P.throw_rate))
@@ -4390,13 +4529,18 @@ function P.update_thrustbuster()
     end
     T.was_power = power and true or nil
   end
-  T.was_on = (P.throw_rate or P.throw_warmup or P.throw_fuse or P.throw_power) and true or nil
+  -- a gun that was sped up keeps this running until it's been put back, which needs it in your hand
+  T.was_on = (P.throw_rate or P.throw_warmup or P.throw_fuse or P.throw_power or next(T.delay)) and true or nil
 end
 function P.update_refire(x)
   if type(x) ~= "number" then x = 1 end
   if x == 1 and next(SR5TM_REFIRE) == nil then return end
+  if x ~= 1 then gun_wait = 0 end   -- which gun it is, fresh each frame while on
   local c = held_gun()
   if not c then return end
+  SR5TM_REFIRE_ID = SR5TM_REFIRE_ID or {}
+  if SR5TM_REFIRE_ID[c] ~= P._held_id then SR5TM_REFIRE[c], SR5TM_REFIRE_ID[c] = nil, P._held_id end
+  if x ~= 1 and throw_held and (P.throw_rate or next(SR5TM_THROW.delay)) then return end
   if x ~= 1 then
     -- -1 means the gun hasn't initialized its section yet: never keep that as the original
     -- (dividing it gave a delay of days, and off wrote it back). Read again until it's real.
@@ -4406,7 +4550,7 @@ function P.update_refire(x)
       SR5TM_REFIRE[c] = o < 0x7FFFFFFF and o or nil
     end
     -- No faster than 20 shots a second: the first floor, 16 ms, took the game down.
-    if o < 0x7FFFFFFF then wml.write_u32(c + 0x7B8, math.max(50, math.floor(o / x))) end
+    if o < 0x7FFFFFFF then wml.write_u32(c + 0x7B8, math.max(P.rockets and 250 or 50, math.floor(o / x))) end
     if P.refire_gate ~= false then wml.write_u8(c + 0x7C4, wml.read_u8(c + 0x7C4) | 0x20) end
     -- a line a second while firing: the real rate, and the last thing before a crash
     refire_frames = refire_frames + 1
@@ -4590,10 +4734,12 @@ end
 -- use; originals are kept per block. +1B67C30(component, block, 1) pushes a
 -- block into the live physics, for the categories whose flag is set: it's
 -- called after each change.
-P.car = { power = 1, top = 1, grip = 1, steer = 1 }
+P.car = { power = 1, top = 1, grip = 1, steer = 1, brake = 1 }
 local BLOCK, PLAYER_BLOCK, IN_USE, APPLY = 0x8BC, 0x1DD8, 0x1DE8, 0x1B67C30
 local CAR = {
   power = { offs = { 0x5C }, flag = 0x60 }, top = { offs = { 0x74 }, flag = 0x78 },
+  -- how long the wheels take to lock under full brakes: less is a harder stop, so this one divides
+  brake = { offs = { 0x68 }, flag = 0x6C, div = true },
   grip = { offs = { 0x04, 0x0C }, flag = 0x10 }, steer = { offs = { 0x2C, 0x30 }, flag = 0x48 },
 }
 local car_orig = {}   -- [block address] = { [block offset] = original value or flag }
@@ -4606,9 +4752,11 @@ function P.update_car()
   if used == 0 or used == c + BLOCK then b = c + BLOCK
   elseif used == wml.read_u64(c + PLAYER_BLOCK) then b = used
   else return end   -- a mission's own handling
+  local vid = wml.read_u32(v + 0x58)
   local o = car_orig[b]
+  if o and o.id ~= vid then o = nil end
   if not o then
-    o = {}
+    o = { id = vid }
     for _, cat in pairs(CAR) do
       for _, off in ipairs(cat.offs) do o[off] = wml.read_f32(b + off) end
       o[cat.flag] = wml.read_u8(b + cat.flag)
@@ -4618,7 +4766,7 @@ function P.update_car()
   local changed, restored = false, {}
   for key, cat in pairs(CAR) do
     for _, off in ipairs(cat.offs) do
-      local want = o[off] * P.car[key]
+      local want = cat.div and o[off] / P.car[key] or o[off] * P.car[key]
       if wml.read_f32(b + off) ~= want then
         wml.write_f32(b + off, want)
         changed = true
@@ -4632,8 +4780,10 @@ function P.update_car()
     -- back to the game's: its own flag again, once the originals are pushed
     for _, flag in ipairs(restored) do wml.write_u8(b + flag, o[flag]) end
   end
+  o.dirty = P.car_on() or nil
 end
 function P.car_on() for _, v in pairs(P.car) do if v ~= 1 then return true end end return false end
+function P.car_pending() for _, o in pairs(car_orig) do if o.dirty then return true end end return false end
 
 -- Movement (experimental): component 0x10, in the reflection's order but 0x10 lower:
 -- +0x35C in-air gain, +0x364 swimming gain. (These rows first wrote 0x1F, which is
@@ -4752,6 +4902,7 @@ function P.send_wave(v)
 end
 -- Bigger squads: on-foot waves x m, each wave at most 16. Originals kept once.
 function P.bigger_squads(m)
+  P._squads_x = m
   local B, X = wml.base, SR5TM_EXTRA
   if not X.squads then
     X.squads = {}
@@ -4989,6 +5140,7 @@ function P.payout(v)
       for _, f in ipairs({ a, a + 4 }) do
         if SR5TM_ENGINE[f] == nil then SR5TM_ENGINE[f] = { true, wml.read_u32(f) } end
         wml.write_u32(f, math.floor(SR5TM_ENGINE[f][2] * v[2]))
+        if v[2] == 1 then SR5TM_ENGINE[f] = nil end
       end
       n = n + 1
     end
@@ -4998,6 +5150,7 @@ end
 -- Level curve: XP needed for each level x m. Originals kept for the session.
 SR5TM_LEVELS = SR5TM_LEVELS or {}
 function P.level_curve(m)
+  P._curve_x = m
   local cfg = wml.read_u64(wml.base + 0x5BE5548)
   if cfg == 0 then return "Not now" end
   local arr, n = wml.read_u64(cfg + 0x40), wml.read_u16(cfg + 0x48)
@@ -5034,10 +5187,12 @@ end
 -- Video in the world. One at a time; a new one stops the last.
 function P.video_on(name)
   P.node(0x1936D40, 0x2ACFEF8, { { p = wml.buffer(5, name) }, { u = 1 }, { f = 1.0 } })
+  P._video_playing = true
   return "Video: " .. name .. ". Only some screens show it"
 end
 function P.video_off()
   P.node(0x1936EB0, 0x2ABD7C8, {})
+  P._video_playing = nil
   return "Video stopped"
 end
 -- Fake objective on the mission HUD. v: { title, text, seconds or false }; "done" and "clear" end it.

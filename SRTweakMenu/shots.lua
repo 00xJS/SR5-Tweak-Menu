@@ -44,7 +44,6 @@ local function land(x, y, z)
   P.teleport(x, y, z, true)
   local c = not P.vehicle_object() and P.component(0x10)
   if c then   -- no fall carried over, as the hold does
-    wml.write_f32(c + 0x2A8, 0)
     for i = 0, 8, 4 do wml.write_f32(c + 0x3A0 + i, 0) end
   end
 end
@@ -163,8 +162,9 @@ end
 -- ------------------------------------------------------------------ the rows that wait for a shot
 local shot_comp, shot_n = nil, 0
 P.prop_gun = false        -- a prop name: every shot throws it (Shoot prop below)
-function P.shot_rows_on() return P.shot_teleport or P.homing or P.prop_gun or #hm.list > 0 end
+function P.shot_rows_on() return P.shot_teleport or P.homing or P.prop_gun or #hm.list > 0 or portal.a or portal.b end
 function P.update_shot_rows()
+  if P.shot_teleport ~= "portal" and (portal.a or portal.b) then P.portal_clear() end
   local c = held_gun()
   if c then
     local n = wml.read_u32(c + 0x1CE8)
@@ -434,6 +434,67 @@ function P.hold_like(donor)
   local inv = wml.call(B + 0x4BB340, e)
   if inv ~= 0 then wml.call(B + 0x98E720, inv, wml.read_u32(inv + 0x578), 1, 0) end
   return "Done"
+end
+
+-- ------------------------------------------------------------------ what a saved row can't show
+-- Rows pressed with Enter change the game and keep no setting, so What's on and Everything back to normal ask here.
+local function count(t) local n = 0; for _ in pairs(t or {}) do n = n + 1 end; return n end
+function P.changes_on()
+  local X, on = SR5TM_EXTRA, {}
+  local n = count(SR5TM_ENGINE)
+  if n > 0 then on[#on + 1] = "Game data " .. n end
+  if P.scene_pick then on[#on + 1] = "Street scene" end
+  if P._squads_x and P._squads_x ~= 1 then on[#on + 1] = "Bigger squads x" .. P._squads_x end
+  if next(SR5TM_ELITES or {}) then on[#on + 1] = "Elite enemies early" end
+  if next(P.forever or {}) then on[#on + 1] = "Lasting effects" end
+  if next(SR5TM_HIDES or {}) then on[#on + 1] = "Clothes hide each other: No" end
+  if P._curve_x and P._curve_x ~= 1 then on[#on + 1] = "XP per level x" .. P._curve_x end
+  if next(SR5TM_HOLD or {}) then on[#on + 1] = "Hold gun like" end
+  if dual.rec then on[#on + 1] = "Dual wield" end
+  if hole then on[#on + 1] = "Black hole" end
+  if portal.a or portal.b then on[#on + 1] = "Portals" end
+  if P._video_playing then on[#on + 1] = "Video" end
+  if next(P.perk_dial or {}) then on[#on + 1] = "Any perk" end
+  if next(P.immune or {}) then on[#on + 1] = "Immune" end
+  if next(P.sky_any or {}) then on[#on + 1] = "Any sky" end
+  if #(P.skin_handles or {}) > 0 then on[#on + 1] = "Skin effects" end
+  if SR5TM_MY_ID then on[#on + 1] = "Playing as someone" end
+  if P.stuck then on[#on + 1] = "Stuck car" end
+  if P._me_scaled then on[#on + 1] = "Your size" end
+  return on
+end
+-- Each is the row's own way back, and each alone in a pcall: one that fails doesn't stop the rest.
+function P.back_to_normal()
+  local B, X = wml.base, SR5TM_EXTRA
+  local function try(f, ...) local ok, err = pcall(f, ...); if not ok then wml.log("back to normal: " .. tostring(err)) end end
+  try(P.engine_undo_all)
+  if P.scene_pick or next(SR5TM_SCENES or {}) then try(P.scene_set, "off") end
+  if X.squads then try(P.bigger_squads, 1) end
+  if next(SR5TM_ELITES or {}) then try(P.elites_early, false) end
+  if next(P.forever or {}) then try(P.forever_off) end
+  if next(SR5TM_HIDES or {}) then try(P.no_hide_rules, false) end
+  if next(SR5TM_LEVELS or {}) then try(P.level_curve, 1) end
+  for info, o in pairs(SR5TM_HOLD or {}) do
+    for i = 0, 2 do wml.write_u32(info + 0x5F0 + i * 4, o[i + 1]) end
+    SR5TM_HOLD[info] = nil
+  end
+  if dual.rec then
+    wml.write_u8(dual.rec + 0x64, dual.flag)
+    wml.write_u32(B + 0x5CCA254, dual.global)
+    dual.rec, dual.wait = nil, nil
+  end
+  hole = nil
+  try(P.portal_clear)
+  if P._video_playing then try(P.video_off) end
+  if P._me_scaled then try(P.scale_me, 1) end
+  try(P.perks_off); try(P.sky_clear_any); try(P.skins_off); try(P.set_prank, nil)
+  local immune = {}
+  for name in pairs(P.immune or {}) do immune[#immune + 1] = name end
+  for _, name in ipairs(immune) do try(P.toggle_immune, name) end
+  if SR5TM_MY_ID then try(P.back_to_self) end
+  if P.stuck then try(P.unstick) end
+  if P._anim_on then try(P.stop_anim) end
+  try(P.move_like, "off")
 end
 
 return P
