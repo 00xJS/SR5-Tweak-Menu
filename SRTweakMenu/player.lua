@@ -1313,6 +1313,7 @@ function P.gangs_active() return P.gang_presence or next(SR5TM_GANGS) ~= nil end
 -- traffic spawns (rewritten on a change of district, so kept up).
 local TUNES = {
   fight_damage = { { ptr = 0x5BE34A8, off = 0x98 } }, back_stab = { { ptr = 0x5BE34A8, off = 0x60 } },
+  stagger_cd = { { ptr = 0x5BE34A8, off = 0x84 }, { ptr = 0x5BE34A8, off = 0x88 } },
   no_flinch = { { ptr = 0x5BE34A8, off = 0x78 } }, dodge_ms = { { ptr = 0x5BE34A8, off = 0x7E, u16 = true } },
   own_blast = { { ptr = 0x5BE34A8, off = 0x9C } }, rain_crowd = { { ptr = 0x5BE7EC8, off = 0x4C }, { ptr = 0x5BE7EC8, off = 0x54 } },
   traffic_far = { { addr = 0x2E7FB7C } }, peds_far = { { addr = 0x2E7FB08 } },
@@ -2045,10 +2046,11 @@ local SKY = {
   sky_vignette = { 324 },
 }
 local SKY_COL = {
-  sky_col_sky = { 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 },
+  -- the gradient (5 to 18) only shows without the game's scattering sky; the secondary fog albedo (22) is what tints the sky you see
+  sky_col_sky = { 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 22 },
   sky_col_sun = { 3 },
   sky_col_moon = { 4 },
-  sky_col_fog = { 21, 22 },
+  sky_col_fog = { 21 },
   sky_col_stars = { 23 },
 }
 P.sky_any = {}
@@ -2292,12 +2294,37 @@ function P.play_anim(o)
     return "Holding: " .. tag
   end
   local ok, err = wml.game(string.format('gml_anim_request_action(gml_get_local_player(), "human_emote", %q, %q, "emote_priority")', P.anim_mode == "once" and "taunt" or "looping taunt", tag))
+  if P.anim_speed then P._anim_speed_on(e, P.anim_speed) end
   return ok and ("Playing: " .. tag) or tostring(err)
+end
+-- How fast an emote plays: the anim float "player emote speed scalar", set by +FA36A0 (state, id, value, 0, source, 0, 1) as the game's own emote pause (+A914F0) does.
+function P._anim_speed_on(e, v)
+  local B = wml.base
+  local a = P.component(2, e)
+  local st = a and wml.read_u64(a + 0xF8) or 0
+  if st == 0 then return false end
+  local b = wml.buffer(13)
+  wml.write_u32(b, crc_of("player emote speed scalar"))
+  local id = wml.call(B + 0xF62FB0, b) & 0xFFFF
+  wml.callf(B + 0xFA36A0, st, id, v + 0.0, 0, wml.buffer(5, "Emote System"), 0, 1)
+  return true
 end
 function P.stop_anim()
   local e = P.object()
   if not e then return "Not now" end
   wml.game("emote_attempt_stop()")
+  -- A loop asked for by request_action isn't the emote system's, so it's stopped by its handle (gail_action_stop +1534B90). The counter's last few cover it.
+  local gail = wml.call(wml.base + 0x1534D80, e)
+  if gail ~= 0 then
+    local b, last = wml.buffer(13), wml.read_u32(gail + 0x1214)
+    wml.write_u32(b, wml.read_u32(e + 0x58))
+    for h = last, math.max(1, last - 6), -1 do
+      wml.write_u32(b + 8, h)
+      wml.call(wml.base + 0x1534B90, gail, b, b + 8)
+    end
+    -- and it only lets go once something else is asked for: a short one-shot, after which you're back to standing
+    wml.game('gml_anim_request_action(gml_get_local_player(), "human_emote", "taunt", "level up", "emote_priority")')
+  end
   local a = P.component(2, e)
   if a then wml.write_u32(a + 0x2C8, 0xFFFFFFFF); wml.write_f32(a + 0x2CC, 0.3) end
   P.second_set(e, nil)
@@ -2430,6 +2457,7 @@ end
 function P.update_hover(menu_open)
   local B, X, v = wml.base, SR5TM_EXTRA, P.vehicle_object()
   local a = v and P.component(0x88, v)
+  if a and wml.read_u8(a + 0x432) ~= 1 then a = nil end   -- a helicopter has this component too; these rows are for what hovers
   -- the slot mask stays on for as long as the row is, on or off the board
   if (P.hover_guns and true or false) ~= (X.hover_row_on or false) then
     P._hover_row_set(a and v, P.hover_guns)
@@ -2444,6 +2472,9 @@ function P.update_hover(menu_open)
   if not a then
     if X.hover_seen then P._restore_hover(X) end
     X.hover_equipped = nil
+    -- getting off mid-flight: the lift ceiling is everyone's, so it goes back here too
+    X.hover_flying = nil
+    if X.hover_ceiling then wml.write_f32(B + 0x2EB2504, X.hover_ceiling); X.hover_ceiling = nil end
     return
   end
   if X.hover_seen ~= id then
@@ -2674,27 +2705,54 @@ function P._engine_addr(class, rec, path)
   local ok, ud = wml.game(string.format("return vlib_info_object:get_object(%q, %q).%s", class, rec, path))
   return ok and ud and V.field_addr(ud) or nil
 end
-function P.engine_read(class, rec, path, is_int)
-  local a = P._engine_addr(class, rec, path)
-  if not a then return nil end
-  return is_int and wml.read_u32(a) or wml.read_f32(a)
+-- A field's kind: false a float, true a whole number, "flag" one byte on or off.
+function P._engine_rw(kind)
+  if kind == "flag" then return wml.read_u8, wml.write_u8 end
+  if kind then return wml.read_u32, wml.write_u32 end
+  return wml.read_f32, wml.write_f32
 end
--- how: { "mul", n }, { "set", n } or { "back" }
-function P.engine_apply(class, recs, path, is_int, how)
+-- A field in a list has [] in its path: how many items, and the path at one of them. Lists inside lists stay on their first.
+function P.engine_list_size(class, rec, path)
+  local list = path:match("^(.-)%[%]")
+  if not list then return 0 end
+  local ok, n = wml.game(string.format("return vlib_info_object:get_object(%q, %q).%s:array_size()", class, rec, list))
+  return ok and type(n) == "number" and math.floor(n) or 0
+end
+function P._engine_at(path, i)
+  return (path:gsub("%[%]", "[" .. i .. "]", 1):gsub("%[%]", "[0]"))
+end
+function P.engine_read(class, rec, path, kind, item)
+  local a = P._engine_addr(class, rec, P._engine_at(path, item or 0))
+  if not a then return nil end
+  local v = P._engine_rw(kind)(a)
+  if kind == "flag" then return v ~= 0 and "on" or "off" end
+  return v
+end
+-- how: { "mul", n }, { "set", n } or { "back" }. On a flag x anything flips it and 0 or 1 sets it. item: which in a list, nil for all of them.
+function P.engine_apply(class, recs, path, kind, how, item)
   local n = 0
+  local read, write = P._engine_rw(kind)
   for _, rec in ipairs(recs) do
-    local a = P._engine_addr(class, rec, path)
-    if a then
-      local read = is_int and wml.read_u32 or wml.read_f32
-      local write = is_int and wml.write_u32 or wml.write_f32
-      if SR5TM_ENGINE[a] == nil then SR5TM_ENGINE[a] = { is_int, read(a) } end
-      local o = SR5TM_ENGINE[a][2]
-      if how[1] == "back" then write(a, o); SR5TM_ENGINE[a] = nil
-      else
-        local v = how[1] == "mul" and o * how[2] or how[2]
-        write(a, is_int and math.floor(v) or v)
+    local paths = { path }
+    if path:find("[]", 1, true) then
+      paths = {}
+      if item then paths[1] = P._engine_at(path, item)
+      else for i = 0, math.min(P.engine_list_size(class, rec, path), 512) - 1 do paths[#paths + 1] = P._engine_at(path, i) end end
+    end
+    for _, p in ipairs(paths) do
+      local a = P._engine_addr(class, rec, p)
+      if a then
+        if SR5TM_ENGINE[a] == nil then SR5TM_ENGINE[a] = { kind, read(a) } end
+        local o = SR5TM_ENGINE[a][2]
+        if how[1] == "back" then write(a, o); SR5TM_ENGINE[a] = nil
+        elseif kind == "flag" then
+          if how[1] == "mul" then write(a, read(a) ~= 0 and 0 or 1) else write(a, how[2] ~= 0 and 1 or 0) end
+        else
+          local v = how[1] == "mul" and o * how[2] or how[2]
+          write(a, kind and math.floor(v) or v)
+        end
+        n = n + 1
       end
-      n = n + 1
     end
   end
   return n
@@ -2702,7 +2760,7 @@ end
 function P.engine_undo_all()
   local n = 0
   for a, o in pairs(SR5TM_ENGINE) do
-    if o[1] then wml.write_u32(a, o[2]) else wml.write_f32(a, o[2]) end
+    select(2, P._engine_rw(o[1]))(a, o[2])
     SR5TM_ENGINE[a] = nil
     n = n + 1
   end
@@ -2971,6 +3029,10 @@ function P.update_extras()
     end
   end
   -- game_render_shader_constants by name (+19369D0 a float, +1936B50 a colour)
+  if (P.anim_speed or false) ~= (X.anim_speed or false) then
+    local e = P.object()
+    if e and P._anim_speed_on(e, P.anim_speed or 1) then X.anim_speed = P.anim_speed or nil end
+  end
   if (P.blacklight or false) ~= (X.blacklight or false) then
     P.node(0x19369D0, 0x2AC8C80, { { u = crc_of("blacklight_activation") }, { f = P.blacklight and 1.0 or 0.0 } })
     X.blacklight = P.blacklight or nil
@@ -3233,6 +3295,9 @@ local PROP_DIRS = {
   ["crib-placeable-dustfaire-paper-airplane_01a"] = "dlc_exp_02_dusty", ["crib-placeable-storm-giant-bones_01a"] = "dlc_exp_02_dusty", ["crib-placeable-saving-roll_01a"] = "dlc_exp_02_dusty", ["prop_lp02-paint-balloon_01a_spawnable"] = "dlc_exp_02_dusty", ["prop_speaker-large_01a_spawn"] = "dlc_exp_02_dusty",
 }
 local PROP_PATHS = {
+turret_standalone_ring_marshall_01 = [[data\sr_city\spawnables\gameplay\prefabs\combat\marshall\]],
+turret_standalone_ring_panteros_01 = [[data\sr_city\spawnables\gameplay\prefabs\combat\panteros\]],
+turret_standalone_ring_nahualli = [[data\sr_vanguard\spawnables\vehicles\prefabs\]],
   boot_hill_act_doc_ketchum_stage = [[data\dlc_boothill\spawnables\gameplay\prefabs\activities\boot_hill\]],
   heist_rodeo_stage_scene_01 = [[data\sr_city\spawnables\gameplay\prefabs\activities\heist\]],
   laundromat_rodeo_ramp_01 = [[data\sr_city\spawnables\gameplay\prefabs\activities\laundromat\]],
@@ -4129,6 +4194,22 @@ end
 P.spawned_cars = {}
 local car_watch
 function P.watch_spawned_car() car_watch = { was = wml.read_u32(wml.base + 0x3C2261C), frames = 600 } end
+-- The minimap is one script thread (Vdo_minimap:minimap_update_thread): one Lua error ends it until the HUD next loads, the map stuck on
+-- its last picture. This only notes when that happens, for working out why. Restarting it from here crashed the game, so it doesn't.
+local minimap_wait, minimap_dead = 0, false
+function P.update_minimap_watch()
+  minimap_wait = minimap_wait - 1
+  if minimap_wait > 0 then return end
+  minimap_wait = 300
+  local ok, dead = wml.game([[local m = Minimap_instance
+    return type(m) == "table" and m.update_thread_h ~= INVALID_THREAD and thread_check_done(m.update_thread_h)]])
+  dead = ok and dead == true
+  if dead and not minimap_dead then
+    local ok2, x, z = wml.game("return Minimap_properties.offset_x, Minimap_properties.offset_z")
+    wml.log("minimap: its thread has ended, last updated at " .. tostring(ok2 and x) .. " " .. tostring(ok2 and z))
+  end
+  minimap_dead = dead
+end
 function P.update_car_watch()
   if not car_watch then return end
   local id = wml.read_u32(wml.base + 0x3C2261C)
@@ -4245,6 +4326,71 @@ local function held_gun()
     end
   end
   return gun_comp
+end
+-- Thrustbuster. What holds a throw back: the refire delay (1.9 s, gun +0x7B8) and the throw clip, as the football leaves at its
+-- "release" trigger and the state stays Firing until it ends. gml_weapon_info m_no_fire_anim throws and returns to Ready at once.
+-- The game keeps 20 live and drops the oldest, however fast they go. Each football's timers are whole ms made once from its floats,
+-- so both are written while it's new: warm-up +0xE8, explode +0xEC, pre +0xF4, on you +0xF0 and +0xF8. Thrust is read at every push.
+P.throw_rate, P.throw_warmup, P.throw_fuse, P.throw_power = false, false, false, false
+SR5TM_THROW = SR5TM_THROW or { delay = {} }
+function P._throw_flag(on)
+  local T = SR5TM_THROW
+  if T.flag_on == on then return end
+  for _, rec in ipairs({ "weapon_special_thrustbuster", "weapon_special_thrustbuster_boothill" }) do
+    local a = P._engine_addr("gml_weapon_info", rec, "m_no_fire_anim")
+    if a then wml.write_u8(a, on and 1 or 0) end
+  end
+  T.flag_on = on
+end
+function P._footballs(fn)
+  local pool = wml.read_u64(wml.base + POOLS) + 0xB4 * 0xD0
+  local cap, a, b, base, stride = wml.read_u32(pool + 0xA8), wml.read_u64(pool + 0x40), wml.read_u64(pool + 0x48), wml.read_u64(pool + 0x28), wml.read_u32(pool + 0xB4)
+  if a == 0 or b == 0 or base == 0 then return end
+  for i = 0, cap - 1 do
+    local bit = 1 << (i & 7)
+    if wml.read_u8(a + (i >> 3)) & bit ~= 0 and wml.read_u8(b + (i >> 3)) & bit ~= 0 then fn(base + i * stride) end
+  end
+end
+local throw_frame, throw_held = 0, false
+function P.update_thrustbuster()
+  local T = SR5TM_THROW
+  throw_frame = throw_frame + 1
+  if not (P.throw_rate or P.throw_warmup or P.throw_fuse or P.throw_power or T.was_on) then return end
+  if throw_frame % 15 == 1 then
+    local _, inf = wml.game("return tostring(player_local_inventory_get_item_info(player_local_inventory_get_active_slot()))")
+    throw_held = tostring(inf):find("thrustbuster", 1, true) ~= nil
+  end
+  P._throw_flag(P.throw_rate and true or false)
+  local c = throw_held and held_gun()
+  if c then
+    if P.throw_rate then
+      if not T.delay[c] then T.delay[c] = wml.read_u32(c + 0x7B8) end
+      wml.write_u32(c + 0x7B8, math.max(100, P.throw_rate))
+      wml.write_u8(c + 0x7C4, wml.read_u8(c + 0x7C4) | 0x20)
+    elseif T.delay[c] then
+      wml.write_u32(c + 0x7B8, T.delay[c]); T.delay[c] = nil
+    end
+  end
+  if throw_frame % 2 == 0 then
+    local warm, fuse, power = P.throw_warmup, P.throw_fuse, P.throw_power
+    if warm or fuse or power or T.was_power then
+      local m = power or 1
+      P._footballs(function(f)
+        if warm then wml.write_u32(f + 0xE8, warm); wml.write_f32(f + 0x8C, warm / 1000) end
+        if fuse then
+          wml.write_u32(f + 0xEC, fuse); wml.write_u32(f + 0xF0, fuse)
+          local pre = math.max(0, fuse - 1000)
+          wml.write_u32(f + 0xF4, pre); wml.write_u32(f + 0xF8, pre)
+          wml.write_f32(f + 0x90, fuse / 1000); wml.write_f32(f + 0x98, fuse / 1000)
+        end
+        if power or T.was_power then
+          wml.write_f32(f + 0x6C, 4000 * m); wml.write_f32(f + 0x70, 40 * m); wml.write_f32(f + 0x74, 40 * m); wml.write_f32(f + 0x78, 180 * m)
+        end
+      end)
+    end
+    T.was_power = power and true or nil
+  end
+  T.was_on = (P.throw_rate or P.throw_warmup or P.throw_fuse or P.throw_power) and true or nil
 end
 function P.update_refire(x)
   if type(x) ~= "number" then x = 1 end
@@ -4547,5 +4693,371 @@ function P.save_here()
   return place
 end
 
+-- Backlog: people, world and clothing
+-- Street scenes: only this scene, in any active profile that lists it. Originals by address.
+P.scene_pick = false
+SR5TM_SCENES = SR5TM_SCENES or {}
+function P.scene_set(name)
+  P.scene_pick = name ~= "off" and crc_of(name) or false
+  P.update_scenes()
+  return P.scene_pick and ("Scene: " .. name) or "Scenes back to the game's"
+end
+function P.scenes_active() return P.scene_pick or next(SR5TM_SCENES) ~= nil end
+function P.update_scenes()
+  local B = wml.base
+  for e, o in pairs(SR5TM_SCENES) do
+    wml.write_u32(e + 4, o[1]); wml.write_u32(e + 8, o[2]); wml.write_u32(e + 0xC, o[3]); wml.write_u32(e + 0x10, o[4])
+    SR5TM_SCENES[e] = nil
+  end
+  if not P.scene_pick then return end
+  for i = 0, math.min(wml.read_u32(B + 0x314A950), 16) - 1 do
+    local rec = wml.read_u64(B + 0x314A958 + i * 8)
+    if rec ~= 0 then
+      local arr, n, has = wml.read_u64(rec + 0x1A00), math.min(wml.read_u16(rec + 0x1A08), 128), false
+      for j = 0, n - 1 do
+        if wml.read_u32(arr + j * 0x14) == P.scene_pick then has = true end
+      end
+      for j = 0, has and n - 1 or -1 do
+        local e = arr + j * 0x14
+        SR5TM_SCENES[e] = { wml.read_u32(e + 4), wml.read_u32(e + 8), wml.read_u32(e + 0xC), wml.read_u32(e + 0x10) }
+        local me = wml.read_u32(e) == P.scene_pick
+        wml.write_f32(e + 8, me and 100.0 or 0.0); wml.write_f32(e + 0xC, me and 100.0 or 0.0)
+        if me then wml.write_u32(e + 4, 4); wml.write_u32(e + 0x10, 3) end
+      end
+    end
+  end
+end
+-- Named wave: notoriety on, then that sequence on the faction's encounter, as +6F6B80 does.
+function P.send_wave(v)
+  local B, seq, fac = wml.base, v[1], v[2]
+  P.node(0x7053A0, 0x29CBED8, { { u = 3 }, { u = fac }, { u = 0 } })
+  local b = wml.buffer(13)
+  wml.write_u32(b, fac)
+  local entry = wml.call(B + 0x6F2240, b)
+  if entry == 0 then return "That faction has no encounter" end
+  local h = wml.read_u32(entry + 0x124)
+  if h & 0xFF ~= 0x7A then return "No encounter yet: press again" end
+  local pool, slot = wml.read_u64(B + 0x5CB3F70) + 0x6320, (h >> 8) & 0x1FFFF
+  local gens = wml.read_u64(pool + 0x90)
+  if wml.read_u8(gens + slot * 2) ~= h >> 25 or wml.read_u8(gens + slot * 2 + 1) & 6 ~= 2 then return "No encounter yet: press again" end
+  local comp = wml.read_u64(pool + 0x28) + slot * wml.read_u32(pool + 0xB4)
+  wml.write_u32(b, crc_of(seq))
+  local rec = wml.call(B + 0x7DD4C0, b)
+  if rec == 0 then return "No such wave here" end
+  wml.write_u64(b + 0x10, B + 0x298EA28); wml.write_u32(b + 0x18, 0xFFFFFFFF); wml.write_u32(b + 0x1C, 0)
+  wml.call(B + 0xC2D750, comp + 0x9D0)
+  wml.write_u32(comp + 0x148C, 0)
+  wml.call(B + 0xAAC410, comp, rec, b + 0x10, 3)
+  return "Wave: " .. seq
+end
+-- Bigger squads: on-foot waves x m, each wave at most 16. Originals kept once.
+function P.bigger_squads(m)
+  local B, X = wml.base, SR5TM_EXTRA
+  if not X.squads then
+    X.squads = {}
+    local b = wml.buffer(13)
+    for _, n in ipairs(P.engine_records("enemy_wave_info")) do
+      wml.write_u32(b, crc_of(n))
+      local r = wml.call(B + 0xC4A6A0, b)
+      if r ~= 0 and wml.read_u32(r + 0x80) == wml.read_u32(B + 0x3C44910) then
+        local arr, c = wml.read_u64(r + 0x38), wml.read_u16(r + 0x40)
+        if arr ~= 0 and c > 0 and c <= 16 then
+          local o = {}
+          for j = 0, c - 1 do o[j] = wml.read_u8(arr + j * 0xC) end
+          X.squads[#X.squads + 1] = { arr = arr, c = c, o = o }
+        end
+      end
+    end
+  end
+  for _, w in ipairs(X.squads) do
+    local total = 0
+    for j = 0, w.c - 1 do total = total + w.o[j] end
+    local k = (total * m > 16) and 16 / total or m
+    if k < 1 then k = 1 end
+    for j = 0, w.c - 1 do wml.write_u8(w.arr + j * 0xC, math.floor(w.o[j] * k)) end
+  end
+  local recs = P.engine_records("encounter_config")
+  P.engine_apply("encounter_config", recs, "m_disable_enemy_type_limits", "flag", m > 1 and { "set", 1 } or { "back" })
+  return #X.squads .. " waves at x" .. m
+end
+-- Elites early: every locked enemy type unlocked. Back restores the ones this did.
+SR5TM_ELITES = SR5TM_ELITES or {}
+function P.elites_early(on)
+  local B, n, b = wml.base, 0, wml.buffer(13)
+  if on then
+    for _, name in ipairs(P.engine_records("enemy_type")) do
+      local h = crc_of(name)
+      wml.write_u32(b, h)
+      local t = wml.call(B + 0x48C380, b)
+      local d = t ~= 0 and wml.call(B + 0xAA04D0, t) or 0
+      if d ~= 0 and wml.read_u8(d + 0x38) ~= 0 then
+        SR5TM_ELITES[h] = true
+        P.node(0xAB4480, 0x29FCE68, { { u = h }, { u = 1 } })
+        n = n + 1
+      end
+    end
+    return n .. " enemy types unlocked"
+  end
+  for h in pairs(SR5TM_ELITES) do
+    P.node(0xAB4480, 0x29FCE68, { { u = h }, { u = 0 } })
+    SR5TM_ELITES[h] = nil
+    n = n + 1
+  end
+  return n .. " locked again"
+end
+-- Status for six hours, on you or everyone near.
+P.forever = {}
+function P.forever_me(name)
+  local e = P.object()
+  if not e or not P.effect_on(e, name, 21600) then return "Not now" end
+  P.forever[name] = true
+  return "On you: " .. name
+end
+function P.forever_near(name)
+  P.forever[name] = true
+  return each_near(40, function(p) P.effect_on(p.entry, name, 21600) end) .. " people: " .. name
+end
+function P.forever_off()
+  local me, list, n = P.object(), P.people_near(40), 0
+  if me then list[#list + 1] = { entry = me } end
+  for name in pairs(P.forever) do
+    local h = crc_of(name)
+    for _, p in ipairs(list) do
+      local cid, oid = comp_ref(0x7B, p.entry)
+      if cid then P.node(0x76ABB0, 0x298A498, { { c = cid, o = oid }, { u = h } }); n = n + 1 end
+    end
+  end
+  P.forever = {}
+  return n > 0 and "Taken off you and everyone near" or "Nothing on"
+end
+-- Everyone near down for at least `secs`.
+function P.knock_near(secs)
+  local b, bits = wml.buffer(13), string.unpack("<I4", string.pack("<f", secs))
+  for i = 0, 8, 4 do wml.write_f32(b + 0x10 + i, 0) end
+  return each_near(40, function(p)
+    wml.write_u32(b, wml.read_u32(p.entry + 0x58))
+    wml.call(wml.base + 0x5B0DE0, b, b + 0x10, 0, 3, bits)
+  end) .. " people down for " .. secs .. " s"
+end
+-- Always sprint, on foot: the same write and call as the game's sprint press.
+P.always_sprint = false
+function P.update_sprint()
+  local B = wml.base
+  if P.vehicle_object() then return end
+  local c = P.component(0x10)
+  if not c or wml.read_u8(c + 0x349) ~= 0 then return end
+  if wml.call(B + 0x14AA0B0, B + 0x29F1FC0) & 0xFF ~= 0 then return end
+  wml.write_u8(c + 0x349, 1)
+  wml.call(B + 0x142C270, c)
+end
+-- Item material: on the slot picked with Material slot. Reports whether it took.
+P.mat_slot = false
+function P.mat_slot_pick(name) P.mat_slot = name; return "Material goes on: " .. name end
+function P.item_material(name)
+  if not P.mat_slot then return "Pick Material slot first" end
+  P.look_first()
+  local ok, r = wml.game(string.format([[local c = gml_get_local_player():get_component_by_type("gml_component_character_customization")
+    local s = vlib_info_object:get_object("char_cust_slot", %q)
+    local i = gml_customization_get_slot_index(c, s)
+    local m = vlib_info_object:get_object("char_cust_material", %q)
+    if not m.m_material_changeable:get_bool() then return "That material can't go on clothes" end
+    gml_customization_set_material_override(c, i, m)
+    if gml_customization_get_material_override(c, i, gml_customization_get_slotted_wearable(c, s)) == m then return "On" end
+    return "It didn't take on that item"]], P.mat_slot, name))
+  return tostring(r)
+end
+-- No hide rules: items stop hiding other slots. Counts only; undo writes them back.
+SR5TM_HIDES = SR5TM_HIDES or {}
+function P.no_hide_rules(on)
+  local n = 0
+  if not on then
+    for a, v in pairs(SR5TM_HIDES) do wml.write_u16(a, v); SR5TM_HIDES[a] = nil; n = n + 1 end
+    return n .. " hide lists back"
+  end
+  for i, name in ipairs(P.engine_records("char_cust_sub_slot")) do
+    local a = P._engine_addr("char_cust_sub_slot", name, "m_slot_camera_zoom")
+    if a then
+      local rec = a - 0x44
+      for _, off in ipairs({ 0x50, 0x68 }) do
+        if SR5TM_HIDES[rec + off] == nil then SR5TM_HIDES[rec + off] = wml.read_u16(rec + off) end
+        wml.write_u16(rec + off, 0)
+      end
+      n = n + 1
+    end
+  end
+  return n .. " hide lists off: put an item on to see it"
+end
+-- World idles. Set -> a small prefab that carries it (nil: always loaded). Kept loaded for the session.
+P._idle_prefabs = {
+  ped_world_mime = [[data\dlc_exp_01_lucky\spawnables\props\prefabs\vignette_busker_sunshine]],
+  ped_world_hoolahoop = [[data\sr_city\spawnables\gameplay\prefabs\flashpoints\idols\idols_flashpoint_g2_01]],
+  interaction_sit = [[data\sr_city\spawnables\props\prefabs\prop_chair-patio_04a_spawn]],
+  ped_world_cigarette_smoking = [[data\sr_city\spawnables\gameplay\prefabs\vignette\vignette_taxi_ride_share]],
+  ped_world_air_guitar = [[data\sr_city\spawnables\gameplay\prefabs\vignette\vignette_dustlander_tapeworm_guarding]],
+  ped_world_headbang = [[data\sr_city\spawnables\gameplay\prefabs\vignette\vignette_camping_additive]],
+  ped_world_drunk = [[data\sr_city\spawnables\gameplay\prefabs\traversal\vignette_bus_stop_02]],
+  ped_world_party = [[data\sr_city\spawnables\gameplay\prefabs\flashpoints\idols\idols_flashpoint_carsbasic]],
+  ped_world_drink = [[data\sr_city\spawnables\action_node\lw_action-node_sidewalk_spawnable_drinking01a]],
+  ped_world_eat = [[data\sr_city\spawnables\action_node\lw_action-node_sidewalk_spawnable_eating01a]],
+  ped_world_vomit = [[data\sr_city\spawnables\gameplay\prefabs\traversal\vignette_tailgate_3_space]],
+  ped_world_pee_on_wall = [[data\sr_city\spawnables\gameplay\prefabs\traversal\vignette_bus_stop_01]],
+  ped_world_think = [[data\sr_city\spawnables\gameplay\prefabs\disorganized_crime\disorganized_crime_medium_deal_01]],
+  ped_world_mariachis = [[data\sr_city\spawnables\gameplay\prefabs\vignette\vignette_busker_small]],
+  ped_world_hermit = [[data\sr_city\spawnables\gameplay\prefabs\vignette\vignette_pan_handler]],
+  panteros_world = [[data\sr_city\spawnables\gameplay\prefabs\flashpoints\panteros\panteros_flashpoint_e2_04]],
+}
+SR5TM_IDLES = SR5TM_IDLES or {}
+-- true ready, false still loading, nil and a reason if not.
+function P._idle_ready(set)
+  local path = P._idle_prefabs[set]
+  if not path then return true end
+  local B, h = wml.base, SR5TM_IDLES[set]
+  if not h then
+    h = { wml.call(B + 0xE71120, wml.buffer(5, path .. ".cprefab_pc"), 0x12, 0), wml.call(B + 0xE71120, wml.buffer(5, path .. ".hprefab_pc"), 0x12, 0) }
+    if h[1] == 0 or h[2] == 0 then return nil, "Couldn't load that" end
+    SR5TM_IDLES[set] = h
+  end
+  local a, b = wml.call(B + 0xE715E0, h[1]) & 0xFFFFFFFF, wml.call(B + 0xE715E0, h[2]) & 0xFFFFFFFF
+  if a == 5 or b == 5 then return nil, "Its files aren't there" end
+  return a == 4 and b == 4
+end
+-- v: { set, group }
+function P.world_idle(v)
+  local ready, why = P._idle_ready(v[1])
+  if ready == nil then return why end
+  if not ready then return "Loading: press again" end
+  return P.play_anim({ v[2], "ai life state 1", v[1], v[2] })
+end
+function P.world_idle_near(v)
+  local ready, why = P._idle_ready(v[1])
+  if ready == nil then return why end
+  if not ready then return "Loading: press again" end
+  each_near(40, function(p)
+    if P.second_set(p.entry, v[1]) then
+      P.node(0x18EA2C0, 0x2ABE208, { { u = wml.read_u32(p.entry + 0x58) }, { p = wml.buffer(5, v[2]) }, { u = 1 } })
+    end
+  end)
+  return P.anim_near({ v[2], "ai life state 1", v[1] })
+end
+-- They stay in the pose until held no more: ai_remove_immobilize (+AE05B0) and the group off. The set stays on them.
+function P.world_idle_near_stop()
+  return each_near(40, function(p)
+    local id = wml.read_u32(p.entry + 0x58)
+    P.node(0xAE05B0, 0x29F9118, { { u = id }, { u = 0 } })
+    P.node(0x18EA440, 0x2ABCF20, { { u = id } })
+  end) .. " people let go"
+end
+-- Use nearest: the closest interaction within `radius`, as a script would force it.
+function P.use_nearest(radius)
+  local e = P.object()
+  if not e then return "Not now" end
+  local px, py, pz = P.position()
+  local best, bd
+  for _, t in ipairs({ 0x5D, 0x5E, 0x5F }) do
+    for _, o in ipairs(objects_near(radius, t)) do
+      local dx, dy, dz = s32(wml.read_u32(o.entry + 0x30)) / 10000 - px, s32(wml.read_u32(o.entry + 0x34)) / 10000 - py, s32(wml.read_u32(o.entry + 0x38)) / 10000 - pz
+      local d = dx * dx + dy * dy + dz * dz
+      if not bd or d < bd then best, bd = o, d end
+    end
+  end
+  if not best then return nil end
+  P.node(0x18FC800, 0x2ACB110, { { u = wml.read_u32(e + 0x58) }, { u = wml.read_u32(best.entry + 0x58) } })
+  return "Using what's nearest"
+end
+function P.use_near_row() return P.use_nearest(6) or "Nothing to use within 6 m" end
+-- Sit: a seat already near, or a chair first and a second press.
+function P.sit_chair()
+  local done = P.use_nearest(8)
+  if done then return done end
+  return P.spawn_prop("prop_chair-patio_04a_spawn") and "Chair coming: press again" or "Couldn't load a chair"
+end
+-- Payouts on kills. v: { type, multiplier }. Type 3 cash, 2 XP.
+function P.payout(v)
+  local X, class = SR5TM_EXTRA, "loot_table_info"
+  if not X.pay_list then
+    X.pay_list = {}
+    for i, rec in ipairs(P.engine_records(class)) do
+      for j = 0, P.engine_list_size(class, rec, "m_loot_entries[]") - 1 do
+        local a = P._engine_addr(class, rec, "m_loot_entries[" .. j .. "].m_collectible.m_amount.m_min_amount")
+        if a then X.pay_list[#X.pay_list + 1] = a end
+      end
+    end
+  end
+  local n = 0
+  for _, a in ipairs(X.pay_list) do
+    if wml.read_u32(a - 4) == v[1] then
+      for _, f in ipairs({ a, a + 4 }) do
+        if SR5TM_ENGINE[f] == nil then SR5TM_ENGINE[f] = { true, wml.read_u32(f) } end
+        wml.write_u32(f, math.floor(SR5TM_ENGINE[f][2] * v[2]))
+      end
+      n = n + 1
+    end
+  end
+  return n .. " tables x" .. v[2]
+end
+-- Level curve: XP needed for each level x m. Originals kept for the session.
+SR5TM_LEVELS = SR5TM_LEVELS or {}
+function P.level_curve(m)
+  local cfg = wml.read_u64(wml.base + 0x5BE5548)
+  if cfg == 0 then return "Not now" end
+  local arr, n = wml.read_u64(cfg + 0x40), wml.read_u16(cfg + 0x48)
+  if arr == 0 or n == 0 or n > 200 then return "Not now" end
+  local function put(a)
+    if SR5TM_LEVELS[a] == nil then SR5TM_LEVELS[a] = wml.read_u32(a) end
+    -- the table is signed: its first entry is -1, which stays
+    if SR5TM_LEVELS[a] < 0x80000000 then wml.write_u32(a, math.floor(SR5TM_LEVELS[a] * m)) end
+  end
+  for i = 0, n - 1 do put(arr + i * 4) end
+  put(cfg + 0x38)
+  return n .. " levels at x" .. m .. " the XP"
+end
+-- Activity clocks: how long each activity's own time limit is. x1 puts them back.
+P._clocks = {
+  mayhem_instance_info = { "m_time_limit", "m_coop_time_limit" },
+  insurance_fraud_instance_info = { "m_time_limit", "m_coop_time_limit" },
+  pony_express_instance_info = { "m_time_limit" },
+  laundromat_instance_info = { "m_time_limit", "m_destruction_time_limit", "m_destruction_bonus_time" },
+  wingsuit_saboteur_instance_info = { "m_time_limit" },
+  heist_instance_info = { "m_defend_info.m_defend_time" },
+  chop_lifter_instance_info = { "m_conveyance.m_time_remaining[].m_timer_left" },
+}
+function P.activity_clock(m)
+  local n = 0
+  for class, paths in pairs(P._clocks) do
+    local recs = P.engine_records(class)
+    for _, path in ipairs(paths) do
+      n = n + P.engine_apply(class, recs, path, false, m == 1 and { "back" } or { "mul", m })
+    end
+  end
+  return n .. " clocks x" .. m .. ": from the next start"
+end
+-- Video in the world. One at a time; a new one stops the last.
+function P.video_on(name)
+  P.node(0x1936D40, 0x2ACFEF8, { { p = wml.buffer(5, name) }, { u = 1 }, { f = 1.0 } })
+  return "Video: " .. name .. ". Only some screens show it"
+end
+function P.video_off()
+  P.node(0x1936EB0, 0x2ABD7C8, {})
+  return "Video stopped"
+end
+-- Fake objective on the mission HUD. v: { title, text, seconds or false }; "done" and "clear" end it.
+function P.fake_objective(v)
+  local code
+  if v == "done" or v == "clear" then
+    code = string.format([[local f, g = rawget(_G, %q), rawget(_G, "HUD_OBJECTIVE_GROUP")
+      if not f or not g then return "No HUD here" end
+      f(g.PRIMARY) return "Done"]], v == "done" and "hud_message_mission_objective_complete" or "hud_message_mission_objective_abort")
+  else
+    code = string.format([[local f, g = rawget(_G, "hud_message_mission_objective_update"), rawget(_G, "HUD_OBJECTIVE_GROUP")
+      if not f or not g then return "No HUD here" end
+      f(g.PRIMARY, true, %q, %q, false, nil, nil, false, nil, nil, nil, %s, %d, false, false, nil) return "On the HUD"]],
+      v[1], v[2], v[3] and "true" or "false", (v[3] or 0) * 1000)
+  end
+  local ok, r = wml.game(code)
+  return tostring(r)
+end
 P.load_places()
+-- For shots.lua: this file is at Lua's limit of locals.
+P._held_gun, P._objects_near, P._loaded, P._prop_path, P._BOOM = held_gun, objects_near, loaded, prop_path, BOOM
+P._CUST, P._prop_release = CUST, prop_release
 return P

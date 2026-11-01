@@ -1,30 +1,14 @@
-# shot.ps1 OUT.png [SCALE]: captures only the game's window to an image.
+# shot.ps1 OUT.png [SCALE]: one frame of the game's own window, even with other windows over it. Builds shot.exe from shot.cs when needed.
 param([string]$Out, [double]$Scale = 0.6)
-Add-Type -AssemblyName System.Drawing
-Add-Type @'
-using System;
-using System.Runtime.InteropServices;
-public class Win {
-  [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
-  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
-  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-  [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+$exe = Join-Path $here "..\build\shot.exe"
+$src = Join-Path $here "shot.cs"
+if (-not (Test-Path $exe) -or (Get-Item $src).LastWriteTime -gt (Get-Item $exe).LastWriteTime) {
+  $net = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319"
+  $refs = @((Get-ChildItem "C:\Windows\System32\WinMetadata\*.winmd" | ForEach-Object { "/r:$($_.FullName)" })) + @("/r:$net\System.Runtime.dll", "/r:$net\System.Runtime.WindowsRuntime.dll", "/r:$net\System.Runtime.InteropServices.WindowsRuntime.dll", "/r:$net\System.Threading.Tasks.dll", "/r:$net\System.IO.dll")
+  New-Item -ItemType Directory -Force (Split-Path -Parent $exe) | Out-Null
+  & "$net\csc.exe" /nologo /platform:x64 /out:$exe @refs $src
+  if ($LASTEXITCODE -ne 0) { throw "shot.cs did not build" }
 }
-'@
-[void][Win]::SetProcessDPIAware()
-$p = Get-Process SaintsRow_DX12 -ErrorAction Stop
-$h = $p.MainWindowHandle
-if ($h -eq [IntPtr]::Zero) { throw "the game has no window" }
-$r = New-Object Win+RECT
-[void][Win]::GetWindowRect($h, [ref]$r)
-$w = $r.R - $r.L; $t = $r.B - $r.T
-"window $w x $t, in front: $([Win]::GetForegroundWindow() -eq $h)"
-$bmp = New-Object System.Drawing.Bitmap $w, $t
-$g = [System.Drawing.Graphics]::FromImage($bmp)
-$g.CopyFromScreen($r.L, $r.T, 0, 0, $bmp.Size)
-$sw = [int]($w * $Scale); $st = [int]($t * $Scale)
-$small = New-Object System.Drawing.Bitmap $sw, $st
-$s = [System.Drawing.Graphics]::FromImage($small)
-$s.DrawImage($bmp, 0, 0, $sw, $st)
-$small.Save($Out, [System.Drawing.Imaging.ImageFormat]::Png)
-$s.Dispose(); $small.Dispose(); $g.Dispose(); $bmp.Dispose()
+& $exe $Out ([string]::Format([Globalization.CultureInfo]::InvariantCulture, "{0}", $Scale))
+exit $LASTEXITCODE
