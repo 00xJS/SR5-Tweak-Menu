@@ -209,7 +209,7 @@ local function hole_gather(h)
     if ((wml.read_u8(free_bits + (i >> 3)) >> (i & 7)) & 1) == 0 and (i >= live_n or ((wml.read_u8(live_bits + (i >> 3)) >> (i & 7)) & 1) == 1) then
       local e = base + i * 0x90
       local dx, dy, dz = s32(wml.read_u32(e + 0x30)) / 10000 - h.x, s32(wml.read_u32(e + 0x34)) / 10000 - h.y, s32(wml.read_u32(e + 0x38)) / 10000 - h.z
-      if dx * dx + dy * dy + dz * dz < 1600 and e ~= me and e ~= mine then
+      if dx * dx + dy * dy + dz * dz < 1600 and e ~= me and e ~= mine and e ~= P.partner_entry and e ~= P.partner_car then
         local p = #h.people < 10 and P.component(0x8D, e)
         if p then
           if wml.read_f32(p + MIN) == 0 and wml.read_u8(p + 0x104) == 0 and P.component(2, e) then h.people[#h.people + 1] = wml.read_u32(e + 0x58) end

@@ -32,7 +32,7 @@ local function update_bright()
     exp_written = exp_base + Cam.bright
     if math.abs(now - exp_written) > 1e-4 then wml.write_f32(a, exp_written) end
   elseif locked then
-    wml.game("gml_engine_render_unlock_exposure_value()")
+    if not Cam.user_lock then wml.game("gml_engine_render_unlock_exposure_value()") end
     locked, exp_base, exp_written = false, nil, nil
   end
 end

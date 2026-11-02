@@ -358,12 +358,18 @@ typedef struct { DWORD packet; WORD buttons; BYTE lt, rt; SHORT lx, ly, rx, ry; 
 typedef DWORD (WINAPI *xget_t)(DWORD, xstate_t *);
 
 // ------------------------------------------------------------------ keeping input from the game
-// While the menu is open it takes its keys and the controller's buttons:
-// the game's own imports are wrapped (raw input and window messages for the
-// keyboard, XInputGetState for the pad). The menu reads input on its own
-// (GetAsyncKeyState, its own XInput), so it isn't affected.
+// While the menu is open the game only gets moving and looking: the sticks, the
+// move keys and mouse movement. The game's own imports are wrapped (raw input and
+// window messages for the keyboard and mouse, XInputGetState for the pad). The menu
+// reads input on its own (GetAsyncKeyState, its own XInput), so it isn't affected.
+// Whatever was pressed while blocked stays hidden until it's let go, so closing the
+// menu with B or Backspace doesn't hand the game a press. Let-go always gets through,
+// so nothing the game saw go down can stick.
 static volatile uint8_t g_block_vk[256];
 static volatile int g_block_pad;
+static volatile int g_block_mouse;         // clicks and the wheel
+static volatile int g_block_triggers;      // RT and LT: on foot they fire and aim, in a vehicle they drive
+static volatile int g_block_move;          // and the sticks and mouse movement, if the player wants nothing to reach the game
 static volatile int g_pad_mask;            // buttons kept from the game
 static volatile int g_pad_no_triggers;     // and its triggers
 static volatile int g_pad_no_lstick;       // and its left stick
@@ -383,19 +389,61 @@ static volatile int g_autofire, g_autofire_ms = 60;
 static volatile int g_phys_lmb;            // the real left button, from raw input
 static int g_sent_up;                      // we've sent a "left up" the real button hasn't
 
+// PAD_FILTER_START
+#define PAD_RB 0x0200
+#define PAD_DOWN 0x0002
+static uint16_t g_pad_held[4];
+static uint8_t g_lt_held[4], g_rt_held[4];
+static void filter_trigger(uint8_t *value, uint8_t *held, int block)
+{
+    if (block && *value > 30) *held = 1;
+    if (*value <= 30) *held = 0;
+    if (block || *held) *value = 0;
+}
+static void filter_pad(unsigned user, xstate_t *st, int block, int triggers)
+{
+    unsigned u = user & 3;
+    uint16_t now = st->buttons;
+    if (block) g_pad_held[u] |= now;
+    g_pad_held[u] &= now;
+    st->buttons = (uint16_t)(now & ~g_pad_held[u]);
+    // RB + D-pad Down opens the menu: that D-pad press is never the game's. RB can't be
+    // kept back the same way, as it's a game button until D-pad Down comes.
+    if (u == 0 && (now & PAD_RB)) st->buttons &= (uint16_t)~PAD_DOWN;
+    filter_trigger(&st->lt, &g_lt_held[u], triggers);
+    filter_trigger(&st->rt, &g_rt_held[u], triggers);
+}
+// 1 when a key's event should be hidden from the game. down: pressed, or an auto-repeat.
+static int filter_key(uint8_t *held, unsigned vk, int down, int blocked)
+{
+    if (!down) { held[vk] = 0; return 0; }
+    if (blocked) held[vk] = 1;
+    return held[vk];
+}
+// PAD_FILTER_END
+static uint8_t g_raw_held[256], g_msg_held[256];
+
 static UINT WINAPI my_raw_data(HRAWINPUT h, UINT cmd, LPVOID data, PUINT size, UINT header)
 {
     UINT r = g_raw_data(h, cmd, data, size, header);
     if (cmd == RID_INPUT && data && r != (UINT)-1 && r >= sizeof(RAWINPUTHEADER) + sizeof(RAWKEYBOARD)) {
         RAWINPUT *ri = (RAWINPUT *)data;
-        if (ri->header.dwType == RIM_TYPEKEYBOARD && ri->data.keyboard.VKey < 256 && g_block_vk[ri->data.keyboard.VKey]) {
-            ri->data.keyboard.VKey = 0xFF;      // "no key"
-            ri->data.keyboard.MakeCode = 0;
+        if (ri->header.dwType == RIM_TYPEKEYBOARD && ri->data.keyboard.VKey < 256) {
+            unsigned vk = ri->data.keyboard.VKey;
+            if (filter_key(g_raw_held, vk, !(ri->data.keyboard.Flags & RI_KEY_BREAK), g_block_vk[vk])) {
+                ri->data.keyboard.VKey = 0xFF;  // "no key"
+                ri->data.keyboard.MakeCode = 0;
+            }
         }
         if (ri->header.dwType == RIM_TYPEMOUSE && ri->header.hDevice && r >= sizeof(RAWINPUTHEADER) + sizeof(RAWMOUSE)) {
             USHORT f = ri->data.mouse.usButtonFlags;
             if (f & RI_MOUSE_LEFT_BUTTON_DOWN) g_phys_lmb = 1;
             if (f & RI_MOUSE_LEFT_BUTTON_UP) g_phys_lmb = 0;
+        }
+        if (ri->header.dwType == RIM_TYPEMOUSE && g_block_mouse && r >= sizeof(RAWINPUTHEADER) + sizeof(RAWMOUSE)) {
+            ri->data.mouse.usButtonFlags &= RI_MOUSE_LEFT_BUTTON_UP | RI_MOUSE_RIGHT_BUTTON_UP | RI_MOUSE_MIDDLE_BUTTON_UP | RI_MOUSE_BUTTON_4_UP | RI_MOUSE_BUTTON_5_UP;
+            ri->data.mouse.ulRawButtons = 0;
+            if (g_block_move) ri->data.mouse.lLastX = ri->data.mouse.lLastY = 0;
         }
     }
     return r;
@@ -427,19 +475,42 @@ static void autofire_tick(void)
 static BOOL WINAPI my_peek(LPMSG msg, HWND wnd, UINT min, UINT max, UINT remove)
 {
     BOOL r = g_peek(msg, wnd, min, max, remove);
-    if (r && msg && (msg->message == WM_KEYDOWN || msg->message == WM_KEYUP || msg->message == WM_CHAR) &&
-        msg->wParam < 256 && g_block_vk[msg->wParam])
-        msg->message = WM_NULL;
+    if (r && msg && msg->wParam < 256) {
+        if (msg->message == WM_KEYDOWN || msg->message == WM_KEYUP) {
+            if (filter_key(g_msg_held, (unsigned)msg->wParam, msg->message == WM_KEYDOWN, g_block_vk[msg->wParam])) msg->message = WM_NULL;
+        } else if (msg->message == WM_CHAR && g_block_vk[msg->wParam]) msg->message = WM_NULL;
+    }
+    if (r && msg && g_block_mouse) {
+        switch (msg->message) {
+        case WM_LBUTTONDOWN: case WM_LBUTTONDBLCLK: case WM_RBUTTONDOWN: case WM_RBUTTONDBLCLK: case WM_MBUTTONDOWN: case WM_MBUTTONDBLCLK:
+        case WM_XBUTTONDOWN: case WM_XBUTTONDBLCLK: case WM_MOUSEWHEEL: case WM_MOUSEHWHEEL:
+            msg->message = WM_NULL;
+        }
+    }
     return r;
 }
+// For testing from the probe: the game sees these on the first pad, as if held. Runs out by itself unless it's
+// called again, so a test that dies can't leave a trigger held.
+static volatile ULONGLONG g_sim_until;
+static volatile WORD g_sim_buttons;
+static volatile BYTE g_sim_lt, g_sim_rt;
 static DWORD WINAPI my_game_xget(DWORD user, xstate_t *st)
 {
     DWORD r = g_game_xget(user, st);
-    if (r == 0 && st && g_block_pad) st->buttons = 0;   // the sticks and triggers still reach the game
+    if (r == 0 && st) filter_pad(user, st, g_block_pad, g_block_triggers);
+    if (r == 0 && st && g_block_move) st->lx = st->ly = st->rx = st->ry = 0;
     if (r == 0 && st) st->buttons &= (WORD)~g_pad_mask;
     if (r == 0 && st && g_pad_no_triggers) st->lt = st->rt = 0;
     if (r == 0 && st && g_pad_no_lstick) st->lx = st->ly = 0;
     if (r == 0 && st && g_autofire && !g_block_pad && st->rt > 30 && autofire_phase()) st->rt = 0;
+    if (user == 0 && st && GetTickCount64() < g_sim_until) {
+        static DWORD packet;
+        if (r != 0) memset(st, 0, sizeof *st);
+        st->packet = ++packet;
+        st->buttons |= g_sim_buttons;
+        st->lt = g_sim_lt; st->rt = g_sim_rt;
+        r = 0;
+    }
     return r;
 }
 
@@ -487,21 +558,39 @@ static void install_input_hooks(void)
 }
 
 // block_input(keys_on, pad_on [, key names...]): while keys_on, the listed
-// keys (default: the menu's own keys) don't reach the game; while pad_on,
-// the controller's buttons don't.
+// keys don't reach the game. With none listed that's every key but W, A, S, D and
+// Shift, and mouse clicks and the wheel too. While pad_on, the controller's buttons
+// don't. block_triggers(on) is separate, as the menu lets them through in a vehicle.
+// block_move(on) adds the sticks, mouse movement and move keys.
 static int l_block_input(lua_State *s)
 {
     int keys = lua_toboolean(s, 1), pad = lua_toboolean(s, 2);
-    static const uint8_t MENU_KEYS[] = { VK_UP, VK_DOWN, VK_LEFT, VK_RIGHT, VK_RETURN, VK_BACK, VK_PRIOR, VK_NEXT };
     uint8_t list[256] = { 0 };
     int n = lua_gettop(s);
     if (n > 2) {
         for (int i = 3; i <= n; i++) { uint8_t vk; if (key_lookup(s, i, &vk)) list[vk] = 1; }
     } else {
-        for (size_t i = 0; i < sizeof MENU_KEYS; i++) list[MENU_KEYS[i]] = 1;
+        memset(list, 1, sizeof list);
+        if (!g_block_move) {
+            list['W'] = list['A'] = list['S'] = list['D'] = 0;
+            list[VK_SHIFT] = list[VK_LSHIFT] = list[VK_RSHIFT] = 0;
+        }
     }
     for (int vk = 0; vk < 256; vk++) g_block_vk[vk] = (uint8_t)(keys && list[vk]);
+    g_block_mouse = keys && n <= 2;
     g_block_pad = pad && g_game_xget;
+    return 0;
+}
+static int l_block_triggers(lua_State *s) { g_block_triggers = lua_toboolean(s, 1); return 0; }
+// block_move(on): the sticks, mouse movement and the move keys too. Call it before block_input.
+static int l_block_move(lua_State *s) { g_block_move = lua_toboolean(s, 1); return 0; }
+// sim_pad(buttons, lt, rt): held for the next 200 ms.
+static int l_sim_pad(lua_State *s)
+{
+    g_sim_buttons = (WORD)luaL_checkinteger(s, 1);
+    g_sim_lt = (BYTE)luaL_checkinteger(s, 2);
+    g_sim_rt = (BYTE)luaL_checkinteger(s, 3);
+    g_sim_until = GetTickCount64() + 200;
     return 0;
 }
 
@@ -587,7 +676,7 @@ static void start_lua(void)
         { "write_f32", l_write_f32 },
         { "key_down", l_key_down }, { "key_pressed", l_key_pressed },
         { "take_key", l_noop }, { "force_key", l_noop }, { "mouse_look", l_noop }, { "set_look", l_noop },
-        { "block_input", l_block_input }, { "auto_fire", l_auto_fire },
+        { "block_input", l_block_input }, { "block_triggers", l_block_triggers }, { "sim_pad", l_sim_pad }, { "block_move", l_block_move }, { "auto_fire", l_auto_fire },
         { "on_frame", l_on_frame }, { "game", l_game }, { "call", l_call }, { "callf", l_callf },
         { "buffer", l_buffer }, { "read_string", l_read_string },
         { "pad", l_pad }, { "pad_mask", l_pad_mask }, { "aoe_scale", l_aoe_scale }, { "f2u", l_f2u }, { "u2f", l_u2f },
@@ -734,10 +823,38 @@ static int l_aoe_scale(lua_State *s)
 }
 static const uint8_t AOE_PROLOGUE[15] = { 0x48, 0x89, 0x5C, 0x24, 0x18, 0x48, 0x89, 0x54, 0x24, 0x10, 0x55, 0x56, 0x57, 0x41, 0x54 };
 
+// The game's script scheduler drops a thread for good on any error and says nothing, which is how
+// the minimap can stop. lua_resume returns above 1 for that (2 runtime, 3 syntax, 4 memory, 5 errfunc)
+// with the message on top of that thread's stack. Log only: the result goes back untouched.
+typedef int (*resume_fn_t)(uint8_t *, int);
+static resume_fn_t g_resume_orig;
+static LONG g_resume_logged;
+static int my_resume(uint8_t *t, int nargs)
+{
+    int r = g_resume_orig(t, nargs);
+    if (r > 1 && g_resume_logged < 200) {
+        uint64_t top = 0, text = 0;
+        int type = 0, ok = 0;
+        char msg[301] = "(not a string)";
+        g_resume_logged++;
+        if (mem_read((uint64_t)(uintptr_t)t + LS_TOP, &top, 8) && mem_read(top - 16, &text, 8) && mem_read(top - 8, &type, 4) && type == 4) {
+            g_guarded++;
+            __try { strncpy_s(msg, sizeof msg, (const char *)(uintptr_t)text + 0x18, _TRUNCATE); ok = 1; }
+            __except (EXCEPTION_EXECUTE_HANDLER) { ok = 0; }
+            g_guarded--;
+            if (!ok) strcpy_s(msg, sizeof msg, "(unreadable)");
+        }
+        hlog("game script thread died, status %d: %s", r, msg);
+    }
+    return r;
+}
+static const uint8_t RESUME_PROLOGUE[14] = { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x0F, 0xB6, 0x41, 0x0A };
+
 static void install_hooks(void)
 {
     g_frame_orig = (frame_fn_t)detour(RVA_FRAME_FN, FRAME_FN_PROLOGUE, sizeof FRAME_FN_PROLOGUE, (void *)my_frame_fn, "the main loop's frame call");
     g_aoe_orig = (aoe_fn_t)detour(0x973E80, AOE_PROLOGUE, sizeof AOE_PROLOGUE, (void *)my_aoe, "explosions");
+    g_resume_orig = (resume_fn_t)detour(0x12CDD70, RESUME_PROLOGUE, sizeof RESUME_PROLOGUE, (void *)my_resume, "script threads");
 }
 
 // ------------------------------------------------------------------ DirectInput proxy

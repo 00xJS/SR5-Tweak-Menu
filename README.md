@@ -37,10 +37,15 @@ To uninstall, delete `sr5\dinput8.dll` and the `sr5\TweakMenu` folder.
 | Open a page | Enter | A |
 | Back a page / close | Backspace | B |
 
-While the menu is open its keys and the controller's buttons don't reach the
-game; the sticks still do, so you can keep moving and looking around. The
-controller is read through XInput: a PlayStation controller works when it
-shows up as an Xbox one (Steam Input, DS4Windows).
+While the menu is open the game only gets moving and looking: the sticks, W, A,
+S, D, Shift and mouse movement. Controller buttons, other keys, mouse clicks and
+the wheel stay with the menu, and so do the triggers on foot; in a vehicle the
+triggers still drive. A button you're holding when the menu closes stays away
+from the game until you let go, so closing with B doesn't also press B in the game. RB
+reaches the game before D-pad Down opens the menu, so opening with the controller
+can still do whatever RB does. Turn off Keep moving in the menu (Settings, Menu) and
+nothing at all reaches the game while the menu is up. The controller is read through XInput: a PlayStation
+controller works when it shows up as an Xbox one (Steam Input, DS4Windows).
 
 ## Features
 
@@ -80,14 +85,14 @@ in the menu.
 
 Weapons back to normal
 
-- **Firing:** Fire rate, Full auto, Magazine, Reload speed, No warm-up, No overheat, Range, Any gun in vehicles and surfing, Dual wield this gun
+- **Firing:** Fire rate, Full auto, Fire mode, Magazine, Reload speed, No warm-up, No overheat, Range, Any gun in vehicles and surfing, Dual wield this gun
 - **Aim and recoil:** No recoil, Perfect aim, Spread, Accurate hip fire, Recoil recovery, Firing shake, Aim anywhere
 - **Damage and hits:** Damage, People damage, Car damage, Shield damage, Damage from behind, Friendly fire, Damage type, Pellets, Knockback, Stagger on hit, Bodies fly on kill
 - **Melee and explosives:** Melee lunge, Melee swing width, Explosive punches, Blast radius, Explosive fuse, More satchels, Rocket speed
 - **Thrustbuster:** Thruster throw speed, Thruster warm-up, Thruster fuse, Thruster power
-- **Rounds and hit effects:** Special rounds, Round blast, Rounds stick, Rounds arc, Homing rounds, Hit effect, Signature effects on any gun, Shots start from
-- **Shot tricks:** Teleport on shot, Clear portals, Black hole, Money gun, Prop gun, Shoot prop
-- **Gun looks:** Tracer, Muzzle flash, Shell casing, Hit visuals, All shots one colour, Hide my gun, Random gun colours, Weapon skin, Hold gun like
+- **Rounds and hit effects:** Special rounds, Round blast, Blast on hit, Rounds stick, Rounds arc, Homing rounds, Hit effect, Signature from, Second signature, Signature effects on any gun, Shots start from
+- **Shot tricks:** Teleport on shot, Clear portals, Black hole, Money gun, Prop gun, Shoot prop, Round in N shots, N shots
+- **Gun looks:** Tracer, Muzzle flash, Shell casing, Hit visuals, All shots one colour, Hide my gun, Random gun colours, Weapon skin, Hold gun like, Fire sound
 - **Get weapons:** Give weapon, Special weapon, Prototype weapon, Put picked gun in slot, Refill all ammo, Rare ammo drops, Drop weapon
 - **Upgrades and removal:** Max all weapon upgrades, Signature ability on this gun, All signature abilities, Remove this weapon, Remove test guns
 
@@ -151,6 +156,7 @@ Go to waypoint, Go to travel point, Go to store, Go to map place, Go up, Auto-te
 - **Sun, moon and stars:** Sun size, Moon size, Sun speed, Sun position, Sun colour, Moon colour, Star brightness, Star colour
 - **Fog, cloud and rain:** Fog, Fog colour, Haze, Cloud cover, Rain amount, Heat haze, Wind speed
 - **Light and colour:** Look, Sky exposure, Lock exposure, Light shafts, Ambient light, Bounced light, Sky colour, City lights on, Film grain, Dark screen edges
+- **Pickup glow:** Dropped gun glow, Cash glow, Ammo glow, Coin glow
 - **All sky settings:** Any sky setting, Sky amount, Clear sky settings
 
 ### Sound
@@ -169,13 +175,24 @@ Go to waypoint, Go to travel point, Go to store, Go to map place, Go up, Auto-te
 - **World:** Weather, Time of day, Screen filter, Low gravity, Angry pedestrians
 - **Notoriety:** Police, Idols, Marshal, Los Panteros
 
+### Co-op
+
+Session, Go to partner, Waypoint on partner, Revive me, Partner friendly fire, Pranks from partner, Safety limits
+
+- **Balance:** Balance preset, Together: your damage, Together: damage taken, Together: tough grunts, Together: tough specialists, Together: reinforcements, Co-op enemy limit, What counts as close, Together: Flow bonus, Co-op activity scores, Co-op activity clocks
+- **Connection:** Open to co-op, Stop waiting for partner, Last co-op error, Leave co-op, Mark the co-op log
+
+When you're within 60 m of each other, the game cuts your damage to 0.7x and makes enemies 1.5x tougher. **Balance** changes those numbers, with presets: No co-op penalty, Easier together, Harder together and Mayhem. The host's settings are the ones that count.
+
+With a partner in, rows that change the shared world are host only, and rows that could break the session are off, until **Safety limits** is turned off. Tweaks they stop come back when the session ends. `TweakMenu\coop_log.txt` records what the session did, with no names in it. None of this has been tried with a real partner yet.
+
 ### Settings
 
 What's on, Save tweaks for next time, Everything back to normal, Turn every cheat off, Pause all tweaks, Close menu
 
 - **Game:** Skip cutscene, Pause / resume cutscene, Quick save, New save, Load last save, No autosave, Skip intro, Tutorial popups
 - **Difficulty:** Difficulty: player health, Difficulty: player damage, Difficulty: enemies, Difficulty: vehicles, Difficulty: notoriety, Difficulty: ammo reserve, Difficulty: timer speed
-- **Menu:** Menu opacity, Hold Back opens the menu, Keep my save clean, Forget saved tweaks
+- **Menu:** Menu opacity, Hold Back opens the menu, Keep moving in the menu, Keep my save clean, Forget saved tweaks
 - **Game data:** Data system, Data group, Data entry, Data value, Data list item, Data change, Change this entry, Change all entries, Undo all data changes
 - **Developer switches:** Dev: never die, Dev: never die, AI, Dev: Shawn mode, Dev: capture mode, Dev: auto sprint, Dev: infinite ammo, Dev: infinite magazine, Dev: vehicle ramps, Dev: weapon raycasts, Dev: notoriety bubbles, Dev: HQ mask off
 
@@ -220,6 +237,14 @@ opacity and Keep my save clean. Restart the game after changing them.
   `wml.game(code)` loads and runs code in it with the game's own
   `lua_load` and `lua_pcall` and returns the results. The game's Lua has
   no string, table or math library and a small memory pool.
+- **Input.** The menu reads the keyboard and controller itself. The host
+  wraps the game's own `GetRawInputData`, `PeekMessageA` and `XInputGetState`,
+  so while the menu is open the game only gets moving and looking, and whatever
+  was pressed meanwhile stays hidden from it until it's let go.
+- **Explosions and script threads.** Two more detours. One scales an explosion's
+  radius, force and damage for the blast rows. The other only logs: the game's
+  scheduler drops a script thread for good on any error and says nothing, so the
+  host writes the error to `wml.log`.
 
 **The menu (`SRTweakMenu/`)**
 
@@ -243,8 +268,11 @@ opacity and Keep my save clean. Restart the game after changing them.
 | `clothes.lua` | The game's wearables with a model, by slot, generated |
 | `rounds.lua` | Projectiles any gun can fire and every blast, generated |
 | `browser.lua` | The game's records, numeric fields and flags by system, for Game data, generated |
+| `coop.lua` | Co-op: who's in the session, which rows are safe with a partner in, and a log |
 | `shots.lua` | Rows that act on your shots: teleport, portals, black hole, homing, prop gun, dual wield |
 | `cars.lua` | Vehicle parts, paint, guns, seats, physics and flight mode |
+| `drops.lua` | The glow on things lying on the ground |
+| `weapons_mix.lua` | What one gun can borrow from another: signatures, blasts on hit, fire modes, a round every so many shots |
 | `extras.lua` | Name lists for the weapon swaps and world rows, generated |
 | `gameui.lua` | Draws the menu with the game's interface (vint text objects) |
 | `luadump.lua` | Development: reads a game Lua function's constants from memory |
@@ -252,8 +280,8 @@ opacity and Keep my save clean. Restart the game after changing them.
 The `wml` table the Lua sees has the same shape as the SR1 menu's host:
 `log`, `setting`, `read_*`/`write_*` (64-bit addresses),
 `key_down`, `key_pressed`, `on_frame`, `pad`, plus `game(code)`,
-`call(addr, ...)`, `buffer`, `read_string` and `base` (the executable's
-load address).
+`call(addr, ...)`, `buffer`, `read_string`, `block_input`, `block_triggers`,
+`pad_mask`, `auto_fire`, `aoe_scale` and `base` (the executable's load address).
 
 **Testing**
 
@@ -261,9 +289,11 @@ load address).
   game runs, anything written to `sr5\TweakMenu\probe_in.lua` is run in the
   menu's Lua (with `game` and `dump` at hand), and what it prints goes to
   `sr5\TweakMenu\probe_out.txt`.
-- **Research.** `research/` holds what was found in the game (addresses,
-  the game's Lua globals, its interface functions) and `tools/` the Python
-  scripts used to find it (they read `SaintsRow_DX12.exe` and the running
+- **Screenshots.** `tools/shot.ps1 OUT.png` captures only the game's window,
+  even when it's covered (Windows Graphics Capture, built from `tools/shot.cs`).
+- **Research.** `research/` holds lists taken from the game (its Lua globals,
+  its script functions, console commands) and `tools/` the Python scripts used
+  to find things in it (they read `SaintsRow_DX12.exe` and the running
   game; `pip install pefile capstone numpy`). `tools/vpp.py` lists and
   extracts the game's `.vpp_pc` archives (its interface Lua is plain source
   there); what it extracts stays out of git. `tools/rcls.py` prints a

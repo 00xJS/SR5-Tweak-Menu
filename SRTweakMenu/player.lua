@@ -297,7 +297,7 @@ local function objects_near(radius, ctype)
     if ((wml.read_u8(free_bits + (i >> 3)) >> (i & 7)) & 1) == 0 and (i >= live_n or ((wml.read_u8(live_bits + (i >> 3)) >> (i & 7)) & 1) == 1) then
       local e = base + i * 0x90
       local dx, dz = s32(wml.read_u32(e + 0x30)) / 10000 - px, s32(wml.read_u32(e + 0x38)) / 10000 - pz
-      if dx * dx + dz * dz < r2 and e ~= me then
+      if dx * dx + dz * dz < r2 and e ~= me and e ~= P.partner_entry and e ~= P.partner_car then
         local dy = s32(wml.read_u32(e + 0x34)) / 10000 - py
         if dx * dx + dy * dy + dz * dz < r2 then
           local h = P.component(ctype, e)
@@ -699,7 +699,7 @@ function P.update_perks()
     for class, m in pairs(P.perk_dial) do perk(class, m, true) end
     -- so does what's sent once and remembered: forget it, and each row sends again
     local X = SR5TM_EXTRA
-    for _, k in ipairs({ "no_shove", "short_takedowns", "time_stop", "flame_me", "aim_anywhere", "no_wind", "surf_safe", "ice_body", "callin_speed", "chase_speed", "satchels", "no_autosave", "hover_slam", "notoriety_min", "notoriety_max" }) do X[k] = nil end
+    for _, k in ipairs({ "no_shove", "short_takedowns", "time_stop", "flame_me", "aim_anywhere", "no_wind", "surf_safe", "ice_cars", "callin_speed", "chase_speed", "satchels", "no_autosave", "hover_slam", "notoriety_min", "notoriety_max" }) do X[k] = nil end
     P.immune = {}
     P._switches_reset = true
     if P.move_style and P.update_move_style then P.update_move_style() end
@@ -2023,10 +2023,6 @@ function P._update_extras2(e)
         P.node(0x18FDE50, 0x2ABABF0, { { c = cid, o = oid }, { u = P.tire_marks and 1 or 0 } })
         X.tire_marks = P.tire_marks or nil
       end
-      if P.twitchy or X.twitchy then
-        P.node(0x18FE700, 0x2AC3C10, { { c = cid, o = oid }, { f = P.twitchy or 0.0 } })
-        X.twitchy = P.twitchy or nil
-      end
     end
   end
   -- Call-in speed: seconds, min and max, over the level's own when above 0 (faction +0x100, +0x104).
@@ -2719,12 +2715,6 @@ function P._update_veh_tune()
       X.auto_flip = P.auto_flip or nil
     end
   end
-  if (P.ice_body or false) ~= (X.ice_body or false) then
-    local b = wml.buffer(13)
-    wml.write_f32(b, 0.01)
-    wml.call(wml.base + 0x486C10, v, 0, P.ice_body and 4 or 5, 0, b)
-    X.ice_body = P.ice_body or nil
-  end
   if P.tank_steer or X.tank_steer then
     local c = P.component(0x12, v)
     if c then
@@ -2780,10 +2770,19 @@ end
 -- Engine values: any scalar field of any live record, through the game's own reflection (+17D4660). Originals by address.
 SR5TM_ENGINE = SR5TM_ENGINE or {}
 function P.engine_records(class)
-  local ok, s = wml.game(string.format([[local o = "" for _, r in vlib_info_object:ipairs(%q) do o = o .. tostring(r) .. "|" end return o]], class))
-  local out = {}
-  if ok and type(s) == "string" then
-    for n in s:gmatch('"([^"|]*)"') do out[#out + 1] = n end
+  -- 50 names a call, not one string built on the game's state: its Lua has a small fixed pool, and running that out kills whichever
+  -- script thread allocates next. That's the likely end of the minimap, during a scan of 313 classes.
+  local out, first, N = {}, 1, 50
+  while true do
+    local res = table.pack(wml.game(string.format([[local i, o = 0, {} for _, r in vlib_info_object:ipairs(%q) do
+      i = i + 1 if i >= %d then o[#o + 1] = tostring(r) if #o == %d then break end end end return #o, unpack(o)]], class, first, N)))
+    if not res[1] then wml.log("engine_records " .. class .. ": " .. tostring(res[2])); break end
+    for j = 3, res.n do
+      local n = tostring(res[j]):match('"([^"|]*)"')
+      if n then out[#out + 1] = n end
+    end
+    first = first + N
+    if type(res[2]) ~= "number" or res[2] < N then break end
   end
   table.sort(out)
   return out
@@ -3070,7 +3069,41 @@ local SCALED = {
   { key = "fraud_launch", class = "insurance_fraud_tweakable_values", fields = { { path = "m_ragdoll_impulse_up", what = "up" }, { path = "m_ragdoll_impulse_dir", what = "dir" } } },
   { key = "skill_fast", class = "gml_weapon_info", only = "ability", set = 0.05, fields = { { path = "m_refire_delay", what = "refire" } } },
 }
+-- A row that changes each car you're in. While on: the car you're in, once unless every is set. Off: every car it
+-- touched that's within reach now, and the rest when you next get in them. Nothing at all with the row off and no car left.
+function P._each_car(key, on, apply, every)
+  local X, v = SR5TM_EXTRA, P.vehicle_object()
+  local set = X[key]
+  if on then
+    if not v then return end
+    if not set then set = {}; X[key] = set end
+    local id = wml.read_u32(v + 0x58)
+    if every or not set[id] then set[id] = true; apply(v, true) end
+  elseif set then
+    if v and set[wml.read_u32(v + 0x58)] then set[wml.read_u32(v + 0x58)] = nil; apply(v, false) end
+    if P._tick % 300 < 30 or not X[key .. "_swept"] then
+      X[key .. "_swept"] = true
+      for _, c in ipairs(P.vehicles_near(300)) do
+        local id = wml.read_u32(c.entry + 0x58)
+        if set[id] then set[id] = nil; apply(c.entry, false) end
+      end
+    end
+    if next(set) == nil then X[key], X[key .. "_swept"] = nil, nil end
+  end
+end
+function P._update_each_car()
+  P._each_car("twitchy_cars", P.twitchy, function(c, on)
+    local cid, oid = comp_ref(0x12, c)
+    if cid then P.node(0x18FE700, 0x2AC3C10, { { c = cid, o = oid }, { f = on and P.twitchy or 0.0 } }) end
+  end, true)
+  P._each_car("ice_cars", P.ice_body, function(c, on)
+    local b = wml.buffer(13)
+    wml.write_f32(b, 0.01)
+    wml.call(wml.base + 0x486C10, c, 0, on and 4 or 5, 0, b)
+  end)
+end
 function P.update_extras()
+  P._update_each_car()
   local X, e = SR5TM_EXTRA, P.object()
   P._update_extras2(e)
   P._update_veh_tune()
@@ -3250,11 +3283,30 @@ function P.update_rare_traffic(names)
       end
     end
   else
+    local lists = next(SR5TM_RARE) and P._district_lists(0x10E8, 0x10F0, 0x24, 400)
     for e, o in pairs(SR5TM_RARE) do
-      wml.write_u32(e + 0x10, o[1]); wml.write_u32(e + 0x14, o[2]); wml.write_u32(e + 0x18, o[3]); wml.write_u8(e + 0x20, o[4])
+      if P._in_lists(lists, e) and wml.read_u8(e + 0x20) == 1 then
+        wml.write_u32(e + 0x10, o[1]); wml.write_u32(e + 0x14, o[2]); wml.write_u32(e + 0x18, o[3]); wml.write_u8(e + 0x20, o[4])
+      end
       SR5TM_RARE[e] = nil
     end
   end
+end
+-- Each loaded district's list, as { first, past the end }. They stream in and out, so an address kept from one can be freed.
+function P._district_lists(list_off, count_off, stride, cap)
+  local out, B = {}, wml.base
+  for i = 0, math.min(wml.read_u32(B + 0x314A950), 16) - 1 do
+    local rec = wml.read_u64(B + 0x314A958 + i * 8)
+    if rec ~= 0 then
+      local arr = wml.read_u64(rec + list_off)
+      out[#out + 1] = { arr, arr + math.min(wml.read_u16(rec + count_off), cap) * stride }
+    end
+  end
+  return out
+end
+function P._in_lists(lists, e)
+  for _, l in ipairs(lists) do if e >= l[1] and e < l[2] then return true end end
+  return false
 end
 function P.rare_active() return P.rare_traffic or next(SR5TM_RARE) ~= nil end
 -- Test guns: dev parents, vehicle mounts and skills' own guns. +988830(record, 0) disowns one
@@ -3466,6 +3518,9 @@ function P.prop_release_pending() return #prop_release > 0 end
 -- model first, as props are. Then the slot (inventory +0x30 each: +0 prefab, +8 info, +12 skin), whose
 -- info is left empty, gets the info of what it replaced, which gives the wheel an icon and a name.
 local PROTO_PATHS = {
+  weapon_launcher_marshall_burst_rocket = [[data\sr_city\spawnables\weapons\launcher\]], weapon_launcher_guitar = [[data\sr_city\spawnables\weapons\launcher\]], weapon_launcher_potato = [[data\sr_city\spawnables\weapons\launcher\]], weapon_launcher_beer_can = [[data\sr_city\spawnables\weapons\launcher\]],
+  weapon_pistol_star_god = [[data\sr_city\spawnables\weapons\pistol\]], weapon_pistol_saints_lawgiver = [[data\sr_city\spawnables\weapons\pistol\]], weapon_pistol_foam_finger = [[data\sr_city\spawnables\weapons\pistol\]], weapon_smg_idols_miniboss_player = [[data\sr_city\spawnables\weapons\smg\]],
+  weapon_melee_saints_blade = [[data\sr_city\spawnables\weapons\melee\]], weapon_rifle_focus_wrangler_lvl1 = [[data\sr_city\spawnables\weapons\rifle\]],
   weapon_panteros_miniboss_melee_player = [[data\sr_city\spawnables\weapons\melee\]], weapon_idols_miniboss_staff_player = [[data\sr_city\spawnables\weapons\]],
   weapon_idols_raver_melee = [[data\sr_city\spawnables\weapons\idols\]], weapon_idols_raver_thrown = [[data\sr_city\spawnables\weapons\idols\]],
   weapon_grenade_multi = [[data\dlc_boothill\spawnables\weapons\]],
@@ -3475,7 +3530,7 @@ local PROTO_PATHS = {
   weapon_special_sticky_proximity_bomb = [[data\sr_vanguard\spawnables\weapons\special\]], weapon_proximity_mine_small = [[data\sr_vanguard\spawnables\weapons\grenades\]],
 }
 -- What a slot shows if what it replaced had nothing to show either (an earlier prototype).
-local PROTO_HOST = { [1] = "weapon_melee_1hand_nahualli_knife", [3] = "weapon_smg_tac", [5] = "weapon_shotgun_auto", [7] = "inventory_weapon_anvil_gun", [8] = "weapon_temporary_marshall_minigun", [12] = "weapon_grenade_frag" }
+local PROTO_HOST = { [1] = "weapon_melee_1hand_nahualli_knife", [2] = "weapon_pistol_tacpistol", [3] = "weapon_smg_tac", [5] = "weapon_shotgun_auto", [7] = "inventory_weapon_anvil_gun", [8] = "weapon_temporary_marshall_minigun", [12] = "weapon_grenade_frag" }
 local proto_wait
 function P.proto_pending() return proto_wait ~= nil end
 function P.give_prefab_weapon(name, slot)
@@ -3821,9 +3876,15 @@ function P._reequip()
   local inv = wml.call(wml.base + 0x4BB340, e)
   if inv ~= 0 then wml.call(wml.base + 0x98E720, inv, wml.read_u32(inv + 0x578), 1, 0) end
 end
+-- A second later, and once however many rows asked: swapping guns too fast has crashed the game.
+function P._reequip_soon() P._reequip_wait = 60 end
+function P.update_reequip()
+  P._reequip_wait = P._reequip_wait - 1
+  if P._reequip_wait <= 0 then P._reequip_wait = nil; P._reequip() end
+end
 function P.update_rockets()
   local r = P.rockets
-  if not r then rocket_gun, rocket_for, P.rockets_set = nil, nil, nil; P._reequip(); return end
+  if not r then rocket_gun, rocket_for, P.rockets_set = nil, nil, nil; P._reequip_soon(); return end
   P.rockets_set = true
   if rocket_for ~= r then
     rocket_for = r
@@ -3907,7 +3968,7 @@ local GUN_SWAP = { gun_tracer = 0x8A4357A7, gun_muzzle = 0x77900BC7, gun_casing 
 function P.gun_tune_active()
   for k in pairs(GUN_TUNE) do if P[k] or SR5TM_EXTRA[k] then return true end end
   for k in pairs(GUN_SWAP) do if P[k] then return true end end
-  return false
+  return next(SR5TM_EXTRA.swaps_on or {}) ~= nil
 end
 local tune_gun, tune_state, tune_orig
 function P.update_gun_tune()
@@ -3917,6 +3978,7 @@ function P.update_gun_tune()
   local state = {}
   for k in pairs(GUN_TUNE) do state[#state + 1] = k .. tostring(P[k]) end
   for k in pairs(GUN_SWAP) do state[#state + 1] = k .. tostring(P[k]) end
+  state[#state + 1] = "no_recoil" .. tostring(P.no_recoil)
   table.sort(state)
   state = table.concat(state)
   if id == tune_gun and state == tune_state then return end
@@ -3933,6 +3995,7 @@ function P.update_gun_tune()
   if id ~= tune_gun then tune_orig = {} end
   tune_gun, tune_state = id, state
   local name = wml.buffer(11, "sr5_tweak_menu")
+  local rebuild = false
   local function current(section, key)
     local list, n = wml.read_u64(comp + section * 0x6A0 + 0x138), wml.read_u16(comp + section * 0x6A0 + 0x140)
     for i = 0, n - 1 do
@@ -3952,7 +4015,8 @@ function P.update_gun_tune()
       for section = 0, 1 do
         local slot = section .. ":" .. k[1]
         local p = current(section, k[1])
-        if P[row] then
+        -- Hip fire's recoil keys are No recoil's while that's on: each would otherwise undo the other
+        if P[row] and not (row == "gun_hip" and P.no_recoil and P._RECOIL and P._RECOIL[k[1]]) then
           if tune_orig[slot] == nil then
             tune_orig[slot] = p and (k[2] == 1 and wml.read_f32(p + 8) or wml.read_u32(p + 8)) or false
           end
@@ -3960,19 +4024,25 @@ function P.update_gun_tune()
           local v = k[3] == "mul" and base * P[row] or k[3] == "one" and 1 or P[row]
           put(section, k[1], k[2], v)
         elseif tune_orig[slot] ~= nil then
-          if tune_orig[slot] ~= false then put(section, k[1], k[2], tune_orig[slot]) end
+          -- a key the gun never had can't be written back: it goes when the gun's taken out again
+          if tune_orig[slot] ~= false then put(section, k[1], k[2], tune_orig[slot]) else rebuild = true end
           tune_orig[slot] = nil
         end
       end
     end
     SR5TM_EXTRA[row] = P[row] or nil
   end
+  local X = SR5TM_EXTRA
+  X.swaps_on = X.swaps_on or {}
   for row, key in pairs(GUN_SWAP) do
     if P[row] and loaded(P[row]) and not (P.rockets and key == 0x8A4357A7) then
       wml.write_u32(buf + 0x10, key)
       for section = 0, 1 do wml.call(wml.base + 0x1C001E0, comp, buf + 0x10, section, prefab_id(P[row] .. ".cprefab_pc"), name) end
     end
+    if X.swaps_on[row] and not P[row] then rebuild = true end
+    X.swaps_on[row] = P[row] or nil
   end
+  if rebuild then P._reequip_soon() end
 end
 -- A blast anywhere: world ints. Airstrike and Blast at waypoint use it.
 P.airstrike = false
@@ -4027,7 +4097,7 @@ function P.sig_active() return P.sig_key or P.sig_was end
 local melee_gun
 function P.update_explosive_melee()
   local path = P.explosive_melee
-  if not path then melee_gun = nil; if P._melee_on then P._melee_on = nil; P._reequip() end; return end
+  if not path then melee_gun = nil; if P._melee_on then P._melee_on = nil; P._reequip_soon() end; return end
   if not loaded(path) then return end
   local ok, s = wml.game("return tostring(gml_get_local_player_weapon())")
   local id = ok and tonumber((s or ""):match("object (%x+)") or "", 16)
@@ -4072,6 +4142,7 @@ local RECOIL = {   -- key hash = default
   [3476011760] = 2, [4628092] = 1, [635825236] = 10, [1210448282] = 5,   -- pitch, heading, max pitch, max heading
   [562308622] = 1, [665612735] = 1, [1177745254] = 1,                    -- hip-fire recoil, camera shake, hip-fire shake
 }
+P._RECOIL = RECOIL
 P.no_recoil = false
 local recoil_orig, recoil_gun = {}, nil   -- [gun id] = { [key] = value }
 -- Firing animations also trigger the shakes in gml_animation_camera_shake (five
@@ -4219,14 +4290,14 @@ end
 -- the extra, so scaling it runs away (x10 went past 500 m): the extra is fixed,
 -- and lasts a quarter of a second from the jump button and leaving the ground.
 local jump_comp, jump_frames, jump_left, jump_armed, jump_was_up = nil, 0, 0, 0, false
-function P.update_jump()
+function P.update_jump(menu_open)
   local x = P.move.jump
   if x == 1 then return end
   jump_frames = jump_frames - 1
   if jump_frames <= 0 or not jump_comp then jump_comp = P.component(0x10); jump_frames = 60 end
   local c = jump_comp
   if not c then return end
-  if wml.key_down("SPACE") or (wml.pad() or 0) & 0x1000 ~= 0 then jump_armed = 30
+  if not menu_open and (wml.key_down("SPACE") or (wml.pad() or 0) & 0x1000 ~= 0) then jump_armed = 30
   elseif jump_armed > 0 then jump_armed = jump_armed - 1 end
   local up = wml.read_f32(c + 0x274) > 0.5
   if jump_left > 0 then
@@ -4322,7 +4393,7 @@ function P.keep_prior_spawn()
   while #P.spawned_cars >= 10 do
     local id = table.remove(P.spawned_cars, 1)
     local e = P.entry_of(id)
-    if e and e ~= P.vehicle_object() and wml.read_u32(e + 0x58) == id then wml.call(B + 0x1E6920, e + 0x58) end
+    if e and e ~= P.vehicle_object() and e ~= P.partner_car and wml.read_u32(e + 0x58) == id then wml.call(B + 0x1E6920, e + 0x58) end
   end
   local refs = wml.read_u64(B + 0x2EB2330)
   wml.write_u32(refs + none * 4, wml.read_u32(refs + none * 4) + 1)
@@ -4340,9 +4411,33 @@ function P.update_minimap_watch()
   dead = ok and dead == true
   if dead and not minimap_dead then
     local ok2, x, z = wml.game("return Minimap_properties.offset_x, Minimap_properties.offset_z")
-    wml.log("minimap: its thread has ended, last updated at " .. tostring(ok2 and x) .. " " .. tostring(ok2 and z))
+    wml.log(string.format("minimap: its thread has ended, last updated at %s %s; lua pool %d of %d", tostring(ok2 and x), tostring(ok2 and z), wml.read_u64(wml.base + 0x35BC668), wml.read_u64(wml.base + 0x35BC660)))
   end
   minimap_dead = dead
+end
+-- For the crash at +1842726: a prefab's child couldn't be made and the game walks the null, most likely a full component pool. Says which, the once, as it fills,
+-- and the Lua pool as it passes 85%. Read only.
+P._pool_said = {}
+function P.log_pools()
+  local B, said = wml.base, P._pool_said
+  local base, n = wml.read_u64(B + 0x5CB3F70), math.min(wml.read_u32(B + 0x35F87F8), 256)
+  for tag = 0, n - 1 do
+    local p = base + tag * 0xD0
+    local cap, used = wml.read_u32(p + 0xA8), wml.read_u32(p + 0xAC)
+    local empty = wml.read_u64(p + 8) == 0
+    if cap > 0 and (empty or used * 10 >= cap * 9) then
+      if not said[tag] then said[tag] = true; wml.log(string.format("pool: tag %X %d of %d%s", tag, used, cap, empty and " EMPTY" or "")) end
+    else
+      said[tag] = nil
+    end
+  end
+  local links = wml.read_u64(B + 0x4243218) == 0
+  if links and not said.link then wml.log("pool: component links EMPTY") end
+  said.link = links or nil
+  local size = wml.read_u64(B + 0x35BC660)
+  local full = size > 0 and wml.read_u64(B + 0x35BC668) * 100 // size >= 85
+  if full and not said.lua then wml.log(string.format("pool: lua %d of %d", wml.read_u64(B + 0x35BC668), size)) end
+  said.lua = full or nil
 end
 function P.update_car_watch()
   if not car_watch then return end
@@ -4363,7 +4458,7 @@ function P.remove_spawned_cars()
   local left = {}
   for _, id in ipairs(P.spawned_cars) do
     local e = P.entry_of(id)
-    if e and e == mine then left[#left + 1] = id
+    if e and (e == mine or e == P.partner_car) then left[#left + 1] = id
     elseif e and wml.read_u32(e + 0x58) == id then wml.call(wml.base + 0x1E6920, e + 0x58); n = n + 1 end
   end
   P.spawned_cars = left
@@ -4862,8 +4957,14 @@ end
 function P.scenes_active() return P.scene_pick or next(SR5TM_SCENES) ~= nil end
 function P.update_scenes()
   local B = wml.base
+  local lists = next(SR5TM_SCENES) and P._district_lists(0x1A00, 0x1A08, 0x14, 128)
   for e, o in pairs(SR5TM_SCENES) do
-    wml.write_u32(e + 4, o[1]); wml.write_u32(e + 8, o[2]); wml.write_u32(e + 0xC, o[3]); wml.write_u32(e + 0x10, o[4])
+    if P._in_lists(lists, e) then
+      local w = wml.read_f32(e + 8)
+      if w == 100 or w == 0 then
+        wml.write_u32(e + 4, o[1]); wml.write_u32(e + 8, o[2]); wml.write_u32(e + 0xC, o[3]); wml.write_u32(e + 0x10, o[4])
+      end
+    end
     SR5TM_SCENES[e] = nil
   end
   if not P.scene_pick then return end
@@ -5222,4 +5323,5 @@ P.load_places()
 -- For shots.lua: this file is at Lua's limit of locals.
 P._held_gun, P._objects_near, P._loaded, P._prop_path, P._BOOM = held_gun, objects_near, loaded, prop_path, BOOM
 P._CUST, P._prop_release = CUST, prop_release
+P._prefab_id = prefab_id
 return P
