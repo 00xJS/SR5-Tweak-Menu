@@ -4724,6 +4724,19 @@ local function become(id)
   wml.write_u32(b, id)
   wml.call(wml.base + 0x1B44BC0, rec, b, 1)
   wml.call(wml.base + 0x1B44800, rec)
+  -- The commit doesn't move the camera, and on-foot controls only run when its target (cam +0x35C) is the local player:
+  -- that's why the body stood still while the phone, which doesn't check, played on them. As the world start does:
+  -- the body's 0x1F component, then +13C2E60(cam, 0, &id, &handle, 0, &16 bytes).
+  local e = P.entry_of(id)
+  local cam = wml.call(wml.base + 0x1FCD10, 0)
+  if e and cam ~= 0 then
+    wml.write_u64(b, b + 0x20); wml.write_u64(b + 8, b + 0x28)
+    wml.write_u32(b + 0x20, 0x1F); wml.write_u8(b + 0x28, 0)
+    local h = wml.call(wml.base + 0x19E8C40, e, b) & 0xFFFFFFFF
+    wml.write_u32(b + 0x30, id); wml.write_u32(b + 0x34, h)
+    for i = 0, 15 do wml.write_u8(b + 0x40 + i, 0) end
+    wml.call(wml.base + 0x13C2E60, cam, 0, b + 0x30, b + 0x34, 0, b + 0x40)
+  end
 end
 function P.play_as_spawned()
   local e = P.object()
@@ -4734,7 +4747,19 @@ function P.play_as_spawned()
     local t = P.entry_of(id)
     local h = t and t ~= e and P.component(0x8D, t)
     if h and wml.read_u8(h + 0x104) == 0 then
-      SR5TM_MY_ID = SR5TM_MY_ID or wml.read_u32(e + 0x58)
+      local parts = ""
+      for _, k in ipairs({ 0x10, 0x1F, 0x49, 0x77, 0x8C, 0x86, 0x5C }) do parts = parts .. string.format(" %X:%s", k, P.component(k, t) and "y" or "n") end
+      wml.log("play as " .. id .. ":" .. parts)
+      -- Getting in a vehicle reads these two with no check, so a body without them would crash.
+      if not (P.component(0x8C, t) and P.component(0x86, t)) then return false, "They can't be played: that body has no inventory" end
+      local me = wml.read_u32(e + 0x58)
+      if not SR5TM_MY_ID then
+        SR5TM_MY_ID = me
+        P.node(0x697590, 0x29D1E20, { { u = me }, { u = 1 } })   -- your own body, left standing, can't be killed
+        P.node(0xAD8B70, 0x2A17718, { { u = 0 } })               -- and nothing saves while you're someone else
+      end
+      P.node(0xAE22F0, 0x29F37E8, { { u = id } })                -- their brain off, or it fights the controls
+      SR5TM_PLAY_NPC = id
       become(id)
       return true
     end
@@ -4743,9 +4768,18 @@ function P.play_as_spawned()
 end
 function P.playing_as() return SR5TM_MY_ID ~= nil end
 function P.back_to_self()
-  if not SR5TM_MY_ID or not P.entry_of(SR5TM_MY_ID) then SR5TM_MY_ID = nil; return false end
-  become(SR5TM_MY_ID)
-  SR5TM_MY_ID = nil
+  -- If your own body's gone there's no way back. Saving stays off: reload the last save.
+  if not SR5TM_MY_ID or not P.entry_of(SR5TM_MY_ID) then
+    if SR5TM_MY_ID then wml.log("play as: your own body is gone. Reload your last save: saving is off") end
+    SR5TM_MY_ID = nil
+    return false
+  end
+  local me = SR5TM_MY_ID
+  become(me)
+  P.node(0x697590, 0x29D1E20, { { u = me }, { u = 0 } })
+  if not P.no_autosave then P.node(0xAD8B70, 0x2A17718, { { u = 1 } }) end
+  if SR5TM_PLAY_NPC and P.entry_of(SR5TM_PLAY_NPC) then P.node(0xAE2210, 0x29E7BA8, { { u = SR5TM_PLAY_NPC } }) end
+  SR5TM_MY_ID, SR5TM_PLAY_NPC = nil, nil
   return true
 end
 function P.check_body()

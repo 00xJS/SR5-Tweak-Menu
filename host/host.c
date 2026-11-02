@@ -369,6 +369,7 @@ static volatile uint8_t g_block_vk[256];
 static volatile int g_block_pad;
 static volatile int g_block_mouse;         // clicks and the wheel
 static volatile int g_block_triggers;      // RT and LT: on foot they fire and aim, in a vehicle they drive
+static volatile unsigned g_rb_wait;        // ms RB is held back, 0 off
 static volatile int g_block_move;          // and the sticks and mouse movement, if the player wants nothing to reach the game
 static volatile int g_pad_mask;            // buttons kept from the game
 static volatile int g_pad_no_triggers;     // and its triggers
@@ -394,22 +395,40 @@ static int g_sent_up;                      // we've sent a "left up" the real bu
 #define PAD_DOWN 0x0002
 static uint16_t g_pad_held[4];
 static uint8_t g_lt_held[4], g_rt_held[4];
+// Optional: RB reaches the game a moment late, so RB + D-pad Down never presses RB in the game. A tap shorter than
+// the wait still gets to the game, just after it's let go.
+static unsigned long long g_rb_t0, g_rb_replay;
+static int g_rb_was, g_rb_ours;
+static void filter_rb(xstate_t *st, uint16_t now, int block, unsigned long long t, unsigned wait)
+{
+    int down = (now & PAD_RB) != 0;
+    if (down) {
+        if (!g_rb_was) { g_rb_t0 = t; g_rb_ours = 0; }
+        if ((now & PAD_DOWN) || block) g_rb_ours = 1;
+        if (g_rb_ours || t - g_rb_t0 < wait) st->buttons &= (uint16_t)~PAD_RB;
+    } else {
+        if (g_rb_was && !g_rb_ours && !block && t - g_rb_t0 < wait) g_rb_replay = t + 60;
+        if (t < g_rb_replay) st->buttons |= PAD_RB;
+    }
+    g_rb_was = down;
+}
 static void filter_trigger(uint8_t *value, uint8_t *held, int block)
 {
     if (block && *value > 30) *held = 1;
     if (*value <= 30) *held = 0;
     if (block || *held) *value = 0;
 }
-static void filter_pad(unsigned user, xstate_t *st, int block, int triggers)
+static void filter_pad(unsigned user, xstate_t *st, int block, int triggers, unsigned long long t, unsigned rb_wait)
 {
     unsigned u = user & 3;
     uint16_t now = st->buttons;
     if (block) g_pad_held[u] |= now;
     g_pad_held[u] &= now;
     st->buttons = (uint16_t)(now & ~g_pad_held[u]);
-    // RB + D-pad Down opens the menu: that D-pad press is never the game's. RB can't be
-    // kept back the same way, as it's a game button until D-pad Down comes.
+    // RB + D-pad Down opens the menu: that D-pad press is never the game's. RB is a game button
+    // until D-pad Down comes, so it only stays back if the player asks for that small delay.
     if (u == 0 && (now & PAD_RB)) st->buttons &= (uint16_t)~PAD_DOWN;
+    if (u == 0 && rb_wait) filter_rb(st, now, block, t, rb_wait);
     filter_trigger(&st->lt, &g_lt_held[u], triggers);
     filter_trigger(&st->rt, &g_rt_held[u], triggers);
 }
@@ -494,10 +513,11 @@ static BOOL WINAPI my_peek(LPMSG msg, HWND wnd, UINT min, UINT max, UINT remove)
 static volatile ULONGLONG g_sim_until;
 static volatile WORD g_sim_buttons;
 static volatile BYTE g_sim_lt, g_sim_rt;
+static volatile SHORT g_sim_lx, g_sim_ly;
 static DWORD WINAPI my_game_xget(DWORD user, xstate_t *st)
 {
     DWORD r = g_game_xget(user, st);
-    if (r == 0 && st) filter_pad(user, st, g_block_pad, g_block_triggers);
+    if (r == 0 && st) filter_pad(user, st, g_block_pad, g_block_triggers, GetTickCount64(), g_rb_wait);
     if (r == 0 && st && g_block_move) st->lx = st->ly = st->rx = st->ry = 0;
     if (r == 0 && st) st->buttons &= (WORD)~g_pad_mask;
     if (r == 0 && st && g_pad_no_triggers) st->lt = st->rt = 0;
@@ -509,6 +529,7 @@ static DWORD WINAPI my_game_xget(DWORD user, xstate_t *st)
         st->packet = ++packet;
         st->buttons |= g_sim_buttons;
         st->lt = g_sim_lt; st->rt = g_sim_rt;
+        if (g_sim_lx || g_sim_ly) { st->lx = g_sim_lx; st->ly = g_sim_ly; }
         r = 0;
     }
     return r;
@@ -582,6 +603,8 @@ static int l_block_input(lua_State *s)
     return 0;
 }
 static int l_block_triggers(lua_State *s) { g_block_triggers = lua_toboolean(s, 1); return 0; }
+// rb_delay(ms): RB reaches the game this late, 0 for at once.
+static int l_rb_delay(lua_State *s) { g_rb_wait = (unsigned)luaL_checkinteger(s, 1); return 0; }
 // block_move(on): the sticks, mouse movement and the move keys too. Call it before block_input.
 static int l_block_move(lua_State *s) { g_block_move = lua_toboolean(s, 1); return 0; }
 // sim_pad(buttons, lt, rt): held for the next 200 ms.
@@ -591,6 +614,13 @@ static int l_sim_pad(lua_State *s)
     g_sim_lt = (BYTE)luaL_checkinteger(s, 2);
     g_sim_rt = (BYTE)luaL_checkinteger(s, 3);
     g_sim_until = GetTickCount64() + 200;
+    return 0;
+}
+// sim_stick(lx, ly): the left stick, along with sim_pad.
+static int l_sim_stick(lua_State *s)
+{
+    g_sim_lx = (SHORT)luaL_checkinteger(s, 1);
+    g_sim_ly = (SHORT)luaL_checkinteger(s, 2);
     return 0;
 }
 
@@ -676,7 +706,7 @@ static void start_lua(void)
         { "write_f32", l_write_f32 },
         { "key_down", l_key_down }, { "key_pressed", l_key_pressed },
         { "take_key", l_noop }, { "force_key", l_noop }, { "mouse_look", l_noop }, { "set_look", l_noop },
-        { "block_input", l_block_input }, { "block_triggers", l_block_triggers }, { "sim_pad", l_sim_pad }, { "block_move", l_block_move }, { "auto_fire", l_auto_fire },
+        { "block_input", l_block_input }, { "block_triggers", l_block_triggers }, { "rb_delay", l_rb_delay }, { "sim_pad", l_sim_pad }, { "sim_stick", l_sim_stick }, { "block_move", l_block_move }, { "auto_fire", l_auto_fire },
         { "on_frame", l_on_frame }, { "game", l_game }, { "call", l_call }, { "callf", l_callf },
         { "buffer", l_buffer }, { "read_string", l_read_string },
         { "pad", l_pad }, { "pad_mask", l_pad_mask }, { "aoe_scale", l_aoe_scale }, { "f2u", l_f2u }, { "u2f", l_u2f },

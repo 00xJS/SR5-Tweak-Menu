@@ -1044,10 +1044,11 @@ local TABS = {
     { kind = "cloth_now", label = "What's on this slot", help = "Shows what's worn in the slot picked on Clothing slot." },
     { kind = "console_list", class = "char_cust_wearable_info", handler = 0x13DE6D0, what = "Wearing", label = "Wear any item", help = "Any of the game's 2,686 items, tattoos, makeup and tans too. Left/Right picks, Enter wears it.", sel = 1, options = {} },
     { kind = "look_colour", cloth = true, label = "Item colour", help = "Colours part of what's in Clothing slot. Left/Right picks, Enter colours it. Stays in your save.", sel = 1, options = { { "Red", { 220, 20, 20 } }, { "Orange", { 240, 120, 20 } }, { "Yellow", { 240, 220, 30 } }, { "Green", { 30, 190, 40 } }, { "Teal", { 20, 190, 190 } }, { "Blue", { 20, 60, 220 } }, { "Purple", { 130, 30, 200 } }, { "Pink", { 240, 90, 180 } }, { "White", { 245, 245, 245 } }, { "Grey", { 120, 120, 120 } }, { "Black", { 10, 10, 10 } }, { "Brown", { 90, 55, 30 } }, { "Blond", { 220, 190, 120 } }, { "Ginger", { 180, 80, 30 } } } },
-    pset("colour_part", "Colour part", "Which colour of an item Item colour changes. Most items have up to three.", { { "First", false }, { "Second", "color_2" }, { "Third", "color_3" } }),
+    pset("colour_part", "Colour part", "Which colour of an item Item colour changes. Most items have up to three.", { { "First", false }, { "Second", "color_2" }, { "Third", "color_3" }, { "Glow", "glow_color_1" } }),
     { kind = "look_colour", slot = "hair", part = "color_1", label = "Hair colour", help = "Colours your hair. Left/Right picks, Enter colours it. Stays in your save.", sel = 1, options = { { "Red", { 220, 20, 20 } }, { "Orange", { 240, 120, 20 } }, { "Yellow", { 240, 220, 30 } }, { "Green", { 30, 190, 40 } }, { "Teal", { 20, 190, 190 } }, { "Blue", { 20, 60, 220 } }, { "Purple", { 130, 30, 200 } }, { "Pink", { 240, 90, 180 } }, { "White", { 245, 245, 245 } }, { "Grey", { 120, 120, 120 } }, { "Black", { 10, 10, 10 } }, { "Brown", { 90, 55, 30 } }, { "Blond", { 220, 190, 120 } }, { "Ginger", { 180, 80, 30 } } } },
     { kind = "look_colour", slot = "facial_hair", part = "hair_color", label = "Beard colour", help = "Colours your beard. Left/Right picks, Enter colours it. Stays in your save.", sel = 1, options = { { "Red", { 220, 20, 20 } }, { "Orange", { 240, 120, 20 } }, { "Yellow", { 240, 220, 30 } }, { "Green", { 30, 190, 40 } }, { "Teal", { 20, 190, 190 } }, { "Blue", { 20, 60, 220 } }, { "Purple", { 130, 30, 200 } }, { "Pink", { 240, 90, 180 } }, { "White", { 245, 245, 245 } }, { "Grey", { 120, 120, 120 } }, { "Black", { 10, 10, 10 } }, { "Brown", { 90, 55, 30 } }, { "Blond", { 220, 190, 120 } }, { "Ginger", { 180, 80, 30 } } } },
     { kind = "look_colour", slot = "eyes", part = "iris_outer", label = "Eye colour", help = "Colours your eyes. Left/Right picks, Enter colours them. Stays in your save.", sel = 1, options = { { "Red", { 220, 20, 20 } }, { "Orange", { 240, 120, 20 } }, { "Yellow", { 240, 220, 30 } }, { "Green", { 30, 190, 40 } }, { "Teal", { 20, 190, 190 } }, { "Blue", { 20, 60, 220 } }, { "Purple", { 130, 30, 200 } }, { "Pink", { 240, 90, 180 } }, { "White", { 245, 245, 245 } }, { "Grey", { 120, 120, 120 } }, { "Black", { 10, 10, 10 } }, { "Brown", { 90, 55, 30 } }, { "Blond", { 220, 190, 120 } }, { "Ginger", { 180, 80, 30 } } } },
+    pset("skin_colour", "Skin colour", "Your whole skin in one colour. Normal skins only. Stays in your save while it's on. Off or Undo my look puts you back.", { { "Off", false }, { "Red", { 255, 0, 0 } }, { "Orange", { 255, 90, 0 } }, { "Yellow", { 255, 210, 0 } }, { "Green", { 0, 255, 40 } }, { "Cyan", { 0, 220, 255 } }, { "Blue", { 0, 40, 255 } }, { "Purple", { 130, 0, 255 } }, { "Pink", { 255, 0, 140 } }, { "White", { 255, 255, 255 } }, { "Black", { 0, 0, 0 } } }),
     { kind = "game_list", look = true, class = "char_cust_skin_shader_info", label = "Skin type", help = "Changes your skin. Left/Right picks, Enter puts it on. Stays in your save. Undo my look puts you back.", sel = 1, options = {}, code = [[gml_customization_set_shader(gml_get_local_player():get_component_by_type("gml_component_character_customization"), vlib_info_object:get_object("char_cust_skin_shader_info", "%s"))]] },
     { kind = "game_list", look = true, class = "ui_char_cust_skin_shader_value_set", label = "Skin set", help = "One of the game's skin looks. Left/Right picks, Enter puts it on. Stays in your save.", sel = 1, options = {}, code = [[gml_customization_apply_skin_shader_preset(gml_get_local_player():get_component_by_type("gml_component_character_customization"), vlib_info_object:get_object("ui_char_cust_skin_shader_value_set", "%s"))]] },
     { kind = "game_list", class = "gml_persona", label = "Any voice", help = "Speak with any of the 495 voices. Left/Right picks, Enter sets it. Silent if that voice isn't loaded.", sel = 1, options = {}, code = [[customization_set_override_avatar_persona(vlib_info_object:get_object("gml_persona", "%s"))]] },
@@ -1543,6 +1544,11 @@ local TABS = {
     opt("Tutorial popups", "The game's tutorial popups option. Off is none.", "options_get_tutorial_frequency()", "options_set_tutorial_frequency(%s)", { { "Off", 0 }, { "1", 1 }, { "2", 2 }, { "3", 3 } }),
     { kind = "mset", key = "tweaks_paused", label = "Pause all tweaks", help = "Paused: every menu tweak back to the game's for now. No: they all come back. Cheats stay.", options = { { "No", false }, { "Paused", true } }, sel = 1 },
     { kind = "mset", key = "menu_still", label = "Keep moving in the menu", help = "On: you can still move, look and drive with the menu open. Off: nothing at all reaches the game while it's up.", options = { { "On", false }, { "Off", true } }, sel = 1, save_key = "menu.menu_still" },
+    { kind = "mset", key = "rb_hold", label = "Hold RB back", help = "On: RB reaches the game 0.15 s late, so opening the menu with RB + D-pad Down doesn't also press RB in the game. Off: RB is instant.", options = { { "Off", false }, { "On", 150 } }, sel = 1, save_key = "menu.rb_hold" },
+    { kind = "profile", label = "Profile", help = "Saved sets of tweaks. Left/Right picks one. Edit the name= line in TweakMenu\\profile_1.txt to rename it, or pass the file to someone." },
+    { kind = "profile_load", label = "Load profile", help = "Every menu tweak goes to what the profile holds and the rest back to the game's. Enter twice. It lasts until you quit: Save tweaks for next time keeps it." },
+    { kind = "profile_save", label = "Save to profile", help = "Puts the tweaks that are on now into the profile picked above. Enter, and Enter twice over one that's in use." },
+    { kind = "profile_delete", label = "Delete profile", help = "Deletes the profile picked above. Enter twice." },
     { kind = "mset", key = "hold_back", label = "Hold Back opens the menu", help = "Hold Back (View) for a second to open or close the menu. The game sees it too.", options = { { "Off", false }, { "On", true } }, sel = 1, save_key = "menu.hold_back" },
     { kind = "clean", label = "Keep my save clean", help = "Rows marked * don't mark your save. Achievements pause only while one is on." },
     { kind = "opacity", label = "Menu opacity", help = "How dark the panel behind the menu is." },
@@ -1593,7 +1599,7 @@ local LAYOUT = {
   { "Character", {
     { "Outfits", "Whole looks, and undoing them.", { "Saved look", "Saved look: outfit only", "Character preset", "Wear any outfit", "Hidden outfit", "Wear any item", "Customize character", "Clothes hide each other", "No wind on clothes", "Snapshot my look", "Undo my look" } },
     { "Clothing", "One item at a time: pick a slot, then an item.", { "Clothing slot", "Clothing item", "What's on this slot", "Take off this slot", "Item colour", "Colour part", "Item gloss", "Stack on slot", "Stack that item", "Material slot", "Item material" } },
-    { "Hair, eyes and skin", "Colours and skin, past what the game offers.", { "Hair colour", "Beard colour", "Eye colour", "Eye glow", "Skin type", "Skin set" } },
+    { "Hair, eyes and skin", "Colours and skin, past what the game offers.", { "Hair colour", "Beard colour", "Eye colour", "Eye glow", "Skin colour", "Skin type", "Skin set" } },
     { "Face", "Face parts, past-limit sizes and expression.", { "Face part", "Face amount", "Random face", "Face: head shape", "Face: eye size", "Face: nose size", "Face: mouth size", "Face: eye spacing", "Face: mouth width", "Facial expression" } },
     { "Body", "Past the sliders' ends. Only on screen: your save keeps your real body.", { "Body: muscle", "Body: fat", "Body: thin", "Body: chest", "Body: masculine to feminine", "Body: groin", "Body: squeezed", "Long legs", "Back to my real body" } },
     { "Effects on you", "Burning, fading and the rest, for show.", { "You are invisible", "You look on fire", "Skin effect on you", "Stop skin effects", "Prank yourself" } },
@@ -1698,7 +1704,8 @@ local LAYOUT = {
     "What's on", "Save tweaks for next time", "Everything back to normal", "Turn every cheat off", "Pause all tweaks",
     { "Game", "Cutscenes, saving and tutorials.", { "Skip cutscene", "Pause / resume cutscene", "Quick save", "New save", "Load last save", "No autosave", "Skip intro", "Tutorial popups" } },
     { "Difficulty", "The pause menu's custom sliders. They stay in your save.", { "Difficulty: player health", "Difficulty: player damage", "Difficulty: enemies", "Difficulty: vehicles", "Difficulty: notoriety", "Difficulty: ammo reserve", "Difficulty: timer speed" } },
-    { "Menu", "How the menu looks, opens and remembers.", { "Menu opacity", "Hold Back opens the menu", "Keep moving in the menu", "Keep my save clean", "Forget saved tweaks" } },
+    { "Menu", "How the menu looks, opens and remembers.", { "Menu opacity", "Hold Back opens the menu", "Hold RB back", "Keep moving in the menu", "Keep my save clean", "Forget saved tweaks" } },
+    { "Profiles", "Saved sets of tweaks you can switch between.", { "Profile", "Load profile", "Save to profile", "Delete profile" } },
     { "Game data", "Almost any number or on/off value in the game. Work down the rows.", { "Data system", "Data group", "Data entry", "Data value", "Data list item", "Data change", "Change this entry", "Change all entries", "Undo all data changes" } },
     { "Developer switches", "Left in the game by its developers. Most do unknown things.", { "Dev: never die", "Dev: never die, AI", "Dev: Shawn mode", "Dev: capture mode", "Dev: auto sprint", "Dev: infinite ammo", "Dev: infinite magazine", "Dev: vehicle ramps", "Dev: weapon raycasts", "Dev: notoriety bubbles", "Dev: HQ mask off" } },
     "Close menu",
@@ -1829,6 +1836,53 @@ function M.save_now()
   swap()
   if ok then T.load(); SR5TM_UNSAVED, M.unsaved = false, false end
   return ok
+end
+
+-- Profiles. A row's key is its save key, or its label for the few without one.
+local function profile_key(r) return r.save_key or ("row." .. r.label) end
+M.profile_sel = 1
+function M.profile_get(n, fresh)
+  M.profiles = M.profiles or {}
+  if fresh or M.profiles[n] == nil then M.profiles[n] = T.profile_read(n) or false end
+  return M.profiles[n] or nil
+end
+function M.profile_save(n)
+  local have = M.profile_get(n, true)
+  local rows, swap = saveable()
+  swap()
+  local set = {}
+  for _, r in ipairs(rows) do
+    if tweak_row(r) and r.sel ~= 1 and r.options[r.sel] then set[profile_key(r)] = r.options[r.sel][1] end
+  end
+  swap()
+  local ok = T.profile_write(n, have and have.name or ("Profile " .. n), set)
+  M.profile_get(n, true)
+  return ok
+end
+-- Returns how many tweaks it set and how many it couldn't find, or nil.
+function M.profile_load(n)
+  local p = M.profile_get(n, true)
+  if not p then return nil end
+  M.stash, M.coop_stash = nil, nil
+  local on, found = 0, {}
+  for _, r in ipairs(all_rows()) do
+    if r.key == "tweaks_paused" then r.sel = 1; M.tweaks_paused = false end
+    if tweak_row(r) and #r.options > 0 then
+      local want, key = 1, profile_key(r)
+      if p.set[key] then
+        for i, o in ipairs(r.options) do if o[1] == p.set[key] then want = i; found[key] = true; on = on + 1 end end
+      end
+      if r.sel ~= want then r.sel = want; set_value(r, r.options[want][2]) end
+    end
+  end
+  W.restore(); WS.restore()
+  if W.any_on() then W.apply() end
+  if WS.any_on() then WS.apply() end
+  M.gun_dirty = true
+  M.save_tweaks()
+  local missed = 0
+  for k in pairs(p.set) do if not found[k] then missed = missed + 1 end end
+  return on, missed
 end
 
 -- All tweaks off: every menu tweak to the game's, the choices put aside;
@@ -2265,7 +2319,10 @@ local function select_row(row)
     say(n == 0 and "Nobody near" or (n .. (n == 1 and " person " or " people ") .. (row.armed and "re-armed" or "disarmed")))
   elseif row.kind == "play_as" then
     if row.back then say(P.back_to_self() and "You again" or "You're already you", "status")
-    else say(P.play_as_spawned() and "You're them now: Back to yourself returns" or "Spawn someone first (People > Spawn person)", "status") end
+    else
+      local ok, why = P.play_as_spawned()
+      say(ok and "You're them now: Back to yourself returns" or why or "Spawn someone first (People > Spawn person)", "status")
+    end
   elseif row.kind == "outfit" then
     local o = row.options[row.sel]
     if not o then say("No saved looks", "warn") else
@@ -2356,7 +2413,7 @@ local function select_row(row)
       local i = gml_customization_get_slot_index(c, vlib_info_object:get_object("char_cust_slot", %q))
       local n = 0
       for _, e in ipairs(gml_customization_get_shader_params(c, i)) do
-        if e.param_name == %q then gml_customization_set_shader_param_value(c, i, e.material, %q, %s); n = n + 1 end
+        if e.info:get_handle() == vlib_info_object:get_object("char_cust_shader_value", %q):get_handle() then gml_customization_set_shader_param_value(c, i, e.material, %q, %s); n = n + 1 end
       end
       return n]], slot, part, part, tostring(v)))
     say(not ok and tostring(n) or (n == 0 and ("That has no " .. part) or (row.label .. ": " .. row.options[row.sel][1])), ok and "status" or "warn")
@@ -2423,7 +2480,7 @@ local function select_row(row)
       local v = gml_customization_get_shader_params(c, i)
       local n = 0
       for _, e in ipairs(v) do
-        if e.param_name == %q then gml_customization_set_shader_param_value(c, i, e.material, %q, { R = %d, G = %d, B = %d }); n = n + 1 end
+        if e.info:get_handle() == vlib_info_object:get_object("char_cust_shader_value", %q):get_handle() then gml_customization_set_shader_param_value(c, i, e.material, %q, { R = %d, G = %d, B = %d }); n = n + 1 end
       end
       return n]], slot, part, part, c[1], c[2], c[3]))
     say(not ok and tostring(n) or (n == 0 and ("That has no " .. part) or (row.label .. ": " .. row.options[row.sel][1])), ok and "status" or "warn")
@@ -2891,6 +2948,30 @@ local function select_row(row)
     M.pending_confirm = nil
   elseif row.kind == "save_now" then
     say(M.save_now() and "Saved: your tweaks will be back next start" or "Couldn't write the file", "status")
+  elseif row.kind == "profile" then
+    local p = M.profile_get(M.profile_sel, true)
+    say(p and (p.name .. ": " .. p.count .. " tweaks") or ("Profile " .. M.profile_sel .. " is empty: use Save to profile"), "status")
+  elseif row.kind == "profile_load" or row.kind == "profile_save" or row.kind == "profile_delete" then
+    local n = M.profile_sel
+    local p = M.profile_get(n, true)
+    if row.kind ~= "profile_save" and not p then say("Profile " .. n .. " is empty", "warn")
+    elseif row.kind == "profile_load" and Co.in_coop() then say("Not in co-op: the limits there decide which tweaks can be on", "warn")
+    elseif p and M.pending_confirm ~= row then
+      M.pending_confirm = row
+      say(row.label .. " " .. p.name .. ": press again to confirm", "warn")
+    else
+      M.pending_confirm = nil
+      if row.kind == "profile_save" then
+        say(M.profile_save(n) and ("Saved to " .. M.profile_get(n).name .. ": " .. M.profile_get(n).count .. " tweaks") or "Couldn't write the file", "status")
+      elseif row.kind == "profile_delete" then
+        T.profile_delete(n)
+        M.profile_get(n, true)
+        say("Deleted " .. p.name)
+      else
+        local on, missed = M.profile_load(n)
+        say(p.name .. " loaded: " .. tostring(on) .. " tweaks on" .. ((missed or 0) > 0 and (", " .. missed .. " not found in this version") or ""), "status")
+      end
+    end
   elseif row.kind == "forget" then
     T.forget()
     SR5TM_SESSION, SR5TM_UNSAVED, M.unsaved = nil, false, false
@@ -2947,6 +3028,9 @@ local function row_value(row)
     return #row.rows .. "  >", "off"
   elseif row.kind == "save_now" then
     return M.unsaved and "Not saved" or "Saved", M.unsaved and "on" or "off"
+  elseif row.kind == "profile" then
+    local p = M.profile_get(M.profile_sel)
+    return "<  " .. (p and (p.name .. " (" .. p.count .. ")") or (M.profile_sel .. ": empty")) .. "  >", p and "row" or "off"
   elseif row.kind == "mset" then
     local o = row.options[row.sel]
     return "<  " .. o[1] .. "  >", row.sel == 1 and "off" or "on"
@@ -3167,6 +3251,9 @@ local function adjust(delta)
   elseif row and row.kind == "camset" then M.adjust_camset(row, delta)
   elseif row and row.kind == "places" then
     if #P.places > 0 then row.sel = (row.sel - 1 + delta) % #P.places + 1 end
+  elseif row and row.kind == "profile" then
+    M.profile_sel = (M.profile_sel - 1 + delta) % T.PROFILES + 1
+    M.profile_get(M.profile_sel, true)
   elseif row and row.options and #row.options == 0 then
     say(row.kind == "engine_rec" and "Press Enter to load this list" or "Nothing to pick yet: load into the game first", "warn")
   elseif row and row.options then
@@ -3599,6 +3686,7 @@ function M.update()
   if C.loaded and frame % 15 == 9 and P.gun_tune_active() then P.update_gun_tune() end
   if C.loaded and P._reequip_wait then P.update_reequip() end
   if C.loaded and frame % 60 == 31 then P.update_drop_glow() end
+  if C.loaded and frame % 60 == 47 then P.update_skin_colour() end
   if C.loaded and frame % 15 == 11 and P.sig_from_active() then P.update_sig_from() end
   if C.loaded and frame % 5 == 2 and P.bullet_blast_active() then P.update_bullet_blast() end
   if C.loaded and P.fire_mode then P.update_fire_mode() end
@@ -3608,7 +3696,12 @@ function M.update()
   if C.loaded and frame % 15 == 8 and P.sig_active() then P.update_sig_key() end
   if C.loaded and M.play_as_wait then
     M.play_as_wait = M.play_as_wait - 1
-    if not P.spawned_pending() and P.play_as_spawned() then
+    local became, why = false, nil
+    if not P.spawned_pending() then became, why = P.play_as_spawned() end
+    if why then
+      M.play_as_wait = nil
+      say(why, "warn")
+    elseif became then
       M.play_as_wait = nil
       say("You're them now: Back to yourself returns")
     elseif M.play_as_wait <= 0 then
@@ -3756,6 +3849,7 @@ function M.update()
 
   -- While it's open the game only gets moving and looking. On foot the triggers would fire and
   -- aim, so they stop too; in a vehicle they're the pedals, so they keep going.
+  if wml.rb_delay and (M.rb_hold or 0) ~= (M.rb_sent or 0) then wml.rb_delay(M.rb_hold or 0); M.rb_sent = M.rb_hold or 0 end
   local still = M.open and M.menu_still or false
   if (M.open ~= M.blocking or still ~= M.blocking_still) and wml.block_input then
     if wml.block_move then wml.block_move(still) end

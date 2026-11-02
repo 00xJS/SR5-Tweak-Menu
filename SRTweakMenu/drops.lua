@@ -62,3 +62,42 @@ function P.update_drop_glow()
     end
   end
 end
+
+-- ------------------------------------------------------------------ your skin, in any colour
+-- The skin's tint_composite on each material that has it, head, body, arms and legs, with the game's own call. Normal skins
+-- only: reward skins like galaxy_skin expose no values, and the mannequin preset's white has no colour to set. Tried live:
+-- solid green, and a look restore put it back. It's a colour, not a glow: past 255 shifts the hue and adds no light.
+P.skin_colour = false
+local TINT = [[local c = gml_get_local_player():get_component_by_type("gml_component_character_customization")
+  local si, p = gml_customization_get_skin_shader_values(c)
+  local want, n = vlib_info_object:get_object("char_cust_shader_value", "tint_composite"):get_handle(), 0
+  for _, e in ipairs(p) do
+    if e.info:get_handle() == want then
+      gml_customization_set_skin_shader_value(c, e.material, e.info, { R = %d, G = %d, B = %d })
+      n = n + 1
+    end
+  end
+  return n]]
+function P.update_skin_colour()
+  local want = P.skin_colour
+  if not want then
+    if G.skin then
+      G.skin = nil
+      P.look_restore()
+    end
+    return
+  end
+  if not G.skin then
+    P.look_first()
+    G.skin = { n = 0 }
+  end
+  -- A respawn or a load can take the colour away, so it's sent again now and then.
+  G.skin.n = G.skin.n + 1
+  if G.skin.want == want and G.skin.n % 5 ~= 0 then return end
+  G.skin.want = want
+  local ok, n = wml.game(string.format(TINT, want[1], want[2], want[3]))
+  if not ok or n == 0 then
+    local why = ok and "this skin has no tint: only normal skins do" or tostring(n)
+    if why ~= G.skin.why then wml.log("skin colour: " .. why); G.skin.why = why end
+  end
+end

@@ -47,5 +47,34 @@ function T.forget()
   T.saved = {}
 end
 
+-- Profiles: named sets of tweaks in TweakMenu\profile_1.txt to _8.txt. Only what's away from the game's own is listed, so
+-- loading one turns everything else off. The first line, name=, is yours to edit, and a file can be passed to someone else.
+T.PROFILES = 8
+local function profile_file(n) return wml.root .. "\\profile_" .. n .. ".txt" end
+function T.profile_read(n)
+  local f = io.open(profile_file(n), "r")
+  if not f then return nil end
+  local out = { name = "Profile " .. n, set = {}, count = 0 }
+  for line in f:lines() do
+    local k, v = line:match("^(.-)=(.*)$")
+    if k == "name" then out.name = v
+    elseif k then out.set[k] = v; out.count = out.count + 1 end
+  end
+  f:close()
+  return out
+end
+function T.profile_write(n, name, set)
+  local lines = {}
+  for k, v in pairs(set) do lines[#lines + 1] = k .. "=" .. v end
+  table.sort(lines)
+  local f = io.open(profile_file(n), "w")
+  if not f then return false end
+  f:write("name=", name, "\n")
+  if #lines > 0 then f:write(table.concat(lines, "\n"), "\n") end
+  f:close()
+  return true
+end
+function T.profile_delete(n) os.remove(profile_file(n)) end
+
 T.load()
 return T

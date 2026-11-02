@@ -43,7 +43,7 @@ the wheel stay with the menu, and so do the triggers on foot; in a vehicle the
 triggers still drive. A button you're holding when the menu closes stays away
 from the game until you let go, so closing with B doesn't also press B in the game. RB
 reaches the game before D-pad Down opens the menu, so opening with the controller
-can still do whatever RB does. Turn off Keep moving in the menu (Settings, Menu) and
+can still do whatever RB does, unless you turn on Hold RB back (Settings, Menu). Turn off Keep moving in the menu (Settings, Menu) and
 nothing at all reaches the game while the menu is up. The controller is read through XInput: a PlayStation
 controller works when it shows up as an Xbox one (Steam Input, DS4Windows).
 
@@ -71,7 +71,7 @@ in the menu.
 
 - **Outfits:** Saved look, Saved look: outfit only, Character preset, Wear any outfit, Hidden outfit, Wear any item, Customize character, Clothes hide each other, No wind on clothes, Snapshot my look, Undo my look
 - **Clothing:** Clothing slot, Clothing item, What's on this slot, Take off this slot, Item colour, Colour part, Item gloss, Stack on slot, Stack that item, Material slot, Item material
-- **Hair, eyes and skin:** Hair colour, Beard colour, Eye colour, Eye glow, Skin type, Skin set
+- **Hair, eyes and skin:** Hair colour, Beard colour, Eye colour, Eye glow, Skin colour, Skin type, Skin set
 - **Face:** Face part, Face amount, Random face, Face: head shape, Face: eye size, Face: nose size, Face: mouth size, Face: eye spacing, Face: mouth width, Facial expression
 - **Body:** Body: muscle, Body: fat, Body: thin, Body: chest, Body: masculine to feminine, Body: groin, Body: squeezed, Long legs, Back to my real body
 - **Effects on you:** You are invisible, You look on fire, Skin effect on you, Stop skin effects, Prank yourself
@@ -192,12 +192,14 @@ What's on, Save tweaks for next time, Everything back to normal, Turn every chea
 
 - **Game:** Skip cutscene, Pause / resume cutscene, Quick save, New save, Load last save, No autosave, Skip intro, Tutorial popups
 - **Difficulty:** Difficulty: player health, Difficulty: player damage, Difficulty: enemies, Difficulty: vehicles, Difficulty: notoriety, Difficulty: ammo reserve, Difficulty: timer speed
-- **Menu:** Menu opacity, Hold Back opens the menu, Keep moving in the menu, Keep my save clean, Forget saved tweaks
+- **Menu:** Menu opacity, Hold Back opens the menu, Hold RB back, Keep moving in the menu, Keep my save clean, Forget saved tweaks
+- **Profiles:** Profile, Load profile, Save to profile, Delete profile
 - **Game data:** Data system, Data group, Data entry, Data value, Data list item, Data change, Change this entry, Change all entries, Undo all data changes
 - **Developer switches:** Dev: never die, Dev: never die, AI, Dev: Shawn mode, Dev: capture mode, Dev: auto sprint, Dev: infinite ammo, Dev: infinite magazine, Dev: vehicle ramps, Dev: weapon raycasts, Dev: notoriety bubbles, Dev: HQ mask off
 
 With nothing saved, cheats and tweaks start off, except Keep my save clean, which starts on, and Melee lunge, which starts on None.
 If you've saved tweaks, the menu says how many are on the first time it opens. Tweaks stay as you set them until you quit;
+**Settings > Profiles** holds up to 8 named sets of tweaks to switch between (`sr5\TweakMenu\profile_1.txt` and on: edit the `name=` line to rename one, or pass the file to someone).
 **Settings > Save tweaks for next time** keeps them for the next start (`sr5\TweakMenu\saved_tweaks.txt`); saved places are in
 `sr5\TweakMenu\saved_places.txt`. The help line says when a row can crash the game
 or should have a save behind it first.
