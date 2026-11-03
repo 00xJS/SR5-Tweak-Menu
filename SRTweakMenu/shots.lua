@@ -453,8 +453,10 @@ function P.changes_on()
   if dual.rec then on[#on + 1] = "Dual wield" end
   if hole then on[#on + 1] = "Black hole" end
   if portal.a or portal.b then on[#on + 1] = "Portals" end
+  if P.creator_count and P.creator_count() > 0 then on[#on + 1] = "Creator: " .. P.creator_count() .. " objects placed" end
   if P._video_playing then on[#on + 1] = "Video" end
   if next(P.perk_dial or {}) then on[#on + 1] = "Any perk" end
+  if next(P.rule_people or {}) then on[#on + 1] = "Rule on people near" end
   if next(P.immune or {}) then on[#on + 1] = "Immune" end
   if next(P.sky_any or {}) then on[#on + 1] = "Any sky" end
   if #(P.skin_handles or {}) > 0 then on[#on + 1] = "Skin effects" end
@@ -468,10 +470,12 @@ function P.back_to_normal()
   local B, X = wml.base, SR5TM_EXTRA
   local function try(f, ...) local ok, err = pcall(f, ...); if not ok then wml.log("back to normal: " .. tostring(err)) end end
   try(P.engine_undo_all)
+  if P.creator_stop then try(P.creator_stop); try(P.creator_clear) end
   if P.scene_pick or next(SR5TM_SCENES or {}) then try(P.scene_set, "off") end
   if X.squads then try(P.bigger_squads, 1) end
   if next(SR5TM_ELITES or {}) then try(P.elites_early, false) end
   if next(P.forever or {}) then try(P.forever_off) end
+  if next(P.rule_people or {}) then try(P.rule_near, "off") end
   if next(SR5TM_HIDES or {}) then try(P.no_hide_rules, false) end
   if next(SR5TM_LEVELS or {}) then try(P.level_curve, 1) end
   for info, o in pairs(SR5TM_HOLD or {}) do

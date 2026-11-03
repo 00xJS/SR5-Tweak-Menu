@@ -204,11 +204,12 @@ local function panel_code(code, visible)
   end
 end
 
--- Shows `rows`: { { label =, value =, colour =, value_colour = } ... }; nil hides everything.
-function U.show(rows)
+-- Shows `rows`: { { label =, value =, colour =, value_colour = } ... }; nil hides everything. bare: no backing panel, as
+-- creator mode wants the view clear.
+function U.show(rows, bare)
   if not made then return end
   local code, fits = {}, {}
-  panel_code(code, rows ~= nil)
+  panel_code(code, rows ~= nil and not bare)
   for i = 1, U.lines do
     local want = rows and rows[i]
     local old = shown[i]

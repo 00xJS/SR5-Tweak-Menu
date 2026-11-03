@@ -247,8 +247,148 @@ function P.update_fire_sound()
   wml.call(wml.base + 0x1BFE820, comp)
 end
 
+-- ------------------------------------------------------------------ perks that need a model, and what their number means
+-- Not Rated and Enemy drop on death keep a prefab from the params (their apply slot, +6CB800), and with none they do nothing: +6CB840 checks for null,
+-- and +6D23B0 hands it to +B42DA0 as the blast. It's the same id P._prefab_id gives. A dropped grenade may go off as the round it also is, so load what that round loads.
+local perk = P._perk
+local NOT_RATED, DROP = "passive_mod_class_not_rated", "object_mod_class_enemy_drop_on_death"
+local BOOT_HILL = [[data\dlc_boothill\spawnables\weapons\]]
+local function with_round(path)
+  local out = { path }
+  for _, r in ipairs(require("rounds").rounds) do
+    if r[2] == path then
+      out[#out + 1] = r[3]
+      for _, l in ipairs(r[4] or {}) do out[#out + 1] = l end
+    end
+  end
+  return out
+end
+-- The first path's id once all are in; nil and why if not.
+local function model_id(list)
+  local ready = all_loaded(list)
+  if ready == false then return nil, "A model wouldn't load" end
+  if not ready then return nil, "Loading: press again" end
+  return P._prefab_id(list[1] .. ".cprefab_pc")
+end
+local PERK_MODELS = { [NOT_RATED] = { BOOT_HILL .. "perk_headshot_explosion" }, [DROP] = with_round(BOOT_HILL .. "encounter_mod_frag_grenade") }
+function P._perk_prefab(class)
+  local list = PERK_MODELS[class]
+  if list then return model_id(list) end
+end
+-- Any perk says this when one goes on. Fire and Taser's number is a cooldown (value x 1000 ms to +0x20: +6D2840, +6D0620).
+local PERK_NOTES = {
+  [NOT_RATED] = ". Headshot kills blow up, and the number is the chance",
+  [DROP] = ". A grenade drops when you die, and the number is the chance",
+  passive_mod_class_besties = ". The number is the chance per hit, and 1 is always",
+  passive_mod_class_fire_on_enemy_melee_damage = ". The number is seconds between burns: lower is stronger",
+  passive_mod_class_taser_on_enemy_melee_damage = ". The number is seconds between shocks: lower is stronger",
+}
+function P.perk_note(class) return PERK_NOTES[class] or "" end
+
+-- ------------------------------------------------------------------ perks as rows of their own
+-- Each row's value is its list of { class, number }, or a blast's path for Headshot kill blast. What went on is kept, so off takes away exactly that: the value is additive.
+-- Numbers (research_dlc_mix.md section 0): Besties, the enemy_damage classes and Not Rated are a chance per event, +1E0F90 tests random <= value. Fire and Taser: a cooldown, seconds.
+P.hits_recruit, P.all_my_damage, P.melee_backfire, P.headshot_blast = false, false, false, false
+local PERK_ROWS = { hits_recruit = "Hits recruit", all_my_damage = "All my damage", melee_backfire = "Melee backfire", headshot_blast = "Headshot kill blast" }
+local held = {}
+local function stats_of(e)
+  local c = wml.call(wml.base + 0x4A17C0, e)
+  return c ~= 0 and wml.read_u64(c + 0x1050) or 0
+end
+function P.perk_rows_active() return P.hits_recruit or P.all_my_damage or P.melee_backfire or P.headshot_blast or next(held) end
+-- Returns a line for the player if the game refused one.
+function P.update_perk_rows()
+  if SR5TM_MY_ID then return end   -- in someone else's body: these stay on yours
+  local e = P.object()
+  local stats = e and stats_of(e) or 0
+  if stats == 0 then return end
+  local why
+  for key, label in pairs(PERK_ROWS) do
+    local want, h = P[key] or false, held[key]
+    if h and h.stats ~= stats then h = nil; held[key] = nil end   -- a new stats object, a respawn or a load, has none of it
+    if h and h.want ~= want then
+      for _, a in ipairs(h.list) do perk(a[1], a[2], false) end
+      h = nil; held[key] = nil
+    end
+    if want and not h then
+      local list, ready, prefab = want, true, nil
+      if key == "headshot_blast" then
+        if P.perk_dial[NOT_RATED] then P.toggle_perk(NOT_RATED) end   -- one owner: taking either off clears the model (+6CB800)
+        list, ready = { { NOT_RATED, 1.0 } }, loaded(want)
+        if ready then prefab = P._prefab_id(want .. ".cprefab_pc") end
+      end
+      if ready ~= nil then
+        local done = {}
+        if ready == false then why = label .. ": that blast wouldn't load" end
+        if ready then
+          for _, a in ipairs(list) do
+            if perk(a[1], a[2], true, prefab) then done[#done + 1] = a else why = label .. ": the game refused it" end
+          end
+        end
+        held[key] = { want = want, stats = stats, list = done }
+      end
+    end
+  end
+  return why
+end
+
+-- ------------------------------------------------------------------ perks and Boot Hill's rules on other people
+-- The same call on their stats object. Numbers and classes are dlc_boothill_mod_config's twelve; drops as its three prefabs. +6EA430 refuses a class the person's stats have no category for,
+-- so a refusal is counted, not assumed. Pressed, so no game calls unless it's pressed. What went on is kept by id and stats object, so off can't take it from whoever gets that id next.
+P.rule_people = {}
+local RULES = {
+  { "Hit harder", "object_mod_class_damage_output", 1.5 }, { "Take less damage", "object_mod_class_damage_resistance", 0.5 }, { "More health", "object_mod_class_max_health", 1.5 },
+  { "Can't be staggered", "object_mod_class_stagger_immunity", 1 }, { "No reloading", "object_mod_class_enemy_infinite_ammo", 2 }, { "Shields", "object_mod_class_enemy_tough", 1 },
+  { "Their hits shock", "object_mod_class_enemy_damage_electrification", 0.1 }, { "Their hits burn", "object_mod_class_enemy_damage_conflagration", 0.1 }, { "Their hits bleed", "object_mod_class_enemy_damage_bleed", 0.1 },
+  { "Drop a molotov when they die", DROP, 0.25, BOOT_HILL .. "encounter_mod_molotov" }, { "Drop a grenade when they die", DROP, 0.25, BOOT_HILL .. "encounter_mod_frag_grenade" }, { "Drop a flashbang when they die", DROP, 0.25, BOOT_HILL .. "encounter_mod_flash_grenade" },
+}
+function P.rule_options(perks)
+  local out, who = { { "Take rules off", "off" } }, { { "Near", false }, { "Homies", true } }
+  for _, w in ipairs(who) do
+    for _, r in ipairs(RULES) do out[#out + 1] = { w[1] .. ": " .. r[1], { homies = w[2], class = r[2], m = r[3], path = r[4] } } end
+  end
+  for _, w in ipairs(who) do
+    for _, c in ipairs(perks) do out[#out + 1] = { w[1] .. ", perk: " .. c[1], { homies = w[2], class = c[2] } } end
+  end
+  return out
+end
+function P.rule_near(v)
+  local n, buf = 0, wml.buffer(10)
+  for key, a in pairs(P.rule_people) do
+    wml.write_u32(buf, a.id)
+    local e = wml.call(wml.base + 0x1C1F420, buf)
+    local alive = e ~= 0 and stats_of(e) == a.stats
+    if alive and v == "off" then perk(a.class, a.m, false, nil, e); n = n + 1 end
+    if v == "off" or not alive then P.rule_people[key] = nil end   -- it died with them
+  end
+  if v == "off" then return n > 0 and (n .. " taken off") or "Nothing on" end
+  local prefab, why
+  if v.path then prefab, why = model_id(with_round(v.path)) else prefab, why = P._perk_prefab(v.class) end
+  if why then return why end
+  local m, took, had, refused = v.m or P.perk_strength or 1, 0, 0, 0
+  local function put(p)
+    local id = wml.read_u32(p.entry + 0x58)
+    local key = id .. v.class
+    if P.rule_people[key] then had = had + 1
+    elseif perk(v.class, m, true, prefab, p.entry) then
+      P.rule_people[key] = { id = id, stats = stats_of(p.entry), class = v.class, m = m }
+      took = took + 1
+    else refused = refused + 1 end
+  end
+  if v.homies then
+    for _, p in ipairs(P.people_near(100)) do
+      if P.component(0xDD, p.entry) and wml.read_u8(p.health + 0x104) == 0 then put(p) end   -- 0xDD: homies have it (research_static_ai.md)
+    end
+  else
+    P._each_near(40, put)
+  end
+  if took + had + refused == 0 then return "Nobody there" end
+  return took .. " took it" .. (had > 0 and (", " .. had .. " already had it") or "") .. (refused > 0 and (", the game refused " .. refused) or "")
+end
+
 -- ------------------------------------------------------------------ what the back-to-normal rows ask
 function P.mix_off()
   P.sig_from, P.sig_from2, P.bullet_blast, P.fire_mode, P.nth_round, P.fire_sound = false, false, false, false, false, false
+  P.hits_recruit, P.all_my_damage, P.headshot_blast = false, false, false
 end
 return P

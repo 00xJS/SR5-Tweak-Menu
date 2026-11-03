@@ -61,7 +61,7 @@ in the menu.
 - **Jumping and air:** Jump height, Double jump, Jetpack, Air dash, Air control, Air momentum
 - **Wingsuit:** Open wingsuit now, Wingsuit boosts, Wingsuit boost power, Wingsuit top speed, Wingsuit glide, Wingsuit from low down, Wingsuit bounce, Glide to nearest car
 - **Flow:** Unlimited Flow, Flow gain, Extra Flow bars, Flow never drains, Rampage at full Flow
-- **Skills and perks:** Free skills, Skills recharge at once, Equip any skill, Skill effect on you, All perks on, Any perk, Perk strength, My perks off
+- **Skills and perks:** Free skills, Skills recharge at once, Equip any skill, Skill effect on you, All perks on, Any perk, Perk strength, My perks off, Melee backfire
 - **Takedowns:** Takedown ready now, Takedown cooldown, Grenade takedown, Takedowns always kill, Short takedowns only, Dustlander takedowns, No takedowns
 - **Money:** Add cash, Drop cash, Money rain, Free shopping, Cash from kills, Pedestrians always pay, Free ventures, Venture income, Venture lot, Build venture on lot
 - **XP and levels:** Give XP, Give skill points, Level up once, XP from kills, XP needed per level, Refund all skills
@@ -88,10 +88,10 @@ Weapons back to normal
 - **Firing:** Fire rate, Full auto, Fire mode, Magazine, Reload speed, No warm-up, No overheat, Range, Any gun in vehicles and surfing, Dual wield this gun
 - **Aim and recoil:** No recoil, Perfect aim, Spread, Accurate hip fire, Recoil recovery, Firing shake, Aim anywhere
 - **Damage and hits:** Damage, People damage, Car damage, Shield damage, Damage from behind, Friendly fire, Damage type, Pellets, Knockback, Stagger on hit, Bodies fly on kill
-- **Melee and explosives:** Melee lunge, Melee swing width, Explosive punches, Blast radius, Explosive fuse, More satchels, Rocket speed
+- **Melee and explosives:** Melee lunge, Melee swing width, Explosive punches, Headshot kill blast, Blast radius, Explosive fuse, More satchels, Rocket speed
 - **Thrustbuster:** Thruster throw speed, Thruster warm-up, Thruster fuse, Thruster power
 - **Rounds and hit effects:** Special rounds, Round blast, Blast on hit, Rounds stick, Rounds arc, Homing rounds, Hit effect, Signature from, Second signature, Signature effects on any gun, Shots start from
-- **Shot tricks:** Teleport on shot, Clear portals, Black hole, Money gun, Prop gun, Shoot prop, Round in N shots, N shots
+- **Shot tricks:** Teleport on shot, Clear portals, Black hole, Money gun, Prop gun, Shoot prop, Round in N shots, N shots, Hits recruit, All my damage
 - **Gun looks:** Tracer, Muzzle flash, Shell casing, Hit visuals, All shots one colour, Hide my gun, Random gun colours, Weapon skin, Hold gun like, Fire sound
 - **Get weapons:** Give weapon, Special weapon, Prototype weapon, Put picked gun in slot, Refill all ammo, Rare ammo drops, Drop weapon
 - **Upgrades and removal:** Max all weapon upgrades, Signature ability on this gun, All signature abilities, Remove this weapon, Remove test guns
@@ -127,7 +127,7 @@ Go to waypoint, Go to travel point, Go to store, Go to map place, Go up, Auto-te
 - **Near: orders:** Order everyone near, Give everyone near a behaviour, Everyone near hunts you, Make everyone near target you, Stop targeting me, Make everyone near shoot you, Stop shooting, Fake a noise, Speed of everyone near
 - **Near: toughness:** Disarm everyone near, Re-arm everyone near, Strip shields near, Make everyone near tough, Everyone near staggers easily, Revive everyone near, Downed, not dead, Everyone near can be reeled
 - **Near: looks:** Fade out everyone near, Fade everyone near back in, Statues near, Statues near back to life, Flaming look near, Flaming look near off, Face on everyone near, Skin effect near, Outline everyone near, Clear outlines, Size of everything near
-- **Near: effects:** Short effect on everyone near, Lasting effect on everyone near, Lasting effect on you, Lasting effects off, Gravity near, Drop everyone near through ground, Hide everyone near on minimap, Show everyone near on minimap
+- **Near: effects:** Short effect on everyone near, Lasting effect on everyone near, Lasting effect on you, Lasting effects off, Rule on people near, Gravity near, Drop everyone near through ground, Hide everyone near on minimap, Show everyone near on minimap
 - **Notoriety:** No notoriety, Notoriety at least, Notoriety at most, No notoriety cap, Notoriety fades fast, Notoriety climbs fast, Can't lose notoriety, Escape distance, Send in a gang, Send in a wave
 - **Chases and waves:** No reinforcements, Enemies arrive from, Reinforcement speed, Chase cars, Chase speed, No ramming, No roadblocks, Roadblocks everywhere, Bigger squads, Elite enemies early, Enemies attacking at once
 - **Enemies:** Enemy aim, Enemy sight, Enemies can't see you, Enemies always find you, Enemies flee fights, Non-lethal enemies, Riot shields for all, Enemies use smoke, Gangs and police without guns, Stay in combat, Stagger cooldown
@@ -143,6 +143,7 @@ Go to waypoint, Go to travel point, Go to store, Go to map place, Go up, Auto-te
 - **Cars near: horns and locks:** Set off car alarms, Sirens on near, Hazard lights near, Lock cars near, Unlock cars near, Pop trunks near, Ghost through cars near, Solid cars near
 - **Gravity and blasts:** World gravity, Explosion here, Explosion at waypoint, Airstrike, Explosion size, Explosion force, Explosion damage, No world boundary
 - **Props:** Spawn prop, Spawn standing turret, Remove last prop, Remove all props
+- **Creator:** Creator mode, Creator object, Creator turn step, Creator grid, Layout, Save layout, Load layout, Go to layout, Delete layout, Clear placed objects
 - **Headquarters:** HQ spot, HQ prop, Clear this HQ spot, Fill the HQ, Save HQ layout, Load HQ layout, HQ room theme
 - **Missions and side jobs:** Start mission, Start side job, Insurance Fraud here, Insurance Fraud launch, Insurance Fraud score, Activity time limits, Hermit juice, Give reward, Load hidden place, Unload hidden place
 
@@ -274,6 +275,7 @@ opacity and Keep my save clean. Restart the game after changing them.
 | `shots.lua` | Rows that act on your shots: teleport, portals, black hole, homing, prop gun, dual wield |
 | `cars.lua` | Vehicle parts, paint, guns, seats, physics and flight mode |
 | `drops.lua` | The glow on things lying on the ground |
+| `creator.lua` | Creator mode: the camera, placing objects at any angle, layouts |
 | `weapons_mix.lua` | What one gun can borrow from another: signatures, blasts on hit, fire modes, a round every so many shots |
 | `extras.lua` | Name lists for the weapon swaps and world rows, generated |
 | `gameui.lua` | Draws the menu with the game's interface (vint text objects) |
@@ -282,7 +284,7 @@ opacity and Keep my save clean. Restart the game after changing them.
 The `wml` table the Lua sees has the same shape as the SR1 menu's host:
 `log`, `setting`, `read_*`/`write_*` (64-bit addresses),
 `key_down`, `key_pressed`, `on_frame`, `pad`, plus `game(code)`,
-`call(addr, ...)`, `buffer`, `read_string`, `block_input`, `block_triggers`,
+`call(addr, ...)`, `buffer`, `read_string`, `block_input`, `block_triggers`, `block_all`,
 `pad_mask`, `auto_fire`, `aoe_scale` and `base` (the executable's load address).
 
 **Testing**

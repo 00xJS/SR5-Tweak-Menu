@@ -22,6 +22,7 @@ require("shots")
 require("cars")
 require("weapons_mix")
 require("drops")
+require("creator")
 local T = require("tweaks")
 local Wd = require("world")
 local WS = require("wingsuit")
@@ -248,6 +249,72 @@ local SPAWN_PROPS = {
   { "World: Laundromat rodeo ramp", "laundromat_rodeo_ramp_01" },
   { "World: Boot hill act doc ketchum stage", "boot_hill_act_doc_ketchum_stage" },
   { "World: Heist rodeo stage scene", "heist_rodeo_stage_scene_01" },
+  { "World: Witch broom", "dlc_sp04_item_witch-broom_01a" },
+  { "World: Pumpkin smash", "dlc_sp05_item_pumpkin-smash_01a" },
+  { "World: Headstone haunted 01a husk", "prop_headstone-haunted_01a-husk" },
+  { "World: Monument haunted 01a husk", "prop_monument-haunted_01a-husk" },
+  { "World: Statue gargoyle 01a husk", "prop_statue-gargoyle_01a-husk" },
+  { "World: Train steam engine haunted", "prop_train_steam-engine-haunted_01a" },
+  { "World: Real estate hh ghost mover", "real_estate_hh_ghost_mover" },
+  { "World: Dreidel emote", "dlc_fp03_dreidel-emote_01a" },
+  { "World: Player emote snowball group", "dlc_fp03_prop_player-emote-snowball-group_01a" },
+  { "World: Player emote snowball", "dlc_fp03_prop_player-emote-snowball_01a" },
+  { "World: Party popper", "dlc_sp06_item_party-popper_01a" },
+  { "World: Shake bottle champagne", "dlc_sp06_item_shake-bottle-champagne_01a" },
+  { "World: Player emote present open 01a box", "dlc_sp06_prop_player-emote-present-open_01a-box" },
+  { "World: Player emote present open 01a lid", "dlc_sp06_prop_player-emote-present-open_01a-lid" },
+  { "World: Player emote present open 01a", "dlc_sp06_prop_player-emote-present-open_01a" },
+  { "World: Player emote present open 01b", "dlc_sp06_prop_player-emote-present-open_01b" },
+  { "World: Cash coin", "dlc_boothill_cash-coin_01a" },
+  { "World: Explosive barrel stack 01a husk", "dlc_boothill_prop_explosive-barrel-stack_01a-husk" },
+  { "World: Explosive barrel stack 01b husk", "dlc_boothill_prop_explosive-barrel-stack_01b-husk" },
+  { "World: Loot chest", "dlc_boothill_prop_loot-chest_01a" },
+  { "World: Doc ketchum cane", "item-doc-ketchum-cane_01a" },
+  { "World: Emote lantern", "dlc_fp04_prop_emote_lantern_01a" },
+  { "World: Envelope stack", "item_envelope_stack_01a" },
+  { "World: Umbrella generic", "dlc_dis01_item_prop-umbrella-generic_01a" },
+  { "World: Kaijuice qrc board 01a spawnable", "dlc_dis01_kaijuice-qrc-board_01a_spawnable" },
+  { "World: Light prop bollard marine 01a husk", "dlc_dis01_light_prop_bollard_marine_01a-husk" },
+  { "World: Sign shooting range 03a husk", "dlc_exp_01_lucky_sign-shooting-range_03a-husk" },
+  { "World: Marshall generator grid 01a husk", "dlc_lp01_prop_marshall-generator-grid_01a-husk" },
+  { "World: Ms chris vendor spawnable", "dlc_lp01_prop_ms-chris_vendor_spawnable_01a" },
+  { "World: Vault wall explosion section damaged", "dlc_lp01_prop_vault-wall-explosion-section-damaged_01a" },
+  { "World: Vault wall explosion section intact", "dlc_lp01_prop_vault-wall-explosion-section-intact_01a" },
+  { "World: Emote prop guitar anaya crush body", "item_emote_prop-guitar-anaya-crush-body_01a" },
+  { "World: Emote prop guitar anaya crush neck", "item_emote_prop-guitar-anaya-crush-neck_01a" },
+  { "World: Emote prop guitar anaya crush", "item_emote_prop-guitar-anaya-crush_01a" },
+  { "World: Tray drinks", "item_tray-drinks_01a" },
+  { "World: Crate transport stack 01a spawnable", "prop_crate-transport-stack_01a-spawnable" },
+  { "World: Vendor cart 01b spawnable", "prop_vendor-cart_01b_spawnable" },
+  { "World: Vignette busker sunshine", "vignette_busker_sunshine" },
+  { "World: Vignette group fishing small casual", "vignette_group_fishing_small_casual" },
+  { "World: Bubble container", "dlc_dis01_item_bubble-container_01a" },
+  { "World: Bubble wand", "dlc_dis01_item_bubble-wand_01a" },
+  { "World: Horse skull small", "dlc_dis02_item_horse-skull-small_01a" },
+  { "World: Umbrella dustfaire", "dlc_dis02_item_prop-umbrella-dustfaire_01a" },
+  { "World: Microphone", "dlc_dis02_item_prop_microphone_01a" },
+  { "World: Exploding barrel husk", "dlc_dis02_prop-exploding-barrel-husk_01a" },
+  { "World: Emote dustfaire horn", "dlc_dis02_prop_emote_dustfaire-horn_01a" },
+  { "World: Fire torch", "dlc_dis02_prop_fire-torch_01a" },
+  { "World: Box prop", "dlc_lp02_box_prop_01a" },
+  { "World: Larp potion", "dlc_lp02_larp_potion_01" },
+  { "World: Desert oil drum", "item_desert-oil-drum_01a" },
+  { "World: Dustfaire dj turntable mixer", "item_dustfaire-dj-turntable-mixer_01a" },
+  { "World: Dustfaire flame guitar", "item_dustfaire-flame-guitar_01a" },
+  { "World: Dustfaire hot dog", "item_dustfaire-hot-dog_01a" },
+  { "World: Ghosts bone dusty", "item_ghosts-bone-dusty_01a" },
+  { "World: Wastelander revolver hand cannon", "item_wastelander-revolver-hand-cannon_01a" },
+  { "World: Barrier dragon tower", "prop_barrier_dragon_tower" },
+  { "World: Boogie fishing poll 01a husk", "prop_boogie-fishing-poll_01a-husk" },
+  { "World: Chaos fire barrel 01a dustlander", "prop_chaos-fire-barrel_01a_dustlander" },
+  { "World: Container shipping idols cover", "prop_container-shipping-idols_cover_01a" },
+  { "World: Damien spawnable", "prop_damien_spawnable" },
+  { "World: Faire b worm polyp", "prop_faire_b_worm-polyp_01a" },
+  { "World: Fence dragon head", "prop_fence_dragon_head" },
+  { "World: Luggage stack 2m 02b husk", "prop_luggage-stack-2m_02b-husk" },
+  { "World: Tent small idols 03a spawnable", "prop_tent-small-idols_03a_spawnable" },
+  { "World: Cardboard box larp supplies 01a spawnable anchored", "prop_cardboard-box_larp-supplies_01a_spawnable_anchored" },
+  { "World: Cardboard box larp supplies 01b spawnable anchored", "prop_cardboard-box_larp-supplies_01b_spawnable_anchored" },
   { "Huge: Boot hill head cart", "crib-placeable-boot-hill-head-cart_01a" },
   { "Huge: Boot hill medicine cart", "crib-placeable-boot-hill-medicine-cart_01a" },
   { "Huge: Bottle liquor", "crib-placeable-bottle-liquor_08a" },
@@ -664,10 +731,13 @@ local SIG_OPTIONS = { { "Off", false },
   { "Bloodsucker: health per hit", { record = "weapon_melee_2hand_axe" } },
   { "Bashmaster: longer stagger", { record = "weapon_melee_2hand_crowbar" } },
   { "Swing Away: kills go flying", { record = "weapon_melee_2hand_generic_bat", loads = { [[data\sr_city\spawnables\vfx\prefabs\vfx-melee_2h_blunt_ult]] } } },
+  -- on any gun with bullets, from the DLC
+  { "Saintly ghost: kills raise allies", { record = "weapon_rifle_haunted_dlc", loads = { [[data\dlc_02\spawnables\vfx\prefabs\vfx_ghost_saint_spawn]] } } },
+  { "Turbo Mode: faster the longer you fire", { record = "inv_weapon_lmg_dlc", loads = { [[data\dlc_boothill\spawnables\vfx\prefabs\vfx_dlc_boothill_lmg_muzzle_overheat]] } } },
 }
 -- Animations and clothes, generated.
 local ANIM_LIST = {}
-for _, a in ipairs(require("anims")) do ANIM_LIST[#ANIM_LIST + 1] = { a[1] .. (a[4] == 1 and " (never used)" or ""), a[1], a[2], a[3] } end
+for _, a in ipairs(require("anims")) do ANIM_LIST[#ANIM_LIST + 1] = { a[1] .. (a[5] and (" (" .. a[5] .. ")") or "") .. (a[4] == 1 and " (never used)" or ""), a[1], a[2], a[3] } end
 local CLOTHES = require("clothes")
 local Co = require("coop")
 local CLOTH_SLOTS = {}
@@ -794,8 +864,11 @@ local TABS = {
     wset("no_warmup", "No warm-up", "Miniguns spin up and charged weapons charge at once.", { { "Off", false }, { "On", true } }),
     wset("no_overheat", "No overheat", "Weapons that overheat never do.", { { "Off", false }, { "On", true } }),
     { kind = "any_perk", label = "Any perk", help = "Turns any of the game's perks on or off at Perk strength, until you quit. Left/Right picks, Enter switches. Many do unknown things.", sel = 1, options = PERK_LIST },
-    pset("perk_strength", "Perk strength", "How strong Any perk turns one on. To change one already on, switch it off and on.", { { "1", false }, { "0.5", 0.5 }, { "2", 2.0 }, { "5", 5.0 }, { "10", 10.0 } }),
+    pset("perk_strength", "Perk strength", "How strong Any perk turns one on. To change one already on, switch it off and on. Some are a chance, where 1 is always. Fire and Taser on enemy melee damage are seconds between hits, so lower is stronger.", { { "1", false }, { "0.5", 0.5 }, { "2", 2.0 }, { "5", 5.0 }, { "10", 10.0 } }),
     { kind = "pfn", fn = "perks_off", label = "My perks off", help = "Takes off everything Any perk turned on." },
+    pset("melee_backfire", "Melee backfire", "Anyone who hits you with melee burns for 5 s, gets a shock for 5 s, or both, on nearly every hit. Guns don't set it off. All perks on or the shock perk itself adds its 15 s wait between shocks.", { { "Off", false },
+      { "Fire", { { "passive_mod_class_fire_on_enemy_melee_damage", 0.1 } } }, { "Shock", { { "passive_mod_class_taser_on_enemy_melee_damage", 0.1 } } },
+      { "Both", { { "passive_mod_class_fire_on_enemy_melee_damage", 0.1 }, { "passive_mod_class_taser_on_enemy_melee_damage", 0.1 } } } }),
     { kind = "pfn", fn = "takedown_ready", label = "Takedown ready now", help = "Fills your takedown meter once." },
     pset("always_execute", "Takedowns always kill", "Takedowns always use the kill version.", { { "Off", false }, { "On", true } }),
     pset("invisible_me", "You are invisible", "You fade out for the eye only: enemies still see you.", { { "Off", false }, { "On", true } }),
@@ -828,7 +901,7 @@ local TABS = {
     pset("guardian_angel", "Guardian angel", "The game's save from a lethal hit comes every second, not every 15, and lasts 3 s.", { { "Off", false }, { "On", true } }),
     pset("traffic_mood", "Traffic type", "Adds one of the game's spawn sets as the streets fill. It can ask for models that aren't loaded. Save first.", { { "Game's", false }, { "Bomb trucks", 0xA1CBE10A }, { "Ambulances", 0xCB2114E0 }, { "Dirt bikes", 0xF962793B }, { "Hobos", 0x872E3169 }, { "Modesty outlawed", 0xE1133E4F }, { "Marshall district", 0xA04896DB }, { "Dustfaire", 0x29956940 }, { "Sunshine Springs", 0x1C8C5249 } }),
     pset("long_trains", "Long trains", "Trains made from now on are longer.", { { "Game's", false }, { "x2", 2 }, { "x4", 4 } }),
-    { kind = "pfn_list", fn = "start_diversion", label = "Start side job", help = "Starts a side job if the game allows it. Left/Right picks, Enter starts it. Save first.", sel = 1, options = { { "Repo: boat", "repo_boat" }, { "Repo: cache", "repo_cache" }, { "Repo: engine", "repo_engine" }, { "Repo: fire truck", "repo_firetruck" }, { "Repo: fireworks", "repo_fireworks" }, { "Repo: tank", "repo_tank" }, { "Repo: vault", "repo_vault" }, { "Maximum notoriousness", "maxmimum_notoriousness" }, { "Toxic dump", "toxic_dump_ambient" }, { "Radio station: Idols", "radio_station_idols_01" }, { "Radio station: Marshall", "radio_station_marshall_01" }, { "Radio station: Panteros", "radio_station_panteros_01" } } },
+    { kind = "pfn_list", fn = "start_diversion", label = "Start side job", help = "Starts a side job if the game allows it. Left/Right picks, Enter starts it. Save first.", sel = 1, options = { { "Repo: boat", "repo_boat" }, { "Repo: cache", "repo_cache" }, { "Repo: engine", "repo_engine" }, { "Repo: fire truck", "repo_firetruck" }, { "Repo: fireworks", "repo_fireworks" }, { "Repo: tank", "repo_tank" }, { "Repo: vault", "repo_vault" }, { "Maximum notoriousness", "maxmimum_notoriousness" }, { "Toxic dump", "toxic_dump_ambient" }, { "Radio station: Idols", "radio_station_idols_01" }, { "Radio station: Marshall", "radio_station_marshall_01" }, { "Radio station: Panteros", "radio_station_panteros_01" }, { "Haunted hotel", "dlc_02_haunted_questgiver" }, { "Haunted hotel, complete", "dlc_02_haunted_complete" }, { "Cactus farm", "dlc_dis02_ow_atcha_cactus_farm" }, { "Dumpster dive: Dustfaire 1", "dlc_dis02_ow_dumpster_dive_01" }, { "Dumpster dive: Dustfaire 2", "dlc_dis02_ow_dumpster_dive_02" }, { "Dumpster dive: Sunshine 1", "dlc_lucky_dumpster_dive_01" }, { "Dumpster dive: Sunshine 2", "dlc_lucky_dumpster_dive_02" } } },
     { kind = "pfn", fn = "spawned_to_car", label = "Spawned people get in my car", help = "People you spawned become your followers and climb into your vehicle." },
     { kind = "pfn", fn = "spawned_to_waypoint", label = "Spawned people go to waypoint", help = "People you spawned run to your map waypoint." },
     pset("peds_pay", "Pedestrians always pay", "Every civilian you kill drops cash, not one in four. Real money: it stays in your save.", { { "Off", false }, { "On", true } }),
@@ -907,7 +980,7 @@ local TABS = {
     { kind = "pfn", fn = "glide_to_car", label = "Glide to nearest car", help = "The wingsuit steers you to the nearest car within 200 m." },
     { kind = "pfn", fn = "level_up", label = "Level up once", help = "One level. Stays in your save." },
     gcall("Refund all skills", "Your skill points come back. Save first.", "player_local_refund_all_skills() return 'refunded'"),
-    { kind = "pfn_list", fn = "skin_me", label = "Skin effect on you", help = "Puts a skin effect on you. Left/Right picks, Enter puts it on. Dissolves may hide you until Stop skin effects.", sel = 1, options = { { "Burnt", "vfx_burnt" }, { "Kisses", "vfx_kisses" }, { "Snow", "vfx_snow" }, { "Wet look", "vfx_wet_look" }, { "Toxic glow", "vfx_toxic_glow" }, { "Electric", "vfx_electric_highlight" }, { "Hit flash", "vfx_hit_flash_01" }, { "Edge glow", "vfx_edge_highlight_01" }, { "Edge glow 2", "vfx_edge_highlight_02" }, { "Fist cannon glow", "vfx_fist_cannon_ult_glow" }, { "Combat outline", "vfx_object_outline_combat_01" }, { "Combat outline 2", "vfx_object_outline_combat_02" }, { "Skill active", "vfx_skill-perk_active" }, { "Hologram", "vfx_hologram_spawn" }, { "Hologram out", "vfx_hologram_die" }, { "Energy out", "vfx_energy_derez_out" }, { "Fire dissolve", "vfx_fire_dissolve" }, { "Portal dissolve", "vfx_portal_dissolve" }, { "Toxic dissolve", "vfx_toxic_dissolve" }, { "Tumbleweed dissolve", "vfx_tumbleweed_dissolve" }, { "Fabric rip", "vfx_fabric_rip_dissolve" } } },
+    { kind = "pfn_list", fn = "skin_me", label = "Skin effect on you", help = "Puts a skin effect on you. Left/Right picks, Enter puts it on. Dissolves may hide you until Stop skin effects.", sel = 1, options = { { "Burnt", "vfx_burnt" }, { "Kisses", "vfx_kisses" }, { "Snow", "vfx_snow" }, { "Wet look", "vfx_wet_look" }, { "Toxic glow", "vfx_toxic_glow" }, { "Electric", "vfx_electric_highlight" }, { "Hit flash", "vfx_hit_flash_01" }, { "Edge glow", "vfx_edge_highlight_01" }, { "Edge glow 2", "vfx_edge_highlight_02" }, { "Fist cannon glow", "vfx_fist_cannon_ult_glow" }, { "Combat outline", "vfx_object_outline_combat_01" }, { "Combat outline 2", "vfx_object_outline_combat_02" }, { "Skill active", "vfx_skill-perk_active" }, { "Hologram", "vfx_hologram_spawn" }, { "Hologram out", "vfx_hologram_die" }, { "Energy out", "vfx_energy_derez_out" }, { "Fire dissolve", "vfx_fire_dissolve" }, { "Portal dissolve", "vfx_portal_dissolve" }, { "Toxic dissolve", "vfx_toxic_dissolve" }, { "Tumbleweed dissolve", "vfx_tumbleweed_dissolve" }, { "Fabric rip", "vfx_fabric_rip_dissolve" }, { "Hologram disguise", "vfx_holo_disguise_fullcycle" }, { "Possessed", "possessed_ghost" }, { "Ghost dissolve", "ghost_dissolve" }, { "Face scan", "vfx_face-scan_01" }, { "Gold shimmer", "vfx_cash_hilight_gold" } } },
     { kind = "pfn", fn = "skins_off", label = "Stop skin effects", help = "Ends every skin effect the menu started." },
     { kind = "pfn", fn = "random_face", label = "Random face", help = "A new random face. Stays if you save; Undo my look puts it back." },
     pset("long_legs", "Long legs", "Stretched legs. May stretch anyone with your skeleton. Only on screen.", { { "Off", false }, { "x1.25", 1.25 }, { "x1.5", 1.5 }, { "x2", 2.0 } }),
@@ -944,13 +1017,13 @@ local TABS = {
     { kind = "pfn_list", fn = "world_material", label = "World material", help = "The whole scene in one material, if it's already loaded. Left/Right picks, Enter sets it. Can crash. Save first.", sel = 1, options = { { "Flat grey", "ctg_flat_grey" }, { "Off", "off" } } },
     { kind = "pfn_list", fn = "mosaic", label = "Censor mosaic", help = "The game's pixel censor on bodies. Left/Right picks, Enter sets it.", sel = 1, options = { { "On", "true" }, { "Off", "false" } } },
     pset("no_autosave", "No autosave", "Autosaves stop.", { { "Off", false }, { "On", true } }),
-    { kind = "pfn_list", fn = "load_zone", label = "Load hidden place", help = "Loads an off-map or cut area's files; you still have to get there. Left/Right picks, Enter loads it. Can crash. Save first.", sel = 1, options = { { "Idols camp", "idols_camp" }, { "Haunted hotel 1", "haunted_hotel_1" }, { "Haunted hotel 2", "cinco-haunted_hotel_2" }, { "Haunted hotel 3", "cinco-haunted_hotel_3" }, { "Haunted hotel 4", "cinco-haunted_hotel_4" }, { "Haunted hotel 5", "cinco-haunted_hotel_5" }, { "Marshall HQ interior", "mission_mh_exec_interior" }, { "Pals interior", "mission_ct_pals_interior" }, { "Hunt ground floor", "mission_ct_hunt_ground_floor" }, { "Airport interior", "dlc_lp02_ms_airport_interior" }, { "Lucky interior", "mission_dlc_lucky_ideal_interior" }, { "Queen's place", "dlc_lp02_ms_queen" }, { "Boot Hill", "dlc_boothill_01" }, { "Boot Hill city", "dlc_boothill_city_zones" } } },
-    { kind = "pfn_list", fn = "unload_zone", label = "Unload hidden place", help = "Unloads it again. Left/Right picks, Enter unloads it.", sel = 1, options = { { "Idols camp", "idols_camp" }, { "Haunted hotel 1", "haunted_hotel_1" }, { "Haunted hotel 2", "cinco-haunted_hotel_2" }, { "Haunted hotel 3", "cinco-haunted_hotel_3" }, { "Haunted hotel 4", "cinco-haunted_hotel_4" }, { "Haunted hotel 5", "cinco-haunted_hotel_5" }, { "Marshall HQ interior", "mission_mh_exec_interior" }, { "Pals interior", "mission_ct_pals_interior" }, { "Hunt ground floor", "mission_ct_hunt_ground_floor" }, { "Airport interior", "dlc_lp02_ms_airport_interior" }, { "Lucky interior", "mission_dlc_lucky_ideal_interior" }, { "Queen's place", "dlc_lp02_ms_queen" }, { "Boot Hill", "dlc_boothill_01" }, { "Boot Hill city", "dlc_boothill_city_zones" } } },
+    { kind = "pfn_list", fn = "load_zone", label = "Load hidden place", help = "Loads an off-map or cut area's files; you still have to get there. Left/Right picks, Enter loads it. Can crash. Save first.", sel = 1, options = { { "Idols camp", "idols_camp" }, { "Haunted hotel 1", "haunted_hotel_1" }, { "Haunted hotel 2", "cinco-haunted_hotel_2" }, { "Haunted hotel 3", "cinco-haunted_hotel_3" }, { "Haunted hotel 4", "cinco-haunted_hotel_4" }, { "Haunted hotel 5", "cinco-haunted_hotel_5" }, { "Marshall HQ interior", "mission_mh_exec_interior" }, { "Pals interior", "mission_ct_pals_interior" }, { "Hunt ground floor", "mission_ct_hunt_ground_floor" }, { "Airport interior", "dlc_lp02_ms_airport_interior" }, { "Lucky interior", "mission_dlc_lucky_ideal_interior" }, { "Queen's place", "dlc_lp02_ms_queen" }, { "Boot Hill", "dlc_boothill_01" }, { "Boot Hill city", "dlc_boothill_city_zones" }, { "Sunshine Springs", "dlc_exp_01_lucky" }, { "Sunshine Springs group", "dlc_01_lucky" }, { "Sunshine Springs gameplay", "dlc_lucky_gameplay" }, { "Sunshine Springs lighting", "dlc_dis01_lighting" }, { "Dustfaire", "dlc_exp_02_dusty" }, { "Dustfaire group", "dlc_02_dusty" }, { "Dustfaire gameplay", "dlc_dusty_02_gameplay" }, { "Dustfaire lighting", "dlc_dis02_lighting" }, { "Sunshine wingsuit 1", "dlc_lp01_ow_wing_01" }, { "Sunshine wingsuit 2", "dlc_lp01_ow_wing_02" }, { "Sunshine wingsuit 3", "dlc_lp01_ow_wing_03" }, { "Sunshine wingsuit 4", "dlc_lp01_ow_wing_04" }, { "Sunshine wingsuit 5", "dlc_lp01_ow_wing_05" }, { "Dustfaire wingsuit saboteur", "dlc_dis02_ow_wingsuit_saboteur_01" }, { "Riding Shotgun", "dlc_act_riding_shotgun_lucky_01" }, { "Caper mission", "dlc_lp01_ms_caper" }, { "Chris mission", "mission_dlc_lp01_ms_chris" }, { "Sunshine intro mission", "mission_dlc_lucky_intro" }, { "Carl mission", "dlc_lp02_ms_carl" }, { "Faire mission", "dlc_lp02_ms_faire" }, { "Hammer mission", "dlc_lp02_ms_hammer" }, { "Rod mission", "dlc_lp02_ms_rod" }, { "Wedding mission", "dlc_lp02_ms_wed" }, { "DLC 2 global", "dlc_02_global" }, { "Boot Hill global", "dlc_boothill_global" }, { "DLC placeholder 1", "dlc_placeholder_01" }, { "DLC placeholder 2", "dlc_placeholder_02" }, { "DLC placeholder 3", "dlc_placeholder_03" } } },
+    { kind = "pfn_list", fn = "unload_zone", label = "Unload hidden place", help = "Unloads it again. Left/Right picks, Enter unloads it.", sel = 1, options = { { "Idols camp", "idols_camp" }, { "Haunted hotel 1", "haunted_hotel_1" }, { "Haunted hotel 2", "cinco-haunted_hotel_2" }, { "Haunted hotel 3", "cinco-haunted_hotel_3" }, { "Haunted hotel 4", "cinco-haunted_hotel_4" }, { "Haunted hotel 5", "cinco-haunted_hotel_5" }, { "Marshall HQ interior", "mission_mh_exec_interior" }, { "Pals interior", "mission_ct_pals_interior" }, { "Hunt ground floor", "mission_ct_hunt_ground_floor" }, { "Airport interior", "dlc_lp02_ms_airport_interior" }, { "Lucky interior", "mission_dlc_lucky_ideal_interior" }, { "Queen's place", "dlc_lp02_ms_queen" }, { "Boot Hill", "dlc_boothill_01" }, { "Boot Hill city", "dlc_boothill_city_zones" }, { "Sunshine Springs", "dlc_exp_01_lucky" }, { "Sunshine Springs group", "dlc_01_lucky" }, { "Sunshine Springs gameplay", "dlc_lucky_gameplay" }, { "Sunshine Springs lighting", "dlc_dis01_lighting" }, { "Dustfaire", "dlc_exp_02_dusty" }, { "Dustfaire group", "dlc_02_dusty" }, { "Dustfaire gameplay", "dlc_dusty_02_gameplay" }, { "Dustfaire lighting", "dlc_dis02_lighting" }, { "Sunshine wingsuit 1", "dlc_lp01_ow_wing_01" }, { "Sunshine wingsuit 2", "dlc_lp01_ow_wing_02" }, { "Sunshine wingsuit 3", "dlc_lp01_ow_wing_03" }, { "Sunshine wingsuit 4", "dlc_lp01_ow_wing_04" }, { "Sunshine wingsuit 5", "dlc_lp01_ow_wing_05" }, { "Dustfaire wingsuit saboteur", "dlc_dis02_ow_wingsuit_saboteur_01" }, { "Riding Shotgun", "dlc_act_riding_shotgun_lucky_01" }, { "Caper mission", "dlc_lp01_ms_caper" }, { "Chris mission", "mission_dlc_lp01_ms_chris" }, { "Sunshine intro mission", "mission_dlc_lucky_intro" }, { "Carl mission", "dlc_lp02_ms_carl" }, { "Faire mission", "dlc_lp02_ms_faire" }, { "Hammer mission", "dlc_lp02_ms_hammer" }, { "Rod mission", "dlc_lp02_ms_rod" }, { "Wedding mission", "dlc_lp02_ms_wed" }, { "DLC 2 global", "dlc_02_global" }, { "Boot Hill global", "dlc_boothill_global" }, { "DLC placeholder 1", "dlc_placeholder_01" }, { "DLC placeholder 2", "dlc_placeholder_02" }, { "DLC placeholder 3", "dlc_placeholder_03" } } },
     { kind = "venture_lot", label = "Venture lot", help = "The lot Build venture on lot uses. Left/Right picks.", sel = 1, options = { { "barrio_01", "barrio_01" }, { "barrio_02", "barrio_02" }, { "casino_01", "casino_01" }, { "commercial_01", "commercial_01" }, { "commercial_02", "commercial_02" }, { "financial_01", "financial_01" }, { "financial_02", "financial_02" }, { "industrial_01", "industrial_01" }, { "industrial_02", "industrial_02" }, { "mansion_hills_01", "mansion_hills_01" }, { "mercado_01", "mercado_01" }, { "mercado_02", "mercado_02" }, { "old_town_01", "old_town_01" }, { "old_town_02", "old_town_02" }, { "rodeo_01", "rodeo_01" }, { "rodeo_02", "rodeo_02" } } },
     { kind = "venture_build", class = "real_estate_blueprint", label = "Build venture on lot", help = "Builds any venture on Venture lot. Left/Right picks, Enter builds. Save first.", sel = 1, options = {} },
     { kind = "pfn_list", fn = "people_speed", label = "Speed of everyone near", help = "How fast everyone within 40 m moves. Left/Right picks, Enter sets it.", sel = 1, options = { { "x0.25", 0.25 }, { "x0.5", 0.5 }, { "Normal", 1.0 }, { "x2", 2.0 }, { "x4", 4.0 } } },
     { kind = "pfn_list", fn = "outline_near", label = "Outline everyone near", help = "Everyone within 40 m outlined as this. Left/Right picks, Enter does it. Only shows with Visual > HUD > High contrast on.", sel = 1, options = { { "Friend", 3 }, { "Enemy", 4 }, { "Neutral", 5 } } },
-    { kind = "pfn_list", fn = "skin_near", label = "Skin effect near", help = "Puts a skin effect on everyone within 40 m. Left/Right picks, Enter puts it on.", sel = 1, options = { { "Burnt", "vfx_burnt" }, { "Kisses", "vfx_kisses" }, { "Snow", "vfx_snow" }, { "Wet look", "vfx_wet_look" }, { "Toxic glow", "vfx_toxic_glow" }, { "Electric", "vfx_electric_highlight" }, { "Hit flash", "vfx_hit_flash_01" }, { "Edge glow", "vfx_edge_highlight_01" }, { "Edge glow 2", "vfx_edge_highlight_02" }, { "Fist cannon glow", "vfx_fist_cannon_ult_glow" }, { "Combat outline", "vfx_object_outline_combat_01" }, { "Combat outline 2", "vfx_object_outline_combat_02" }, { "Skill active", "vfx_skill-perk_active" }, { "Hologram", "vfx_hologram_spawn" }, { "Hologram out", "vfx_hologram_die" }, { "Energy out", "vfx_energy_derez_out" }, { "Fire dissolve", "vfx_fire_dissolve" }, { "Portal dissolve", "vfx_portal_dissolve" }, { "Toxic dissolve", "vfx_toxic_dissolve" }, { "Tumbleweed dissolve", "vfx_tumbleweed_dissolve" }, { "Fabric rip", "vfx_fabric_rip_dissolve" } } },
+    { kind = "pfn_list", fn = "skin_near", label = "Skin effect near", help = "Puts a skin effect on everyone within 40 m. Left/Right picks, Enter puts it on.", sel = 1, options = { { "Burnt", "vfx_burnt" }, { "Kisses", "vfx_kisses" }, { "Snow", "vfx_snow" }, { "Wet look", "vfx_wet_look" }, { "Toxic glow", "vfx_toxic_glow" }, { "Electric", "vfx_electric_highlight" }, { "Hit flash", "vfx_hit_flash_01" }, { "Edge glow", "vfx_edge_highlight_01" }, { "Edge glow 2", "vfx_edge_highlight_02" }, { "Fist cannon glow", "vfx_fist_cannon_ult_glow" }, { "Combat outline", "vfx_object_outline_combat_01" }, { "Combat outline 2", "vfx_object_outline_combat_02" }, { "Skill active", "vfx_skill-perk_active" }, { "Hologram", "vfx_hologram_spawn" }, { "Hologram out", "vfx_hologram_die" }, { "Energy out", "vfx_energy_derez_out" }, { "Fire dissolve", "vfx_fire_dissolve" }, { "Portal dissolve", "vfx_portal_dissolve" }, { "Toxic dissolve", "vfx_toxic_dissolve" }, { "Tumbleweed dissolve", "vfx_tumbleweed_dissolve" }, { "Fabric rip", "vfx_fabric_rip_dissolve" }, { "Hologram disguise", "vfx_holo_disguise_fullcycle" }, { "Possessed", "possessed_ghost" }, { "Ghost dissolve", "ghost_dissolve" }, { "Face scan", "vfx_face-scan_01" }, { "Gold shimmer", "vfx_cash_hilight_gold" } } },
     { kind = "pfn_list", fn = "takedown_nearest", label = "Take down nearest", help = "Takes down the nearest person within 10 m. Left/Right picks a style, Enter does it.", sel = 1, options = { { "Normal", 0 }, { "Stealth", 1 }, { "Throw", 2 }, { "Jump", 3 }, { "Summon", 4 } } },
     { kind = "pfn_list", fn = "near_act", label = "Stunt for cars near", help = "Every car within 40 m tries it. Left/Right picks, Enter does it.", sel = 1, options = { { "J-turn", "jturn" }, { "Hairpin", "hairpin" }, { "Ram", "ram" }, { "Ramp mode", "ramp" } } },
     { kind = "pfn", fn = "delete_nearest_car", label = "Delete nearest car", help = "The nearest car within 30 m stops existing." },
@@ -1113,7 +1186,7 @@ local TABS = {
     pset("gun_stagger", "Stagger on hit", "How hard each hit staggers people.", { { "Game's", false }, { "Light", 5.0 }, { "Heavy", 20.0 }, { "Massive", 50.0 } }),
     pset("gun_ragdoll", "Bodies fly on kill", "How far bodies fly when this gun kills.", { { "Game's", false }, { "Far", 100.0 }, { "Very far", 300.0 }, { "Into orbit", 500.0 } }),
     pset("gun_dmgtype", "Damage type", "What this gun's hits count as. The effects aren't confirmed; Heal may do nothing.", { { "Game's", false }, { "Instant kill", 0xDC2D1A57 }, { "Electric", 0x64382DD1 }, { "Water", 0x3D11E3C7 }, { "No flinch", 0xD966281B }, { "Heal", 0x886CA1B2 }, { "Fire", 0x799AD6D3 }, { "Burn over time", 0x7A355353 }, { "Poison over time", 0xEEE754A1 }, { "Bleed over time", 0xB6E85B66 }, { "Explosive", 0x9B4C0522 }, { "Haunted", 0x9097CBDD }, { "Foam", 0x75E983E4 }, { "Heavy melee", 0x8B67A9CB } }),
-    pset("gun_impact", "Hit visuals", "What hits look like.", { { "Game's", false }, { "Fist cannon", 0x2A12F13F }, { "Potato launcher", 0xFF73E1CB }, { "Berserk", 0x0188E89C }, { "Overwatch", 0x5B34077E }, { "Flaming punch", 0xA0F36031 }, { "Star launcher", 0xADBF1954 }, { "Minigun", 0x1DD7C14A }, { "Heli gun", 0xBD9F7781 }, { "Marshall turret", 0x62025BD4 }, { "VTOL beam", 0x83FEFF42 }, { "Elephant", 0xEB845045 }, { "Focus", 0xA335EDC6 }, { "Retrowave", 0xD43CA574 }, { "Cowboy", 0xAC355B12 }, { "Boss SMG", 0xECE6161C }, { "Tactical SMG", 0xE5F04030 }, { "Idols SMG", 0x5831F89C }, { "Sword", 0x0100C1D9 }, { "Toy hammer", 0xDA3C22E2 }, { "Twinkle bat", 0x8268E4BA }, { "Pinata stick", 0xA00A2DA5 }, { "Claws", 0xE5813A82 } }),
+    pset("gun_impact", "Hit visuals", "What hits look like.", { { "Game's", false }, { "Fist cannon", 0x2A12F13F }, { "Potato launcher", 0xFF73E1CB }, { "Berserk", 0x0188E89C }, { "Overwatch", 0x5B34077E }, { "Flaming punch", 0xA0F36031 }, { "Star launcher", 0xADBF1954 }, { "Minigun", 0x1DD7C14A }, { "Heli gun", 0xBD9F7781 }, { "Marshall turret", 0x62025BD4 }, { "VTOL beam", 0x83FEFF42 }, { "Elephant", 0xEB845045 }, { "Focus", 0xA335EDC6 }, { "Retrowave", 0xD43CA574 }, { "Cowboy", 0xAC355B12 }, { "Boss SMG", 0xECE6161C }, { "Tactical SMG", 0xE5F04030 }, { "Idols SMG", 0x5831F89C }, { "Sword", 0x0100C1D9 }, { "Toy hammer", 0xDA3C22E2 }, { "Twinkle bat", 0x8268E4BA }, { "Pinata stick", 0xA00A2DA5 }, { "Claws", 0xE5813A82 }, { "Haunted rifle", 0x6DCF003C }, { "Ban hammer", 0x56D4347B }, { "Ban hammer swing", 0x399D69D8 }, { "Dead mace", 0x6B5AC3CB }, { "LMG", 0x4248D355 }, { "Pistol shotgun", 0x1B59513E }, { "Marksman", 0xA4AD72CF }, { "Paintball", 0x61F8CAB0 }, { "Paintball turret", 0x145981DC }, { "Frost axe", 0x936827F8 } }),
     pset("gun_fuse", "Explosive fuse", "Seconds before thrown things and rounds go off.", { { "Game's", false }, { "Instant", 0.0 }, { "5 s", 5.0 }, { "30 s", 30.0 } }),
     pset("gun_wide", "Melee swing width", "Melee arcs reach further around you.", { { "Off", false }, { "x2", 2.0 }, { "x5", 5.0 } }),
     pset("gun_tracer", "Tracer", "What the shots of the gun in your hands look like. Not with Special rounds.", { { "Game's", false }, { "haunted-rifle tracer 02", [[data\dlc_02\spawnables\vfx\prefabs\vfx_haunted-rifle_tracer_02]] }, { "lmg tracer 01", [[data\dlc_boothill\spawnables\vfx\prefabs\vfx-particle_lmg_tracer_01]] }, { "marksman-rifle tracer 01", [[data\dlc_boothill\spawnables\vfx\prefabs\vfx-particle_marksman-rifle_tracer_01]] }, { "dlc boothill pistol shotgun tracer", [[data\dlc_boothill\spawnables\vfx\prefabs\vfx_dlc_boothill_pistol_shotgun_tracer]] }, { "frostlander paintball tracer", [[data\dlc_exp_02_dusty\spawnables\vfx\prefabs\vfx_frostlander_paintball_tracer]] }, { "frostlander paintball tracer turret", [[data\dlc_exp_02_dusty\spawnables\vfx\prefabs\vfx_frostlander_paintball_tracer_turret]] }, { "smg frostlander tracer cinematic", [[data\dlc_exp_02_dusty\spawnables\vfx\prefabs\vfx_smg_frostlander_tracer_cinematic]] }, { "base-sniper tracer 01", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_base-sniper_tracer_01]] }, { "beercan-launcher tracer 01", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_beercan-launcher_tracer_01]] }, { "cowboy shotgun tracer 01a", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_cowboy_shotgun_tracer_01a]] }, { "elephant-rifle tracer 01a", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_elephant-rifle_tracer_01a]] }, { "focus rifle tracer 01a", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_focus_rifle_tracer_01a]] }, { "god blaster tracer", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_god_blaster_tracer]] }, { "heavy-smg tracer 01", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_heavy-smg_tracer_01]] }, { "high-volume smg tracer 01a", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_high-volume_smg_tracer_01a]] }, { "lawgiver tracer 01", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_lawgiver_tracer_01]] }, { "potato launcher tracer 01", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_potato_launcher_tracer_01]] }, { "retrowave-sniper tracer 01", [[data\sr_city\spawnables\vfx\prefabs\vfx-particle_retrowave-sniper_tracer_01]] }, { "idols-pistol-tracer 01", [[data\sr_city\spawnables\vfx\prefabs\vfx-weapon_idols-pistol-tracer_01]] }, { "idols-pistol-tracer cinematic ct pals mid 02", [[data\sr_city\spawnables\vfx\prefabs\vfx-weapon_idols-pistol-tracer_cinematic_ct_pals_mid_02]] }, { "pistol tracer invisible", [[data\sr_city\spawnables\vfx\prefabs\vfx-weapon_pistol_tracer_invisible]] }, { "wastelander crossbow tracer postlaunch", [[data\sr_city\spawnables\vfx\prefabs\vfx-weapon_wastelander_crossbow_tracer_postlaunch]] }, { "wastelander pistol tracer city city 03", [[data\sr_city\spawnables\vfx\prefabs\vfx-weapon_wastelander_pistol_tracer_city_city_03]] }, { "idols-smg-tracer 01", [[data\sr_city\spawnables\vfx\vfx-weapon_idols-smg-tracer_01]] }, { "panteros-sawed-shotgun-tracer 01", [[data\sr_city\spawnables\vfx\vfx-weapon_panteros-sawed-shotgun-tracer_01]] }, { "police-shotgun-basic-tracer 01", [[data\sr_city\spawnables\vfx\vfx-weapon_police-shotgun-basic-tracer_01]] }, { "recycled-smg tracer 01a", [[data\sr_city\spawnables\vfx\vfx-weapon_recycled-smg_tracer_01a]] }, { "shotgun wastelander tracer 01", [[data\sr_city\spawnables\vfx\vfx-weapon_shotgun_wastelander_tracer_01]] }, { "smg-idols-miniboss tracer 01a", [[data\sr_city\spawnables\vfx\vfx-weapon_smg-idols-miniboss_tracer_01a]] }, { "weapon firework-cannon-tracer 01a", [[data\sr_city\spawnables\vfx\vfx_weapon_firework-cannon-tracer_01a]] }, { "assault-rifle tracer 01a", [[data\sr_vanguard\spawnables\vfx\prefabs\vfx-particle_assault-rifle_tracer_01a]] }, { "marshall-rifle-burst ultimate tracer 01a", [[data\sr_vanguard\spawnables\vfx\prefabs\vfx-particle_marshall-rifle-burst_ultimate_tracer_01a]] }, { "marshall-six-shooter tracer 01a", [[data\sr_vanguard\spawnables\vfx\prefabs\vfx-particle_marshall-six-shooter_tracer_01a]] }, { "marshall minigun tracer 01", [[data\sr_vanguard\spawnables\vfx\prefabs\vfx_marshall_minigun_tracer_01]] }, { "marshall-generic-burst-tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_marshall-generic-burst-tracer_01]] }, { "marshall-rifle-burst-tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_marshall-rifle-burst-tracer_01]] }, { "marshall carbine-tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_marshall_carbine-tracer_01]] }, { "marshall charged-shotgun-tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_marshall_charged-shotgun-tracer_01]] }, { "marshall overwatch tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_marshall_overwatch_tracer_01]] }, { "marshall pistol-tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_marshall_pistol-tracer_01]] }, { "marshall turret tracer apc", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_marshall_turret_tracer_apc]] }, { "marshall turret tracer tank 02", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_marshall_turret_tracer_tank_02]] }, { "marshall turret tracer train", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_marshall_turret_tracer_train]] }, { "nahualli overwatch tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_nahualli_overwatch_tracer_01]] }, { "nonfaction tracer 02", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_nonfaction_tracer_02]] }, { "nonfaction tracer heli", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_nonfaction_tracer_heli]] }, { "panteros-pistol-handcannon-tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_panteros-pistol-handcannon-tracer_01]] }, { "panteros shotgun tracer cinematic", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_panteros_shotgun_tracer_cinematic]] }, { "panteros tracer 02", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_panteros_tracer_02]] }, { "player overwatch tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_player_overwatch_tracer_01]] }, { "police-pistol-basic-tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_police-pistol-basic-tracer_01]] }, { "shotgun-tac-semi-auto tracer 01", [[data\sr_vanguard\spawnables\vfx\vfx-weapon_shotgun-tac-semi-auto_tracer_01]] }, { "tracer parent", [[data\sr_vanguard\spawnables\weapons\shots\tracer_parent]] }, { "smg tactical tracer", [[data\sr_vanguard\spawnables\weapons\shots\vfx_smg_tactical_tracer]] } }),
@@ -1269,6 +1342,16 @@ local TABS = {
     { kind = "spawn_prop", label = "Spawn prop", help = "Loads a prop and puts it in front of you. Left/Right picks, Enter spawns it. Gone when you reload.", sel = 1, options = SPAWN_PROPS },
     { kind = "remove_prop", last = true, label = "Remove last prop", help = "Removes the prop you spawned last." },
     { kind = "remove_prop", label = "Remove all props", help = "Removes every prop you've spawned." },
+    { kind = "creator", label = "Creator mode", help = "Fly a camera and place objects at any angle: stunt jumps, walls, whole courses. Enter starts it and closes the menu; the controls show on screen. Gone when you reload: keep a layout." },
+    { kind = "creator_obj", label = "Creator object", help = "What creator mode places. Ramps first, then every prop. Left/Right picks; LB or RB taps change it in creator mode.", sel = 1, options = (function() local o = { { "Trailer ramp (NOT A RAMP)", "roadblock_idols_ramp_01a" }, { "Construction ramp", "roadblock_construction_ramp_01" }, { "Rodeo ramp with digger", "laundromat_rodeo_ramp_01" } } for _, v in ipairs(SPAWN_PROPS) do o[#o + 1] = v end return o end)() },
+    pset("creator_step", "Creator turn step", "How far each press turns, tilts or rolls what you're placing.", { { "15 degrees", false }, { "5 degrees", 5 }, { "45 degrees", 45 }, { "90 degrees", 90 } }),
+    pset("creator_grid", "Creator grid", "Snaps what you place to a grid, for lining things up.", { { "Off", false }, { "0.5 m", 0.5 }, { "1 m", 1 }, { "2 m", 2 }, { "5 m", 5 } }),
+    { kind = "layout", label = "Layout", help = "A saved layout of placed objects. Left/Right picks one. Edit the name= line in TweakMenu\\layout_1.txt to rename it, or pass the file to someone." },
+    { kind = "layout_save", label = "Save layout", help = "Keeps everything you've placed in the layout picked above. Enter, and Enter twice over one that's in use." },
+    { kind = "layout_load", label = "Load layout", help = "Puts the picked layout's objects back where they were. You have to be within 300 m: Go to layout takes you there." },
+    { kind = "layout_go", label = "Go to layout", help = "Takes you to the picked layout's first object." },
+    { kind = "layout_delete", label = "Delete layout", help = "Deletes the picked layout's file. Enter twice." },
+    { kind = "creator_clear", label = "Clear placed objects", help = "Removes everything creator mode placed. Enter twice. Save a layout first to keep it." },
     { kind = "hq_spot", label = "HQ spot", help = "The spot in your headquarters the rows below use. Left/Right picks.", sel = 1, options = { { "Armory normal 1", "hq_prop_anchor_armory_normal_01" }, { "Armory wall 1", "hq_prop_anchor_armory_wall_01" }, { "Bar large 1", "hq_prop_anchor_bar_large_01" }, { "Bar large 2", "hq_prop_anchor_bar_large_02" }, { "Bar normal 1", "hq_prop_anchor_bar_normal_01" }, { "Bar wall 1", "hq_prop_anchor_bar_wall_01" }, { "Exterior huge 1", "hq_prop_anchor_exterior_huge_01" }, { "Exterior huge 2", "hq_prop_anchor_exterior_huge_02" }, { "Exterior large 1", "hq_prop_anchor_exterior_large_01" }, { "Exterior large 2", "hq_prop_anchor_exterior_large_02" }, { "Gameroom large 1", "hq_prop_anchor_gameroom_large_01" }, { "Gameroom normal 1", "hq_prop_anchor_gameroom_normal_01" }, { "Gameroom wall 1", "hq_prop_anchor_gameroom_wall_01" }, { "Hall huge 1", "hq_prop_anchor_hall_huge_01" }, { "Hall large 1", "hq_prop_anchor_hall_large_01" }, { "Hall large 2", "hq_prop_anchor_hall_large_02" }, { "Hall large 3", "hq_prop_anchor_hall_large_03" }, { "Sunshine large 1", "sunshine_hq_anchor_large_01" }, { "Sunshine large 2", "sunshine_hq_anchor_large_02" }, { "Sunshine large 3", "sunshine_hq_anchor_large_03" }, { "Sunshine large 4", "sunshine_hq_anchor_large_04" }, { "Sunshine normal 1", "sunshine_hq_anchor_normal_01" } } },
     { kind = "hq_prop", label = "HQ prop", help = "Puts a prop on HQ spot from anywhere, owned or not, any size. Left/Right picks, Enter puts it. Stays in your save. Big ones may clip.", sel = 1, options = CRIB_PROPS },
     { kind = "hq_clear", label = "Clear this HQ spot", help = "Empties the spot picked on HQ spot." },
@@ -1334,6 +1417,12 @@ local TABS = {
     pset("no_parked", "No parked cars", "Stops new parked cars appearing. The ones already there stay.", { { "Off", false }, { "On", true } }),
     pset("rockets", "Special rounds", "The gun in your hands fires one of these, at most 4 a second. Each loads its models first. A stuck football gives you 6 s to run. Save first.", ROUND_OPTIONS),
     pset("explosive_melee", "Explosive punches", "Melee hits make any blast in the game, your fists too. Pair it with God mode. Save first.", BLAST_OPTIONS),
+    pset("headshot_blast", "Headshot kill blast", "Kill someone with a headshot and they blow up with this, any blast in the game, every time. Not melee kills. Many blasts at once can crash the game: Save first.", BLAST_OPTIONS),
+    pset("hits_recruit", "Hits recruit", "Anyone you hurt may turn on their friends for 10 s. The percent is the chance each time you hurt them. Fists and blasts may not count.", { { "Off", false },
+      { "25%", { { "passive_mod_class_besties", 0.25 } } }, { "100%", { { "passive_mod_class_besties", 1.0 } } } }),
+    pset("all_my_damage", "All my damage", "Everyone you hurt also burns, gets a shock or bleeds, for 1 s each time. Not tied to the gun: fists count, and blasts may. Strongest on fast guns.", { { "Off", false },
+      { "Burn", { { "object_mod_class_enemy_damage_conflagration", 1.0 } } }, { "Shock", { { "object_mod_class_enemy_damage_electrification", 1.0 } } }, { "Bleed", { { "object_mod_class_enemy_damage_bleed", 1.0 } } },
+      { "All three", { { "object_mod_class_enemy_damage_conflagration", 1.0 }, { "object_mod_class_enemy_damage_electrification", 1.0 }, { "object_mod_class_enemy_damage_bleed", 1.0 } } } }),
     pset("round_blast", "Round blast", "What Special rounds explode into, any blast in the game.", ROUND_BLASTS),
     pset("sig_from", "Signature from", "Adds another gun's signature to the gun in your hands, with no upgrade. Bullet ones need a gun, melee ones a swing. May do nothing on the wrong kind. Save first.", SIG_OPTIONS),
     pset("sig_from2", "Second signature", "Another one on top.", SIG_OPTIONS),
@@ -1346,7 +1435,8 @@ local TABS = {
     pset("fire_sound", "Fire sound", "Another gun's firing sound. May not change, or only on the next gun.", { { "Game's", false },
       { "Minigun", 0x6C6084C4 }, { "Star God", 0x86E6F4CD }, { "Foam finger", 0x2431C32C }, { "Lawman", 0x2CF3CA16 }, { "Retrowave", 0xA1AC88AC }, { "Haunted", 0x66718EE1 }, { "Elephant", 0x41FEE15D }, { "Focus", 0xC20D60CD },
       { "Cowboy", 0x064FEA0A }, { "Heavy SMG", 0x4C51E183 }, { "Hi-volume", 0x051409B3 }, { "RPG", 0xAA943BC5 }, { "Potato", 0x6E2BD461 }, { "Beer can", 0xDFE6F3DE }, { "Guitar", 0x083D978D }, { "Pinata", 0xC683369F }, { "Thrustbuster", 0xF95F3797 },
-      { "VTOL laser", 0xAF6009C1 }, { "Tank", 0xF9C0A08C }, { "Heli gun", 0x56F3ECD0 }, { "Taser", 0xEFAAC538 }, { "Anvil", 0x7CE9AEFB }, { "Ban hammer", 0xCEABCE13 }, { "LMG", 0x963C2F3A } }),
+      { "VTOL laser", 0xAF6009C1 }, { "Tank", 0xF9C0A08C }, { "Heli gun", 0x56F3ECD0 }, { "Taser", 0xEFAAC538 }, { "Anvil", 0x7CE9AEFB }, { "Ban hammer", 0xCEABCE13 }, { "LMG", 0x963C2F3A },
+      { "DMR", 0x18023E4B }, { "Pistol shotgun", 0x04D72048 }, { "Breacher", 0x84841928 }, { "Frost SMG", 0xB582B2A1 }, { "Frost turret", 0xB7F55D6B }, { "Ban hammer swing", 0x19318327 }, { "Dead mace", 0x5E51E5CC }, { "Dead mace, heavy", 0xD246CA7D } }),
     { kind = "console_list", class = "char_cust_outfit", handler = 0x14055C0, what = "Wearing", label = "Wear any outfit", help = "Any of the game's whole outfits. Left/Right picks, Enter wears it. Undo my look puts you back.", sel = 1, options = {} },
     { kind = "console_list", class = "skill_info", handler = 0x68B530, what = "Equipped", label = "Equip any skill", help = "Gives you any skill and equips it. Left/Right picks, Enter equips. Stays in your save.", sel = 1, options = {} },
     { kind = "game_list", class = "radio_newscast_info", label = "Newscast", help = "Plays any newscast. Left/Right picks, Enter plays it. Later ones spoil the story, and you've finished it.", sel = 1, options = {}, code = [[newscast_play(vlib_info_object:get_object("radio_newscast_info", %q))]] },
@@ -1359,7 +1449,7 @@ local TABS = {
     { kind = "car_effect", label = "Effect on this car", help = "Your vehicle, or the nearest, gets it for 30 seconds. Left/Right picks, Enter puts it on.", sel = 1,
       options = { { "Slippery", "slippery" }, { "Super grip", "supergrip" }, { "Plow", "plow" }, { "Vehicular manslaughter", "vehicular_manslaughter" } } },
     { kind = "proto_weapon", label = "Prototype weapon", help = "A weapon no list in the game names, in place of what's in its slot. Left/Right picks, Enter twice. May not work. Can crash. Save first.", sel = 1,
-      options = { { "Boss hammer", "weapon_panteros_miniboss_melee_player", 1 }, { "Sonic staff", "weapon_idols_miniboss_staff_player", 1 }, { "Poi", "weapon_idols_raver_melee", 1 }, { "Thrown poi", "weapon_idols_raver_thrown", 12 }, { "Cluster grenade", "weapon_grenade_multi", 12 }, { "Full-auto police shotgun", "weapon_shotgun_police_full_auto", 5 }, { "Idols miniboss SMG", "weapon_smg_idols_miniboss_hidden", 3 }, { "Idols knife", "weapon_melee_idols_subgrunt_knife", 1 }, { "Panther claws", "weapon_panteros_specialist_melee", 1 }, { "Coyote's bite", "weapon_melee_coyote", 1 }, { "Frost shield", "weapon_frostlander_shield_player", 8 }, { "Sticky bomb", "weapon_special_sticky_proximity_bomb", 7 }, { "Small mine", "weapon_proximity_mine_small", 12 }, { "Marshall burst launcher", "weapon_launcher_marshall_burst_rocket", 7 }, { "Guitar launcher", "weapon_launcher_guitar", 7 }, { "Potato cannon", "weapon_launcher_potato", 7 }, { "Beer can launcher", "weapon_launcher_beer_can", 7 }, { "Star God blaster", "weapon_pistol_star_god", 2 }, { "Saints Lawgiver", "weapon_pistol_saints_lawgiver", 2 }, { "Foam finger", "weapon_pistol_foam_finger", 2 }, { "Boss SMG", "weapon_smg_idols_miniboss_player", 3 }, { "Saintsblade", "weapon_melee_saints_blade", 1 }, { "Wrangler focus rifle", "weapon_rifle_focus_wrangler_lvl1", 8 } } },
+      options = { { "Boss hammer", "weapon_panteros_miniboss_melee_player", 1 }, { "Sonic staff", "weapon_idols_miniboss_staff_player", 1 }, { "Poi", "weapon_idols_raver_melee", 1 }, { "Thrown poi", "weapon_idols_raver_thrown", 12 }, { "Cluster grenade", "weapon_grenade_multi", 12 }, { "Full-auto police shotgun", "weapon_shotgun_police_full_auto", 5 }, { "Idols miniboss SMG", "weapon_smg_idols_miniboss_hidden", 3 }, { "Idols knife", "weapon_melee_idols_subgrunt_knife", 1 }, { "Panther claws", "weapon_panteros_specialist_melee", 1 }, { "Coyote's bite", "weapon_melee_coyote", 1 }, { "Frost shield", "weapon_frostlander_shield_player", 8 }, { "Sticky bomb", "weapon_special_sticky_proximity_bomb", 7 }, { "Small mine", "weapon_proximity_mine_small", 12 }, { "Marshall burst launcher", "weapon_launcher_marshall_burst_rocket", 7 }, { "Guitar launcher", "weapon_launcher_guitar", 7 }, { "Potato cannon", "weapon_launcher_potato", 7 }, { "Beer can launcher", "weapon_launcher_beer_can", 7 }, { "Star God blaster", "weapon_pistol_star_god", 2 }, { "Saints Lawgiver", "weapon_pistol_saints_lawgiver", 2 }, { "Foam finger", "weapon_pistol_foam_finger", 2 }, { "Boss SMG", "weapon_smg_idols_miniboss_player", 3 }, { "Saintsblade", "weapon_melee_saints_blade", 1 }, { "Wrangler focus rifle", "weapon_rifle_focus_wrangler_lvl1", 8 }, { "Frost Queen melee", "weapon_frostlander_queen_melee", 1 }, { "Yeti melee", "weapon_frostlander_yeti_melee", 1 }, { "Yeti belly flop", "weapon_frostlander_yeti_finisher", 1 }, { "Genki finisher", "weapon_genki_finisher", 1 }, { "Frost shield, enemy", "weapon_frostlander_shield", 8 }, { "Chill ball", "weapon_frostlander_chill_ball", 12 }, { "Frost turret", "weapon_frostlander_turret", 8 }, { "Frost SMG, one hand", "weapon_smg_frostlander_1h", 3 }, { "Frost SMG, cinematic", "weapon_smg_frostlander_cinematic", 3 }, { "Frost SMG, Death Blossom", "weapon_smg_frostlander_deathblossom", 3 } } },
     { kind = "unlock", key = "tidy", label = "Remove test guns", help = "Takes the 41 test guns and vehicle mounts that Unlock every weapon adds out of your wheel and save. Enter twice. Save first." },
     { kind = "unlock", key = "skins", label = "Unlock all weapon skins", help = "Every weapon skin, in the game's weapon screen. Enter twice. Save first." },
     { kind = "near_effect", label = "Short effect on everyone near", help = "Everyone within 40 m gets it for a few seconds. Left/Right picks, Enter does it.", sel = 1,
@@ -1387,6 +1477,7 @@ local TABS = {
     { kind = "pfn_list", class = "status_effect", fn = "forever_near", label = "Lasting effect on everyone near", help = "Everyone within 40 m has it for six hours. Left/Right picks, Enter does it. Fire and the like will kill them.", sel = 1, options = {} },
     { kind = "pfn_list", class = "status_effect", fn = "forever_me", label = "Lasting effect on you", help = "You have it for six hours or until you respawn. Left/Right picks, Enter does it. Some can trap you. Save first.", sel = 1, options = {} },
     { kind = "pfn", fn = "forever_off", label = "Lasting effects off", help = "Takes those off you and everyone now within 40 m." },
+    { kind = "pfn_list", fn = "rule_near", label = "Rule on people near", help = "Puts a Boot Hill rule or any perk on everyone within 40 m, or on your homies within 100 m, until they die or you pick Take rules off. Left/Right picks, Enter does it. People who arrive later need another press. Perks use Perk strength, and the game may refuse many. Drops are a 1 in 4 chance, and many blasts at once can crash the game: Save first.", sel = 1, options = P.rule_options(PERK_LIST) },
     pset("stagger_cd", "Stagger cooldown", "How soon a stagger can follow another. Short keeps people stumbling, you included.", { { "Game's", false }, { "None", 0.01 }, { "Short", 0.15 }, { "Long", 5.0 }, { "Once a minute", 60.0 } }),
     { kind = "pfn_list", fn = "knock_near", label = "Knock everyone near down", help = "Everyone within 40 m on the floor for this long. Left/Right picks, Enter does it.", sel = 1, options = { { "3 s", 3.0 }, { "10 s", 10.0 }, { "30 s", 30.0 }, { "2 min", 120.0 } } },
     pset("always_sprint", "Always sprint", "You sprint whenever you're moving on foot. It can interrupt aiming: use Aim anywhere with it.", { { "Off", false }, { "On", true } }),
@@ -1448,7 +1539,7 @@ local TABS = {
     pset("prop_gun", "Prop gun", "Every shot also throws this. No more than 6 in the air.", PROP_GUN_OPTIONS),
     { kind = "pfn", fn = "dual_gun", label = "Dual wield this gun", help = "A second gun of the same kind. Enter with a gun out, again to go back to one. Only automatics and shotguns fire both. Can crash. Save first.", },
     pset("fire_from", "Shots start from", "Shots start from your hand or head instead of the muzzle. Comes on within half a second for each gun you take out.", { { "Muzzle", false }, { "Right hand", "Right_Hand" }, { "Left hand", "Left_Hand" }, { "Head", "Head" } }),
-    { kind = "pfn_list", fn = "hold_like", label = "Hold gun like", help = "The gun in your hands takes this gun's poses and swaps out once. Left/Right picks, Enter sets it. NPCs with your gun change too, until Game's or a restart.", sel = 1, options = { { "Game's", "game" }, { "Pistol", "weapon_basic_pistol" }, { "Dual pistols", "weapon_parent_dual" }, { "Dual SMGs", "dual_smg_idols_01" }, { "Assault rifle", "rifle_assault_boothill" }, { "Sniper", "rifle_sniper_boothill" }, { "Shotgun", "weapon_parent_shotgun" }, { "Tactical SMG", "smg_tactical_boothill" }, { "RPG", "launcher_rpg_boothill" }, { "Shoulder box", "launcher_shoulder_box_boothill" }, { "Grenade launcher", "weapon_idol_icon_launcher_boothill" }, { "Minigun", "gatlin_marshall_basic" }, { "Flamethrower", "special_panteros_flamethrower" }, { "Crossbow", "rifle_wastelanders_crossbow" }, { "Thrustbuster", "weapon_special_thrustbuster" }, { "Tac pistol", "pistol_tac" }, { "Hand cannon", "pistol_hand_cannon" }, { "Feather pistol", "pistol_idols_01" }, { "Taser", "pistol_police_taser" }, { "Pistol SMG", "smg_pistol" }, { "Heavy SMG", "smg_heavy_basic_boothill" }, { "Hi-volume SMG", "smg_hi_volume_boothill" }, { "Burst rifle", "rifle_generic_burst" }, { "Marshall auto rifle", "rifle_marshall_ct_marsh_auto_boothill" }, { "Marshall carbine", "rifle_marshall_sniper" }, { "Elephant rifle", "rifle_elephant_boothill" }, { "Focus rifle", "rifle_focus_boothill" }, { "Ant rifle", "rifle_ant" }, { "Police shotgun", "shotgun_police" }, { "Cowboy shotgun", "shotgun_cowboy" }, { "Tac shotgun", "shotgun_tac_semi_auto_boothill" }, { "Sawed-off", "weapon_panteros_grunt_shotgun_boothill" }, { "Marshall shotgun", "shotgun_marshall_tac_boothill" }, { "Marshall launcher", "marshall_burst_rocket" }, { "Pinata launcher", "special_pinatabomb_launcher_boothill" }, { "Platethrower", "weapon_launcher_platethrower_boothill" }, { "Chancla", "special_la_chancla" }, { "Poi", "weapon_idols_raver_thrown" }, { "DJ staff", "temp_idols_melee_staff_player" }, { "Fist cannon", "melee_fist_cannon_boothill" }, { "Bare fists", "weapon_melee_fists_prisoner" }, { "One-hand melee", "weapon_parent_melee_light" }, { "Two-hand melee", "weapon_parent_melee_heavy" }, { "Twinkle bat", "melee_idols_twinklebat" }, { "Shovel", "melee_shovel" }, { "Pipe wrench", "melee_wrench" }, { "Longsword", "test_melee_sword" }, { "Marshall minigun", "temp_marshall_minigun_player" }, { "Rage", "melee_panteros_dust_storm" }, { "Panic", "melee_panic" }, { "Rifle", "weapon_parent_full_auto" } } },
+    { kind = "pfn_list", fn = "hold_like", label = "Hold gun like", help = "The gun in your hands takes this gun's poses and swaps out once. Left/Right picks, Enter sets it. NPCs with your gun change too, until Game's or a restart.", sel = 1, options = { { "Game's", "game" }, { "Pistol", "weapon_basic_pistol" }, { "Dual pistols", "weapon_parent_dual" }, { "Dual SMGs", "dual_smg_idols_01" }, { "Assault rifle", "rifle_assault_boothill" }, { "Sniper", "rifle_sniper_boothill" }, { "Shotgun", "weapon_parent_shotgun" }, { "Tactical SMG", "smg_tactical_boothill" }, { "RPG", "launcher_rpg_boothill" }, { "Shoulder box", "launcher_shoulder_box_boothill" }, { "Grenade launcher", "weapon_idol_icon_launcher_boothill" }, { "Minigun", "gatlin_marshall_basic" }, { "Flamethrower", "special_panteros_flamethrower" }, { "Crossbow", "rifle_wastelanders_crossbow" }, { "Thrustbuster", "weapon_special_thrustbuster" }, { "Tac pistol", "pistol_tac" }, { "Hand cannon", "pistol_hand_cannon" }, { "Feather pistol", "pistol_idols_01" }, { "Taser", "pistol_police_taser" }, { "Pistol SMG", "smg_pistol" }, { "Heavy SMG", "smg_heavy_basic_boothill" }, { "Hi-volume SMG", "smg_hi_volume_boothill" }, { "Burst rifle", "rifle_generic_burst" }, { "Marshall auto rifle", "rifle_marshall_ct_marsh_auto_boothill" }, { "Marshall carbine", "rifle_marshall_sniper" }, { "Elephant rifle", "rifle_elephant_boothill" }, { "Focus rifle", "rifle_focus_boothill" }, { "Ant rifle", "rifle_ant" }, { "Police shotgun", "shotgun_police" }, { "Cowboy shotgun", "shotgun_cowboy" }, { "Tac shotgun", "shotgun_tac_semi_auto_boothill" }, { "Sawed-off", "weapon_panteros_grunt_shotgun_boothill" }, { "Marshall shotgun", "shotgun_marshall_tac_boothill" }, { "Marshall launcher", "marshall_burst_rocket" }, { "Pinata launcher", "special_pinatabomb_launcher_boothill" }, { "Platethrower", "weapon_launcher_platethrower_boothill" }, { "Chancla", "special_la_chancla" }, { "Poi", "weapon_idols_raver_thrown" }, { "DJ staff", "temp_idols_melee_staff_player" }, { "Fist cannon", "melee_fist_cannon_boothill" }, { "Bare fists", "weapon_melee_fists_prisoner" }, { "One-hand melee", "weapon_parent_melee_light" }, { "Two-hand melee", "weapon_parent_melee_heavy" }, { "Twinkle bat", "melee_idols_twinklebat" }, { "Shovel", "melee_shovel" }, { "Pipe wrench", "melee_wrench" }, { "Longsword", "test_melee_sword" }, { "Marshall minigun", "temp_marshall_minigun_player" }, { "Rage", "melee_panteros_dust_storm" }, { "Panic", "melee_panic" }, { "Rifle", "weapon_parent_full_auto" }, { "Anvil gun", "weapon_anvil_gun" }, { "Ban hammer", "weapon_ban_hammer" }, { "Frost SMG", "frostlander_smg" }, { "Frost axe", "frostlander_axe" }, { "Haunted rifle", "weapon_rifle_haunted_dlc" }, { "Boot Hill LMG", "weapon_lmg_dlc" }, { "DMR", "weapon_dlc_rifle_dmr" }, { "Pistol shotgun", "weapon_dlc_pistol_shotgun" } } },
     pset("skip_intro", "Skip intro", "Skips the logos at start-up, if you have a save. Works from the next start: use Save tweaks for next time.", { { "Off", false }, { "On", true } }),
     { kind = "special_person", label = "Special person", help = "A boss, ghost, skeleton, mascot or other hard-to-find character. Left/Right picks, Enter spawns them. Some may just stand there.", sel = 1, options = { { "Sergio, Panteros boss", 0xDCE51BE6 }, { "Atticus, Marshall boss", 0x034278F8 }, { "Atticus, formal", 0xAAA6FDA8 }, { "Gwen", 0x28A8EC7B }, { "Gwen, battle gear", 0x15908C61 }, { "Gwen, gala", 0xDC5AF17A }, { "Dust King", 0x1D515B0E }, { "Nahualli boss", 0x0C716465 }, { "Nahualli, prison", 0x7DA925AA }, { "Wally", 0x67B9A90C }, { "Frostlander Queen", 0xBC931455 }, { "Karl as Thegn", 0x5BCBA1B8 }, { "Myra Starr", 0x54F025E6 }, { "JimRob, Marshall", 0xD6942A10 }, { "Evil spirit", 0xB20AA33D }, { "Doc Ketchum", 0x6A6005F3 }, { "Genki", 0x7A86E560 }, { "Mr Big", 0x7755874D }, { "John Blande", 0x5237E8B8 }, { "Stab Lincoln", 0x1A53AAB9 }, { "Skeleton, red male", 0x9DBA3030 }, { "Skeleton, red female", 0x14E5AF45 }, { "Skeleton, blue male", 0x077C1307 }, { "Skeleton, blue female", 0x2685E4C5 }, { "Skeleton, green male", 0xD4C79E63 }, { "Skeleton, green female", 0xB41D6640 }, { "Chicken, female", 0x2915B12E }, { "Thrall, female", 0x39F1A42A }, { "Ghost, victim", 0x4B8E3E08 }, { "Ghost Saint 2", 0x513FDC41 }, { "Ghost Saint 3", 0x7C03058B }, { "Ghost Saint 4", 0xB9A43B05 }, { "Oldesteel mascot", 0xAF39DC23 }, { "Twisty mascot", 0xA56D935B }, { "Roadrunner mascot", 0xA09AD9B5 }, { "Hostile mascot 1", 0x3693E344 }, { "Hostile mascot 2", 0x41225090 }, { "Hostile mascot 3", 0x7A992D13 }, { "Hostile mascot 4", 0x10F7555B }, { "Hostile mascot 5", 0x00D35732 }, { "Hostile mascot 6", 0x43EC16C0 }, { "Mannequin 2", 0x820BC491 }, { "Furry 2", 0x697FF87C }, { "Gimp 1", 0x23B092ED }, { "Gimp 2", 0xE664D346 }, { "Grindler Davis", 0x878F797C }, { "Movie star", 0x52343131 }, { "Shotdog", 0x54BEFCD2 }, { "Assassin, female", 0xA6B16C9D }, { "Assassin, male", 0x36EFBC36 }, { "Furloughed soldier", 0x8302786E }, { "Chicken", 0x14BECB08 }, { "Big chicken", 0x3D30397E }, { "Mime", 0x3AC8420F }, { "Grandma", 0x56B3FA95 }, { "Necromancer", 0x081D88E9 }, { "Thrall", 0x7FE1AE66 }, { "Panteros Gigante", 0x8046C9D3 }, { "Wrestler mascot", 0xC9EC39AC }, { "Thumper", 0xF20C6DB8 }, { "Idols enforcer, cop", 0x749A38DE }, { "Police tank crew", 0x53F6572A }, { "Ghost, businessman", 0x58421D8D }, { "Ghost, conductor", 0x6E8323A5 }, { "Ghost, girl", 0x7F26949D }, { "Ghost, prospector", 0xC05EF71E }, { "Ghost Saint", 0x9498E2CF }, { "Coyote", 0x7932AF07 }, { "Hotdog mascot", 0x9470E338 }, { "Hot sauce mascot", 0x02EC61BD }, { "Ketchup mascot", 0xEA958148 }, { "Bunny mascot", 0x2761093B }, { "Cat mascot", 0x795A97A1 }, { "Coyote mascot", 0x02A90DA4 }, { "Dog mascot", 0x32D42A32 }, { "Leopard mascot", 0xB6E229D9 }, { "Alien", 0x554C38BC }, { "Bodysuit", 0xB491B1CF }, { "Taco terror", 0x2109925B }, { "Furry Saint", 0x50F2C4B9 }, { "Hitman Saint", 0xFE75544E }, { "Nixon", 0x28CED4F9 }, { "Reagan", 0x1F2F0947 }, { "Mannequin", 0x19290B59 }, { "Hazmat", 0x109C2A4D }, { "GI", 0xBB62C8DB }, { "Scrubs", 0x0D7B17F6 }, { "Dancer", 0xFE77057A }, { "Sandy Kraken", 0x5FB8E1E8 } } },
     { kind = "crowd", label = "Spawn 10 of that person", help = "Ten of the person picked on Spawn person, in a ring around you." },
@@ -1590,7 +1681,7 @@ local LAYOUT = {
     { "Jumping and air", "Jump height, double jump, jetpack and air dash.", { "Jump height", "Double jump", "Jetpack", "Air dash", "Air control", "Air momentum" } },
     { "Wingsuit", "Boosts, power, speed and glide.", { "Open wingsuit now", "Wingsuit boosts", "Wingsuit boost power", "Wingsuit top speed", "Wingsuit glide", "Wingsuit from low down", "Wingsuit bounce", "Glide to nearest car" } },
     { "Flow", "Your ability meter.", { "Unlimited Flow", "Flow gain", "Extra Flow bars", "Flow never drains", "Rampage at full Flow" } },
-    { "Skills and perks", "Any skill, any perk, no cost.", { "Free skills", "Skills recharge at once", "Equip any skill", "Skill effect on you", "All perks on", "Any perk", "Perk strength", "My perks off" } },
+    { "Skills and perks", "Any skill, any perk, no cost.", { "Free skills", "Skills recharge at once", "Equip any skill", "Skill effect on you", "All perks on", "Any perk", "Perk strength", "My perks off", "Melee backfire" } },
     { "Takedowns", "How often, which ones, or none.", { "Takedown ready now", "Takedown cooldown", "Grenade takedown", "Takedowns always kill", "Short takedowns only", "Dustlander takedowns", "No takedowns" } },
     { "Money", "Cash, prices and ventures.", { "Add cash", "Drop cash", "Money rain", "Free shopping", "Cash from kills", "Pedestrians always pay", "Free ventures", "Venture income", "Venture lot", "Build venture on lot" } },
     { "XP and levels", "XP, skill points and how fast you level.", { "Give XP", "Give skill points", "Level up once", "XP from kills", "XP needed per level", "Refund all skills" } },
@@ -1613,10 +1704,10 @@ local LAYOUT = {
     { "Firing", "Fire rate, magazines, reloads and range.", { "Fire rate", "Full auto", "Fire mode", "Magazine", "Reload speed", "No warm-up", "No overheat", "Range", "Any gun in vehicles and surfing", "Dual wield this gun" } },
     { "Aim and recoil", "Spread, kick and where shots go.", { "No recoil", "Perfect aim", "Spread", "Accurate hip fire", "Recoil recovery", "Firing shake", "Aim anywhere" } },
     { "Damage and hits", "How hard shots hit, and who they hurt.", { "Damage", "People damage", "Car damage", "Shield damage", "Damage from behind", "Friendly fire", "Damage type", "Pellets", "Knockback", "Stagger on hit", "Bodies fly on kill" } },
-    { "Melee and explosives", "Swings, thrown weapons, rockets and blasts.", { "Melee lunge", "Melee swing width", "Explosive punches", "Blast radius", "Explosive fuse", "More satchels", "Rocket speed" } },
+    { "Melee and explosives", "Swings, thrown weapons, rockets and blasts.", { "Melee lunge", "Melee swing width", "Explosive punches", "Headshot kill blast", "Blast radius", "Explosive fuse", "More satchels", "Rocket speed" } },
     { "Thrustbuster", "The thruster football: how fast it goes out, and what it does then.", { "Thruster throw speed", "Thruster warm-up", "Thruster fuse", "Thruster power" } },
     { "Rounds and hit effects", "What your gun fires, and what its hits do.", { "Special rounds", "Round blast", "Blast on hit", "Rounds stick", "Rounds arc", "Homing rounds", "Hit effect", "Signature from", "Second signature", "Signature effects on any gun", "Shots start from" } },
-    { "Shot tricks", "Teleport shots, portals, a black hole, shooting props.", { "Teleport on shot", "Clear portals", "Black hole", "Money gun", "Prop gun", "Shoot prop", "Round in N shots", "N shots" } },
+    { "Shot tricks", "Teleport shots, portals, a black hole, shooting props, hits that recruit or burn.", { "Teleport on shot", "Clear portals", "Black hole", "Money gun", "Prop gun", "Shoot prop", "Round in N shots", "N shots", "Hits recruit", "All my damage" } },
     { "Gun looks", "Tracers, flashes, skins and how you hold it.", { "Tracer", "Muzzle flash", "Shell casing", "Hit visuals", "All shots one colour", "Hide my gun", "Random gun colours", "Weapon skin", "Hold gun like", "Fire sound" } },
     { "Get weapons", "Give, drop and fill.", { "Give weapon", "Special weapon", "Prototype weapon", "Put picked gun in slot", "Refill all ammo", "Rare ammo drops", "Drop weapon" } },
     { "Upgrades and removal", "Signature abilities, top levels, taking guns away.", { "Max all weapon upgrades", "Signature ability on this gun", "All signature abilities", "Remove this weapon", "Remove test guns" } },
@@ -1650,7 +1741,7 @@ local LAYOUT = {
     { "Near: orders", "Everyone within 40 m: what they do next.", { "Order everyone near", "Give everyone near a behaviour", "Everyone near hunts you", "Make everyone near target you", "Stop targeting me", "Make everyone near shoot you", "Stop shooting", "Fake a noise", "Speed of everyone near" } },
     { "Near: toughness", "Everyone within 40 m: harder or easier to beat.", { "Disarm everyone near", "Re-arm everyone near", "Strip shields near", "Make everyone near tough", "Everyone near staggers easily", "Revive everyone near", "Downed, not dead", "Everyone near can be reeled" } },
     { "Near: looks", "Everyone within 40 m: faded, frozen, burning, outlined.", { "Fade out everyone near", "Fade everyone near back in", "Statues near", "Statues near back to life", "Flaming look near", "Flaming look near off", "Face on everyone near", "Skin effect near", "Outline everyone near", "Clear outlines", "Size of everything near" } },
-    { "Near: effects", "Everyone within 40 m: effects, gravity and the minimap.", { "Short effect on everyone near", "Lasting effect on everyone near", "Lasting effect on you", "Lasting effects off", "Gravity near", "Drop everyone near through ground", "Hide everyone near on minimap", "Show everyone near on minimap" } },
+    { "Near: effects", "Everyone within 40 m: effects, gravity and the minimap.", { "Short effect on everyone near", "Lasting effect on everyone near", "Lasting effect on you", "Lasting effects off", "Rule on people near", "Gravity near", "Drop everyone near through ground", "Hide everyone near on minimap", "Show everyone near on minimap" } },
     { "Notoriety", "How wanted you are, and how fast it changes.", { "No notoriety", "Notoriety at least", "Notoriety at most", "No notoriety cap", "Notoriety fades fast", "Notoriety climbs fast", "Can't lose notoriety", "Escape distance", "Send in a gang", "Send in a wave" } },
     { "Chases and waves", "Reinforcements, chase cars and roadblocks.", { "No reinforcements", "Enemies arrive from", "Reinforcement speed", "Chase cars", "Chase speed", "No ramming", "No roadblocks", "Roadblocks everywhere", "Bigger squads", "Elite enemies early", "Enemies attacking at once" } },
     { "Enemies", "How they aim, see and fight.", { "Enemy aim", "Enemy sight", "Enemies can't see you", "Enemies always find you", "Enemies flee fights", "Non-lethal enemies", "Riot shields for all", "Enemies use smoke", "Gangs and police without guns", "Stay in combat", "Stagger cooldown" } },
@@ -1665,6 +1756,7 @@ local LAYOUT = {
     { "Cars near: horns and locks", "Alarms, sirens, locks and walking through cars.", { "Set off car alarms", "Sirens on near", "Hazard lights near", "Lock cars near", "Unlock cars near", "Pop trunks near", "Ghost through cars near", "Solid cars near" } },
     { "Gravity and blasts", "World gravity, explosions and the map's edge.", { "World gravity", "Explosion here", "Explosion at waypoint", "Airstrike", "Explosion size", "Explosion force", "Explosion damage", "No world boundary" } },
     { "Props", "Spawn props anywhere, or a turret to ride.", { "Spawn prop", "Spawn standing turret", "Remove last prop", "Remove all props" } },
+    { "Creator", "Build stunt jumps and courses: place objects at any angle, keep layouts.", { "Creator mode", "Creator object", "Creator turn step", "Creator grid", "Layout", "Save layout", "Load layout", "Go to layout", "Delete layout", "Clear placed objects" } },
     { "Headquarters", "Dress your HQ: spot by spot, or all at once.", { "HQ spot", "HQ prop", "Clear this HQ spot", "Fill the HQ", "Save HQ layout", "Load HQ layout", "HQ room theme" } },
     { "Missions and side jobs", "Start the game's activities by hand. Save first.", { "Start mission", "Start side job", "Insurance Fraud here", "Insurance Fraud launch", "Insurance Fraud score", "Activity time limits", "Hermit juice", "Give reward", "Load hidden place", "Unload hidden place" } },
   } },
@@ -2556,8 +2648,8 @@ local function select_row(row)
     end
   elseif row.kind == "any_perk" then
     local o = row.options[row.sel]
-    local on = P.toggle_perk(o[2])
-    say(on == nil and (o[1] .. ": the game refused") or (o[1] .. (on and (": on at " .. on) or ": off")), "status")
+    local on, why = P.toggle_perk(o[2])
+    say(on == nil and (o[1] .. ": " .. (why or "the game refused")) or (o[1] .. (on and (": on at " .. on .. P.perk_note(o[2])) or ": off")), "status")
   elseif row.kind == "outfit_only" then
     local pick
     for _, r in ipairs(all_rows()) do if r.kind == "outfit" then pick = r.options[r.sel] end end
@@ -2799,7 +2891,7 @@ local function select_row(row)
     local x, y, z = P.position()
     say(x and string.format("You're at %.1f, %.1f, %.1f", x, y, z) or "No player right now")
   elseif row.kind == "weapons_reset" then
-    local MIX = { sig_from = true, sig_from2 = true, bullet_blast = true, fire_mode = true, nth_round = true, fire_sound = true }
+    local MIX = { sig_from = true, sig_from2 = true, bullet_blast = true, fire_mode = true, nth_round = true, fire_sound = true, hits_recruit = true, all_my_damage = true, headshot_blast = true }
     for _, r in ipairs(all_rows()) do
       if r.kind == "wset" then r.sel = 1; W.set[r.key] = r.options[1][2] end
       if MIX[r.key] then r.sel = 1 end
@@ -2948,6 +3040,47 @@ local function select_row(row)
     M.pending_confirm = nil
   elseif row.kind == "save_now" then
     say(M.save_now() and "Saved: your tweaks will be back next start" or "Couldn't write the file", "status")
+  elseif row.kind == "creator" then
+    if P.creator_active() then P.creator_stop(); say("Creator mode off")
+    elseif Co.in_coop() and Co.mode == "guest" then say("Only the host can place objects", "warn")
+    else
+      local list
+      for _, r in ipairs(all_rows()) do if r.kind == "creator_obj" then list = r end end
+      P.creator_set_list(list.options, list.sel)
+      local why = P.creator_start()
+      if why then say(why, "warn") else M.open = false end
+    end
+  elseif row.kind == "creator_obj" then
+    say(row.options[row.sel][1] .. ": Creator mode places it", "status")
+  elseif row.kind == "layout" then
+    local l = P.layout_read(M.layout_sel or 1)
+    say(l and (l.name .. ": " .. #l.objects .. " objects") or "Empty: place some, then Save layout", "status")
+  elseif row.kind == "layout_save" or row.kind == "layout_delete" or row.kind == "creator_clear" then
+    local n = M.layout_sel or 1
+    local l = P.layout_read(n)
+    if row.kind == "layout_delete" and not l then say("Layout " .. n .. " is empty", "warn")
+    elseif row.kind == "creator_clear" and P.creator_count() == 0 then say("Nothing placed", "warn")
+    elseif (l or row.kind == "creator_clear") and M.pending_confirm ~= row then
+      M.pending_confirm = row
+      say(row.label .. (row.kind ~= "creator_clear" and (" " .. l.name) or "") .. ": press again to confirm", "warn")
+    else
+      M.pending_confirm = nil
+      if row.kind == "layout_delete" then P.layout_delete(n); say("Deleted " .. l.name)
+      elseif row.kind == "creator_clear" then say(P.creator_clear() .. " objects removed")
+      else
+        local ok, x = P.layout_write(n)
+        say(ok and ("Saved " .. x .. " objects to " .. (P.layout_read(n).name)) or x, ok and "status" or "warn")
+      end
+    end
+  elseif row.kind == "layout_load" then
+    local labels = {}
+    for _, r in ipairs(all_rows()) do if r.kind == "creator_obj" then for _, o in ipairs(r.options) do labels[o[2]] = o[1] end end end
+    local n, why = P.layout_load(M.layout_sel or 1, labels)
+    say(n and ("Putting back " .. n .. " objects") or why, n and "status" or "warn")
+  elseif row.kind == "layout_go" then
+    local x, y, z = P.layout_where(M.layout_sel or 1)
+    if not x then say("That layout is empty", "warn")
+    elseif P.teleport(x + 3, y + 1, z) then say("Off to the layout") else say("The game refused the teleport", "warn") end
   elseif row.kind == "profile" then
     local p = M.profile_get(M.profile_sel, true)
     say(p and (p.name .. ": " .. p.count .. " tweaks") or ("Profile " .. M.profile_sel .. " is empty: use Save to profile"), "status")
@@ -3028,6 +3161,16 @@ local function row_value(row)
     return #row.rows .. "  >", "off"
   elseif row.kind == "save_now" then
     return M.unsaved and "Not saved" or "Saved", M.unsaved and "on" or "off"
+  elseif row.kind == "creator" then
+    return P.creator_active() and "On" or (P.creator_count() > 0 and (P.creator_count() .. " placed") or "Enter"), P.creator_active() and "on" or "off"
+  elseif row.kind == "creator_obj" then
+    local i = P.creator_index()
+    if i and P.creator_active() then row.sel = i end
+    return "<  " .. row.options[row.sel][1] .. "  >", "row"
+  elseif row.kind == "layout" then
+    local n = M.layout_sel or 1
+    local l = P.layout_read(n)
+    return "<  " .. (l and (l.name .. " (" .. #l.objects .. ")") or (n .. ": empty")) .. "  >", l and "row" or "off"
   elseif row.kind == "profile" then
     local p = M.profile_get(M.profile_sel)
     return "<  " .. (p and (p.name .. " (" .. p.count .. ")") or (M.profile_sel .. ": empty")) .. "  >", p and "row" or "off"
@@ -3251,6 +3394,11 @@ local function adjust(delta)
   elseif row and row.kind == "camset" then M.adjust_camset(row, delta)
   elseif row and row.kind == "places" then
     if #P.places > 0 then row.sel = (row.sel - 1 + delta) % #P.places + 1 end
+  elseif row and row.kind == "layout" then
+    M.layout_sel = ((M.layout_sel or 1) - 1 + delta) % 8 + 1
+  elseif row and row.kind == "creator_obj" then
+    row.sel = (row.sel - 1 + delta) % #row.options + 1
+    if P.creator_active() then P.creator_set_list(row.options, row.sel) end
   elseif row and row.kind == "profile" then
     M.profile_sel = (M.profile_sel - 1 + delta) % T.PROFILES + 1
     M.profile_get(M.profile_sel, true)
@@ -3661,6 +3809,7 @@ function M.update()
   if C.loaded and P.clip_active() then P.update_clip(M.open) end
   if C.loaded and frame % 60 == 41 and P.poison_active() then P.update_poison() end
   if C.loaded and P.free_cam_active() then P.update_free_cam(M.open) end
+  if C.loaded and P.creator_busy() then P.update_creator(M.open) end
   if C.loaded and P.wing_pending() then P.update_wing() end
   if P.prop_release_pending() then P.update_prop_release() end
   if C.loaded then WS.update_lift(P); WS.update_boost(P) end
@@ -3692,6 +3841,7 @@ function M.update()
   if C.loaded and P.fire_mode then P.update_fire_mode() end
   if C.loaded and P.nth_active() then P.update_nth() end
   if C.loaded and frame % 30 == 19 and P.fire_sound_active() then P.update_fire_sound() end
+  if C.loaded and frame % 30 == 23 and P.perk_rows_active() then local why = P.update_perk_rows(); if why then say(why, "warn") end end
   if C.loaded and P.airstrike and frame % P.airstrike == 0 then P.update_airstrike() end
   if C.loaded and frame % 15 == 8 and P.sig_active() then P.update_sig_key() end
   if C.loaded and M.play_as_wait then
@@ -3862,7 +4012,10 @@ function M.update()
   end
 
   if not M.open then
-    if U.lines > 0 and not M.hidden then U.show(nil); M.hidden = true end
+    local cl = P.creator_lines()
+    if cl and U.lines == 0 then U.create(LINES) end
+    if cl and U.lines > 0 then U.show(cl, true); M.hidden = false
+    elseif U.lines > 0 and not M.hidden then U.show(nil); M.hidden = true end
     return
   end
   M.hidden = false

@@ -603,6 +603,15 @@ static int l_block_input(lua_State *s)
     return 0;
 }
 static int l_block_triggers(lua_State *s) { g_block_triggers = lua_toboolean(s, 1); return 0; }
+// block_all(on): every key, W A S D too, and mouse clicks and the wheel, with the pad's buttons; mouse movement still looks.
+static int l_block_all(lua_State *s)
+{
+    int on = lua_toboolean(s, 1);
+    for (int vk = 0; vk < 256; vk++) g_block_vk[vk] = (uint8_t)on;
+    g_block_mouse = on;
+    g_block_pad = on && g_game_xget;
+    return 0;
+}
 // rb_delay(ms): RB reaches the game this late, 0 for at once.
 static int l_rb_delay(lua_State *s) { g_rb_wait = (unsigned)luaL_checkinteger(s, 1); return 0; }
 // block_move(on): the sticks, mouse movement and the move keys too. Call it before block_input.
@@ -706,7 +715,7 @@ static void start_lua(void)
         { "write_f32", l_write_f32 },
         { "key_down", l_key_down }, { "key_pressed", l_key_pressed },
         { "take_key", l_noop }, { "force_key", l_noop }, { "mouse_look", l_noop }, { "set_look", l_noop },
-        { "block_input", l_block_input }, { "block_triggers", l_block_triggers }, { "rb_delay", l_rb_delay }, { "sim_pad", l_sim_pad }, { "sim_stick", l_sim_stick }, { "block_move", l_block_move }, { "auto_fire", l_auto_fire },
+        { "block_input", l_block_input }, { "block_triggers", l_block_triggers }, { "block_all", l_block_all }, { "rb_delay", l_rb_delay }, { "sim_pad", l_sim_pad }, { "sim_stick", l_sim_stick }, { "block_move", l_block_move }, { "auto_fire", l_auto_fire },
         { "on_frame", l_on_frame }, { "game", l_game }, { "call", l_call }, { "callf", l_callf },
         { "buffer", l_buffer }, { "read_string", l_read_string },
         { "pad", l_pad }, { "pad_mask", l_pad_mask }, { "aoe_scale", l_aoe_scale }, { "f2u", l_f2u }, { "u2f", l_u2f },

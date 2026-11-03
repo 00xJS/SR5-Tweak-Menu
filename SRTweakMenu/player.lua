@@ -664,17 +664,20 @@ function P.update_takedown()
 end
 -- Perk values on you, without slots: +6EA430(stats, class index, &params, 0, on), then
 -- +6EA6B0. Additive: off takes away exactly what on added. Class table at +3C0DC10.
-local function perk(name, m, on)
-  local B, e, h, i = wml.base, P.object(), crc_of(name), nil
+-- prefab: the id Not Rated and Enemy drop on death keep from the params (+6CB800). target: someone else's object, you if none.
+local function perk(name, m, on, prefab, target)
+  local B, e, h, i = wml.base, target or P.object(), crc_of(name), nil
   if not e then return false end
   for k = 0, wml.read_u32(B + 0x5BE5DA0) - 1 do if wml.read_u32(B + 0x3C0DC10 + k * 16) == h then i = k break end end
   if not i then return false end
   local c = wml.call(B + 0x4A17C0, e)
   if c == 0 then return false end
   local stats, p, none = wml.read_u64(c + 0x1050), wml.buffer(13) + 0x800, wml.read_u32(B + 0x3C44910)
+  if stats == 0 then return false end
   for o = 0, 0x70, 8 do wml.write_u64(p + o, 0) end
   wml.write_f32(p, m); wml.write_u32(p + 0x10, none); wml.write_u32(p + 0x14, none); wml.write_u32(p + 0x18, none)
   wml.write_u64(p + 0x20, p + 0x38); wml.write_u32(p + 0x2C, 8)
+  if prefab then wml.write_u64(p + 8, prefab) end
   local ok = wml.call(B + 0x6EA430, stats, i, p, 0, on and 1 or 0) & 0xFF
   if ok == 1 then wml.call(B + 0x6EA6B0, e, i) end
   return ok == 1
@@ -696,7 +699,7 @@ function P.update_perks()
   local stats = c ~= 0 and wml.read_u64(c + 0x1050) or nil
   if stats and stats ~= perk_stats then
     perk_stats, perk_set, all_perks_set = stats, {}, false
-    for class, m in pairs(P.perk_dial) do perk(class, m, true) end
+    for class, m in pairs(P.perk_dial) do perk(class, m, true, (P._perk_prefab(class))) end
     -- so does what's sent once and remembered: forget it, and each row sends again
     local X = SR5TM_EXTRA
     for _, k in ipairs({ "no_shove", "short_takedowns", "time_stop", "flame_me", "aim_anywhere", "no_wind", "surf_safe", "ice_cars", "callin_speed", "chase_speed", "satchels", "no_autosave", "hover_slam", "notoriety_min", "notoriety_max" }) do X[k] = nil end
@@ -727,8 +730,11 @@ function P.toggle_perk(class)
     P.perk_dial[class] = nil
     return false
   end
+  if class == "passive_mod_class_not_rated" and P.headshot_blast then return nil, "Headshot kill blast is on, and does this" end
+  local prefab, why = P._perk_prefab(class)
+  if why then return nil, why end
   m = P.perk_strength or 1
-  if not perk(class, m, true) then return nil end
+  if not perk(class, m, true, prefab) then return nil end
   P.perk_dial[class] = m
   return m
 end
@@ -3443,8 +3449,16 @@ local PROP_DIRS = {
   ["crib-placeable-rabbit-statue_01a"] = "dlc_cny", ["crib-placeable-prop_shark-statue_01a"] = "dlc_dead",
   ["crib-placeable-drone-marshall_01a"] = "dlc_exp_01_lucky", ["crib-placeable-prop_camera-movie_01a"] = "dlc_exp_01_lucky", ["crib-placeable-prop_statue_silver-siren_01a"] = "dlc_exp_01_lucky", ["crib-placeable-crown-reward_01a"] = "dlc_exp_01_lucky",
   ["crib-placeable-dustfaire-paper-airplane_01a"] = "dlc_exp_02_dusty", ["crib-placeable-storm-giant-bones_01a"] = "dlc_exp_02_dusty", ["crib-placeable-saving-roll_01a"] = "dlc_exp_02_dusty", ["prop_lp02-paint-balloon_01a_spawnable"] = "dlc_exp_02_dusty", ["prop_speaker-large_01a_spawn"] = "dlc_exp_02_dusty",
+  ["dlc_sp04_item_witch-broom_01a"] = "dlc_02", ["dlc_sp05_item_pumpkin-smash_01a"] = "dlc_02", ["prop_headstone-haunted_01a-husk"] = "dlc_02", ["prop_monument-haunted_01a-husk"] = "dlc_02", ["prop_statue-gargoyle_01a-husk"] = "dlc_02", ["prop_train_steam-engine-haunted_01a"] = "dlc_02", ["real_estate_hh_ghost_mover"] = "dlc_02",
+  ["dlc_fp03_dreidel-emote_01a"] = "dlc_03", ["dlc_fp03_prop_player-emote-snowball-group_01a"] = "dlc_03", ["dlc_fp03_prop_player-emote-snowball_01a"] = "dlc_03", ["dlc_sp06_item_party-popper_01a"] = "dlc_03", ["dlc_sp06_item_shake-bottle-champagne_01a"] = "dlc_03", ["dlc_sp06_prop_player-emote-present-open_01a-box"] = "dlc_03", ["dlc_sp06_prop_player-emote-present-open_01a-lid"] = "dlc_03", ["dlc_sp06_prop_player-emote-present-open_01a"] = "dlc_03", ["dlc_sp06_prop_player-emote-present-open_01b"] = "dlc_03",
+  ["dlc_boothill_cash-coin_01a"] = "dlc_boothill", ["dlc_boothill_prop_explosive-barrel-stack_01a-husk"] = "dlc_boothill", ["dlc_boothill_prop_explosive-barrel-stack_01b-husk"] = "dlc_boothill", ["dlc_boothill_prop_loot-chest_01a"] = "dlc_boothill", ["item-doc-ketchum-cane_01a"] = "dlc_boothill",
+  ["dlc_fp04_prop_emote_lantern_01a"] = "dlc_cny", ["item_envelope_stack_01a"] = "dlc_cny",
+  ["dlc_dis01_item_prop-umbrella-generic_01a"] = "dlc_exp_01_lucky", ["dlc_dis01_kaijuice-qrc-board_01a_spawnable"] = "dlc_exp_01_lucky", ["dlc_dis01_light_prop_bollard_marine_01a-husk"] = "dlc_exp_01_lucky", ["dlc_exp_01_lucky_sign-shooting-range_03a-husk"] = "dlc_exp_01_lucky", ["dlc_lp01_prop_marshall-generator-grid_01a-husk"] = "dlc_exp_01_lucky", ["dlc_lp01_prop_ms-chris_vendor_spawnable_01a"] = "dlc_exp_01_lucky", ["dlc_lp01_prop_vault-wall-explosion-section-damaged_01a"] = "dlc_exp_01_lucky", ["dlc_lp01_prop_vault-wall-explosion-section-intact_01a"] = "dlc_exp_01_lucky", ["item_emote_prop-guitar-anaya-crush-body_01a"] = "dlc_exp_01_lucky", ["item_emote_prop-guitar-anaya-crush-neck_01a"] = "dlc_exp_01_lucky", ["item_emote_prop-guitar-anaya-crush_01a"] = "dlc_exp_01_lucky", ["item_tray-drinks_01a"] = "dlc_exp_01_lucky", ["prop_crate-transport-stack_01a-spawnable"] = "dlc_exp_01_lucky", ["prop_vendor-cart_01b_spawnable"] = "dlc_exp_01_lucky", ["vignette_busker_sunshine"] = "dlc_exp_01_lucky", ["vignette_group_fishing_small_casual"] = "dlc_exp_01_lucky",
+  ["dlc_dis01_item_bubble-container_01a"] = "dlc_exp_02_dusty", ["dlc_dis01_item_bubble-wand_01a"] = "dlc_exp_02_dusty", ["dlc_dis02_item_horse-skull-small_01a"] = "dlc_exp_02_dusty", ["dlc_dis02_item_prop-umbrella-dustfaire_01a"] = "dlc_exp_02_dusty", ["dlc_dis02_item_prop_microphone_01a"] = "dlc_exp_02_dusty", ["dlc_dis02_prop-exploding-barrel-husk_01a"] = "dlc_exp_02_dusty", ["dlc_dis02_prop_emote_dustfaire-horn_01a"] = "dlc_exp_02_dusty", ["dlc_dis02_prop_fire-torch_01a"] = "dlc_exp_02_dusty", ["dlc_lp02_box_prop_01a"] = "dlc_exp_02_dusty", ["dlc_lp02_larp_potion_01"] = "dlc_exp_02_dusty", ["item_desert-oil-drum_01a"] = "dlc_exp_02_dusty", ["item_dustfaire-dj-turntable-mixer_01a"] = "dlc_exp_02_dusty", ["item_dustfaire-flame-guitar_01a"] = "dlc_exp_02_dusty", ["item_dustfaire-hot-dog_01a"] = "dlc_exp_02_dusty", ["item_ghosts-bone-dusty_01a"] = "dlc_exp_02_dusty", ["item_wastelander-revolver-hand-cannon_01a"] = "dlc_exp_02_dusty", ["prop_barrier_dragon_tower"] = "dlc_exp_02_dusty", ["prop_boogie-fishing-poll_01a-husk"] = "dlc_exp_02_dusty", ["prop_chaos-fire-barrel_01a_dustlander"] = "dlc_exp_02_dusty", ["prop_container-shipping-idols_cover_01a"] = "dlc_exp_02_dusty", ["prop_damien_spawnable"] = "dlc_exp_02_dusty", ["prop_faire_b_worm-polyp_01a"] = "dlc_exp_02_dusty", ["prop_fence_dragon_head"] = "dlc_exp_02_dusty", ["prop_luggage-stack-2m_02b-husk"] = "dlc_exp_02_dusty", ["prop_tent-small-idols_03a_spawnable"] = "dlc_exp_02_dusty",
 }
 local PROP_PATHS = {
+  ["prop_cardboard-box_larp-supplies_01a_spawnable_anchored"] = [[data\dlc_exp_02_dusty\spawnables\props\prefbs\]],
+  ["prop_cardboard-box_larp-supplies_01b_spawnable_anchored"] = [[data\dlc_exp_02_dusty\spawnables\props\prefbs\]],
 turret_standalone_ring_marshall_01 = [[data\sr_city\spawnables\gameplay\prefabs\combat\marshall\]],
 turret_standalone_ring_panteros_01 = [[data\sr_city\spawnables\gameplay\prefabs\combat\panteros\]],
 turret_standalone_ring_nahualli = [[data\sr_vanguard\spawnables\vehicles\prefabs\]],
@@ -3528,6 +3542,9 @@ local PROTO_PATHS = {
   weapon_melee_idols_subgrunt_knife = [[data\sr_city\spawnables\weapons\melee\]], weapon_panteros_specialist_melee = [[data\sr_city\spawnables\weapons\panteros\]],
   weapon_melee_coyote = [[data\sr_city\spawnables\weapons\melee\]], weapon_frostlander_shield_player = [[data\dlc_exp_02_dusty\spawnables\weapons\frostlander\]],
   weapon_special_sticky_proximity_bomb = [[data\sr_vanguard\spawnables\weapons\special\]], weapon_proximity_mine_small = [[data\sr_vanguard\spawnables\weapons\grenades\]],
+  weapon_frostlander_queen_melee = [[data\dlc_exp_02_dusty\spawnables\weapons\frostlander\]], weapon_frostlander_yeti_melee = [[data\dlc_exp_02_dusty\spawnables\weapons\frostlander\]], weapon_frostlander_yeti_finisher = [[data\dlc_exp_02_dusty\spawnables\weapons\frostlander\]], weapon_frostlander_shield = [[data\dlc_exp_02_dusty\spawnables\weapons\frostlander\]], weapon_frostlander_chill_ball = [[data\dlc_exp_02_dusty\spawnables\weapons\frostlander\]], weapon_frostlander_turret = [[data\dlc_exp_02_dusty\spawnables\weapons\frostlander\]], weapon_smg_frostlander_1h = [[data\dlc_exp_02_dusty\spawnables\weapons\frostlander\]], weapon_smg_frostlander_cinematic = [[data\dlc_exp_02_dusty\spawnables\weapons\frostlander\]],
+  weapon_genki_finisher = [[data\dlc_boothill\spawnables\weapons\]],
+  weapon_smg_frostlander_deathblossom = [[data\dlc_exp_02_dusty\spawnables\weapons\smg\]],
 }
 -- What a slot shows if what it replaced had nothing to show either (an earlier prototype).
 local PROTO_HOST = { [1] = "weapon_melee_1hand_nahualli_knife", [2] = "weapon_pistol_tacpistol", [3] = "weapon_smg_tac", [5] = "weapon_shotgun_auto", [7] = "inventory_weapon_anvil_gun", [8] = "weapon_temporary_marshall_minigun", [12] = "weapon_grenade_frag" }
@@ -4885,6 +4902,14 @@ function P.update_car()
   if not c then return end
   local used = wml.read_u64(c + IN_USE)
   local b
+  -- Just seated, +0x1DE8 can still point at the car's own block before it switches to the player's. Writing it then
+  -- left the car multiplied after you got out, so the own block waits until the switch has had time to happen.
+  local seat = wml.read_u32(v + 0x58)
+  if P._car_seat ~= seat then P._car_seat, P._car_settle = seat, 2 end   -- this runs about twice a second, so a second
+  if P._car_settle > 0 then
+    P._car_settle = P._car_settle - 1
+    if used == 0 or used == c + BLOCK then return end
+  end
   if used == 0 or used == c + BLOCK then b = c + BLOCK
   elseif used == wml.read_u64(c + PLAYER_BLOCK) then b = used
   else return end   -- a mission's own handling
@@ -5358,4 +5383,5 @@ P.load_places()
 P._held_gun, P._objects_near, P._loaded, P._prop_path, P._BOOM = held_gun, objects_near, loaded, prop_path, BOOM
 P._CUST, P._prop_release = CUST, prop_release
 P._prefab_id = prefab_id
+P._perk, P._each_near = perk, each_near
 return P
