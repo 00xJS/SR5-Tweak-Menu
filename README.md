@@ -74,7 +74,7 @@ in the menu.
 - **Hair, eyes and skin:** Hair colour, Beard colour, Eye colour, Eye glow, Skin colour, Skin type, Skin set
 - **Face:** Face part, Face amount, Random face, Face: head shape, Face: eye size, Face: nose size, Face: mouth size, Face: eye spacing, Face: mouth width, Facial expression
 - **Body:** Body: muscle, Body: fat, Body: thin, Body: chest, Body: masculine to feminine, Body: groin, Body: squeezed, Long legs, Back to my real body
-- **Effects on you:** You are invisible, You look on fire, Skin effect on you, Stop skin effects, Prank yourself
+- **Effects on you:** You are invisible, You look on fire, Skin effect on you, Stop skin effects, Prank yourself, Underglow on you, Your glow size, Your glow brightness, Coloured glow on you
 - **Emotes:** Play emote, Hidden emote, D-pad emote 1, D-pad emote 2, Repeat emote, Freeze emote, Stop emote
 - **Voice:** Your voice, Voice pitch, Any voice, Say a line, Radio call from, Everyone near says it
 - **Animations:** Any animation, Animation mode, Animation speed, Everyone near plays it, Idle animation, Everyone near does an idle, End idle near, Move like, Stop animation
@@ -121,13 +121,14 @@ Go to waypoint, Go to travel point, Go to store, Go to map place, Go up, Auto-te
 ### People
 
 - **Spawn people:** Spawn person, Special person, Spawn 10 of that person, Spawn 10 random people, Spawned people act, Spawned people carry, Play as last spawned, Play as picked person, Play as picked special, Back to yourself, Remove spawned people
+- **Clone of you:** Clone of me, Clone is your bodyguard, Remove clone
 - **Homies and followers:** Summon homie, Call in Saints, Call in follower, Dismiss homies, Homie limit, Quiet homies, Next homie outfit, Spawned people get in my car, Spawned people go to waypoint, Spawned people can't die
 - **Near: mood and sides:** Make everyone near react, Make everyone near dance, Make everyone near follow you, Make everyone near friendly, Make everyone near hostile, Stop fights near, Start a riot near, Zombie outbreak, Crowd around me, Stop crowding
 - **Near: attacks:** Stun everyone near, Trip everyone near, Knock everyone near down, Float everyone near, Launch everyone near, Set everyone near on fire, Poison everyone near, Dissolve everyone near, Kill everyone near, Take down nearest, Delete everyone near
 - **Near: orders:** Order everyone near, Give everyone near a behaviour, Everyone near hunts you, Make everyone near target you, Stop targeting me, Make everyone near shoot you, Stop shooting, Fake a noise, Speed of everyone near
 - **Near: toughness:** Disarm everyone near, Re-arm everyone near, Strip shields near, Make everyone near tough, Everyone near staggers easily, Revive everyone near, Downed, not dead, Everyone near can be reeled
 - **Near: looks:** Fade out everyone near, Fade everyone near back in, Statues near, Statues near back to life, Flaming look near, Flaming look near off, Face on everyone near, Skin effect near, Outline everyone near, Clear outlines, Size of everything near
-- **Near: effects:** Short effect on everyone near, Lasting effect on everyone near, Lasting effect on you, Lasting effects off, Rule on people near, Gravity near, Drop everyone near through ground, Hide everyone near on minimap, Show everyone near on minimap
+- **Near: effects:** Short effect on everyone near, Lasting effect on everyone near, Lasting effect on you, Lasting effects off, Rule on people near, Coloured glow near, Gravity near, Drop everyone near through ground, Hide everyone near on minimap, Show everyone near on minimap
 - **Notoriety:** No notoriety, Notoriety at least, Notoriety at most, No notoriety cap, Notoriety fades fast, Notoriety climbs fast, Can't lose notoriety, Escape distance, Send in a gang, Send in a wave
 - **Chases and waves:** No reinforcements, Enemies arrive from, Reinforcement speed, Chase cars, Chase speed, No ramming, No roadblocks, Roadblocks everywhere, Bigger squads, Elite enemies early, Enemies attacking at once
 - **Enemies:** Enemy aim, Enemy sight, Enemies can't see you, Enemies always find you, Enemies flee fights, Non-lethal enemies, Riot shields for all, Enemies use smoke, Gangs and police without guns, Stay in combat, Stagger cooldown
@@ -274,7 +275,8 @@ opacity and Keep my save clean. Restart the game after changing them.
 | `coop.lua` | Co-op: who's in the session, which rows are safe with a partner in, and a log |
 | `shots.lua` | Rows that act on your shots: teleport, portals, black hole, homing, prop gun, dual wield |
 | `cars.lua` | Vehicle parts, paint, guns, seats, physics and flight mode |
-| `drops.lua` | The glow on things lying on the ground |
+| `drops.lua` | The glow on things lying on the ground, skin effects in other colours, and the underglow on you |
+| `clone.lua` | A clone of you: a second copy of the player's own body, dressed as you, and as a bodyguard |
 | `creator.lua` | Creator mode: the camera, placing objects at any angle, layouts |
 | `weapons_mix.lua` | What one gun can borrow from another: signatures, blasts on hit, fire modes, a round every so many shots |
 | `extras.lua` | Name lists for the weapon swaps and world rows, generated |

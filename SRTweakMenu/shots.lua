@@ -463,6 +463,7 @@ function P.changes_on()
   if SR5TM_MY_ID then on[#on + 1] = "Playing as someone" end
   if P.stuck then on[#on + 1] = "Stuck car" end
   if P._me_scaled then on[#on + 1] = "Your size" end
+  if P.clone_active and P.clone_active() then on[#on + 1] = "Clone of you" end
   return on
 end
 -- Each is the row's own way back, and each alone in a pcall: one that fails doesn't stop the rest.
@@ -491,6 +492,7 @@ function P.back_to_normal()
   try(P.portal_clear)
   if P._video_playing then try(P.video_off) end
   if P._me_scaled then try(P.scale_me, 1) end
+  if P.clone_active and P.clone_active() then try(P.clone_remove) end
   try(P.perks_off); try(P.sky_clear_any); try(P.skins_off); try(P.set_prank, nil)
   local immune = {}
   for name in pairs(P.immune or {}) do immune[#immune + 1] = name end

@@ -55,7 +55,9 @@ end
 local function attach(entry, srid, slot_name)
   local B = wml.base
   if wml.call(B + 0xE715E0, srid) & 0xFFFFFFFF ~= 4 then return "not loaded" end
-  local text = wml.call(B + 0xD82FA0, srid)
+  -- +E8B4A0, as +996A20 inlines it: the id through the remap table (+ED5FD0, under the read lock at +5BE9310), then its name (+D82FA0).
+  -- +D82FA0 alone finds no name for any upgrade script, so every signature failed here.
+  local text = wml.call(B + 0xE8B4A0, srid)
   if text == 0 then return "no name" end
   local mem = wml.buffer(10) + 0x100
   wml.write_u32(mem, crc(slot_name))

@@ -3514,6 +3514,11 @@ function P.update_prop()
   return done
 end
 function P.update_prop_release()
+  local later = {}
+  for _, k in ipairs(P._later) do
+    if P._young(k[2]) then later[#later + 1] = k else P._remove_now(k[1], k[2]) end
+  end
+  P._later = later
   local B, left = wml.base, {}
   for _, r in ipairs(prop_release) do
     r.ticks = r.ticks - 1
@@ -3525,7 +3530,7 @@ function P.update_prop_release()
   end
   prop_release = left
 end
-function P.prop_release_pending() return #prop_release > 0 end
+function P.prop_release_pending() return #prop_release > 0 or #P._later > 0 end
 -- Prototype weapons: no table names their prefabs, and weapon_inventory_set_slot_item_node refuses
 -- them for that reason. The console's give command doesn't look: a bare name, a 1-based slot, a loadout.
 -- Given bare they were invisible, with no icon and (the miniboss SMG, read live) damage 0. So: load the
@@ -3630,11 +3635,32 @@ function P.hq_theme(name)
     wml.call(wml.base + 0x6B60C0, b)
   else wml.call(wml.base + 0x6B6E70) end
 end
+-- Nothing the menu made is removed before it's 2 s old. The game crashed at +1842726, a missing part in a prefab's list of
+-- parts, while creator mode removed multi-part objects as fast as it made them (2026-11-02), and three earlier crashes there
+-- followed prop and rocket spawns. The id seems to turn up before the worker has built every part. Younger ones wait here.
+P._born, P._later = P._born or {}, P._later or {}
+function P._young(k) local b = P._born[k]; return b ~= nil and P._tick - b < 120 end
+-- kind "rec": a spawn record; "id": an object id
+function P._remove_now(kind, v)
+  local B = wml.base
+  P._born[v] = nil
+  if kind == "rec" then
+    local e = wml.call(B + 0x1E69D0, v + 0x70, 0)
+    if e ~= 0 then wml.call(B + 0x1E6920, e + 0x58); return true end
+  else
+    local e = P.entry_of(v)
+    if e and wml.read_u32(e + 0x58) == v then wml.call(B + 0x1E6920, e + 0x58); return true end
+  end
+  return false
+end
+function P._remove_safe(kind, v)
+  if P._young(v) then P._later[#P._later + 1] = { kind, v }; return true end
+  return P._remove_now(kind, v)
+end
 function P.remove_prop(last)
-  local B, n = wml.base, 0
+  local n = 0
   for i = #P.props, 1, -1 do
-    local e = wml.call(B + 0x1E69D0, P.props[i] + 0x70, 0)
-    if e ~= 0 then wml.call(B + 0x1E6920, e + 0x58); n = n + 1 end
+    if P._remove_safe("rec", P.props[i]) then n = n + 1 end
     table.remove(P.props, i)
     if last then break end
   end
@@ -4410,7 +4436,7 @@ function P.keep_prior_spawn()
   while #P.spawned_cars >= 10 do
     local id = table.remove(P.spawned_cars, 1)
     local e = P.entry_of(id)
-    if e and e ~= P.vehicle_object() and e ~= P.partner_car and wml.read_u32(e + 0x58) == id then wml.call(B + 0x1E6920, e + 0x58) end
+    if e and e ~= P.vehicle_object() and e ~= P.partner_car and wml.read_u32(e + 0x58) == id then P._remove_safe("id", id) end
   end
   local refs = wml.read_u64(B + 0x2EB2330)
   wml.write_u32(refs + none * 4, wml.read_u32(refs + none * 4) + 1)
@@ -4462,6 +4488,7 @@ function P.update_car_watch()
   car_watch.frames = car_watch.frames - 1
   if id ~= car_watch.was and id ~= 0 then
     P.spawned_cars[#P.spawned_cars + 1] = id
+    P._born[id] = P._tick
     if P.get_in_spawned then P._enter_wait = { id = id, frames = 45 } end
     if car_watch.name then P.spawn_note = { car_watch.name .. " is next to you", "status" } end
     car_watch = nil
@@ -4476,7 +4503,7 @@ function P.remove_spawned_cars()
   for _, id in ipairs(P.spawned_cars) do
     local e = P.entry_of(id)
     if e and (e == mine or e == P.partner_car) then left[#left + 1] = id
-    elseif e and wml.read_u32(e + 0x58) == id then wml.call(wml.base + 0x1E6920, e + 0x58); n = n + 1 end
+    elseif e and wml.read_u32(e + 0x58) == id then P._remove_safe("id", id); n = n + 1 end
   end
   P.spawned_cars = left
   return n
@@ -4723,6 +4750,7 @@ local function spawn_settle()
     local id = wml.read_u32(o + 0x70)
     if id ~= 0 and P.entry_of(id) then
       P.spawned[#P.spawned + 1] = id
+      P._born[id] = P._tick
       if P.spawn_hostile then hostile_wait[#hostile_wait + 1] = { id = id, ticks = 1, mode = P.spawn_hostile } end
     else left[#left + 1] = o end
   end
@@ -4811,7 +4839,7 @@ function P.remove_spawned()
   local n = 0
   for _, id in ipairs(P.spawned) do
     local e = P.entry_of(id)
-    if e and wml.read_u32(e + 0x58) == id then wml.call(wml.base + 0x1E6920, e + 0x58); n = n + 1 end
+    if e and wml.read_u32(e + 0x58) == id then P._remove_safe("id", id); n = n + 1 end
   end
   P.spawned = {}
   return n
@@ -4846,6 +4874,7 @@ function P.spawn_prefab(name, up, side, ahead)
   add(0x48, ahead or 0)
   wml.write_u32(params + 0x50, wml.read_u32(layer + 0x34))
   local obj = wml.call(B + 0x4AE810, 0, params, 0, filep, 1)
+  if obj ~= 0 then P._born[obj] = P._tick end
   return obj ~= 0 and obj or nil
 end
 
