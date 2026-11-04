@@ -69,9 +69,10 @@ local function attach(entry, srid, slot_name)
   if wml.read_u8(kind + 0x6D) ~= 0 then return "not this object" end
   local out = mem + 0x10
   wml.write_u64(out, 0)
-  local count = wml.read_u64(B + 0x5CB42A0) + 1
-  wml.write_u64(B + 0x5CB42A0, count)
-  local comp = wml.call(B + 0x1847510, out, entry, count | (1 << 63), 1, mem)
+  -- An id of our own, far above the game's counter (+5CB42A0, which its workers bump atomically, so a read-add-write from
+  -- here could hand out an id twice). Only needs to be unique; the game's own ids start at 1 and count up.
+  SR5TM_UID = (SR5TM_UID or 0x0FFF000000000000) + 1
+  local comp = wml.call(B + 0x1847510, out, entry, SR5TM_UID | (1 << 63), 1, mem)
   if comp == 0 then return "no component" end
   wml.call(B + 0x193FD50, comp, text)
   local h = wml.read_u32(out) & 0x1FFFFFF

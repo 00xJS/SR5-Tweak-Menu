@@ -47,6 +47,7 @@ static lua_State *L;
 static int g_lua_failed;
 static uint8_t *g_base;
 static CRITICAL_SECTION g_lock;
+static CRITICAL_SECTION g_log_lock;   // hlog is called from worker threads too (the prefab part guard)
 static uint8_t g_key_now[256], g_key_prev[256];
 static volatile LONG g_guarded;   // >0 while the host runs a guarded read, write or call (see the crash logger)
 
@@ -55,10 +56,15 @@ static void hlog(const char *fmt, ...)
 {
     if (!g_log) return;
     SYSTEMTIME t; GetLocalTime(&t);
-    fprintf(g_log, "[%02d:%02d:%02d.%03d] ", t.wHour, t.wMinute, t.wSecond, t.wMilliseconds);
-    va_list ap; va_start(ap, fmt); vfprintf(g_log, fmt, ap); va_end(ap);
+    char line[1024];
+    int n = _snprintf_s(line, sizeof line, _TRUNCATE, "[%02d:%02d:%02d.%03d] ", t.wHour, t.wMinute, t.wSecond, t.wMilliseconds);
+    if (n < 0) n = 0;
+    va_list ap; va_start(ap, fmt); _vsnprintf_s(line + n, sizeof line - n, _TRUNCATE, fmt, ap); va_end(ap);
+    EnterCriticalSection(&g_log_lock);
+    fputs(line, g_log);
     fputc('\n', g_log);
     fflush(g_log);
+    LeaveCriticalSection(&g_log_lock);
 }
 
 // ------------------------------------------------------------------ memory
@@ -889,11 +895,61 @@ static int my_resume(uint8_t *t, int nargs)
 }
 static const uint8_t RESUME_PROLOGUE[14] = { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x0F, 0xB6, 0x41, 0x0A };
 
+// A prefab's parts are made by +18435D0 (worker threads): out = { u32 handle, u64 part }. Both callers (+1957D60,
+// +1957FA9) push the part as a nested prefab to walk whenever the handle's low byte (its pool) is 0, even when the part
+// is null: a part that couldn't be made (a pool or the link blocks full) or one already on the entity (+19592A0
+// returns its handle with part 0). +1842140 then reads through the null and the game dies at +1842726, six times so far,
+// each while a vehicle was being built (research_trace_bugs.md). Pool 0xFF isn't 0, so the null isn't pushed: the
+// vehicle goes without that part instead of the game going down. Logged, with what ran out.
+typedef uint8_t *(*mkpart_fn_t)(void *, uint8_t *, uint8_t *, uint8_t *, uint64_t);
+static mkpart_fn_t g_mkpart_orig;
+static volatile LONG g_mkpart_logged;
+static int part_tag(uint64_t type)   // the pool a part type lives in, as +18475E0 finds it; -1 if unknown
+{
+    int tag = -1;
+    __try {
+        uint8_t *reg = *(uint8_t **)(g_base + 0x5BEB048);
+        if (reg && *(uint64_t *)(reg + 0x78) && *(uint64_t *)(reg + 0x90)) {
+            int64_t i = (int64_t)(type - *(uint64_t *)(reg + 0x90)) / 0x48;
+            if (i >= 0 && i < *(uint16_t *)(reg + 0x32) && (uint64_t)i < *(uint32_t *)(g_base + 0x5CB40A8)) {
+                uint32_t t = (*(uint32_t **)(g_base + 0x5BF06D0))[i];
+                if (t < *(uint32_t *)(g_base + 0x35F87F8)) tag = (int)t;
+            }
+        }
+    } __except (EXCEPTION_EXECUTE_HANDLER) { tag = -1; }
+    return tag;
+}
+static uint8_t *my_mkpart(void *w, uint8_t *out, uint8_t *rec, uint8_t *ent, uint64_t id)
+{
+    uint8_t *r = g_mkpart_orig(w, out, rec, ent, id);
+    if (*(uint64_t *)(out + 8) == 0) {
+        uint32_t h = *(uint32_t *)out;
+        if ((h & 0xFF) == 0) *(uint32_t *)out = h | 0xFF;
+        if (InterlockedIncrement(&g_mkpart_logged) <= 200) {
+            uint64_t type = 0, owner = 0, part = 0;
+            const char *room = "-", *links = "-";
+            int tag = -1;
+            __try {
+                type = *(uint64_t *)rec; owner = *(uint64_t *)(rec + 8); part = *(uint64_t *)(rec + 0x10);
+                tag = part_tag(type);
+                if (tag >= 0) room = *(uint64_t *)(*(uint8_t **)(g_base + 0x5CB3F70) + tag * 0xD0 + 8) ? "has room" : "EMPTY";
+                links = *(uint64_t *)(g_base + 0x4243218) ? "have room" : "EMPTY";
+            } __except (EXCEPTION_EXECUTE_HANDLER) {}
+            hlog("prefab: a part wasn't made (%s): pool %X %s, links %s, owner %llX, part %llX, handle %X, thread %lu%s",
+                h ? "already there" : "no room or an unknown type", tag, room, links, owner, part, h, GetCurrentThreadId(),
+                (h & 0xFF) == 0 ? "; skipped, so the game doesn't crash at +1842726" : "");
+        }
+    }
+    return r;
+}
+static const uint8_t MKPART_PROLOGUE[18] = { 0x48, 0x89, 0x5C, 0x24, 0x08, 0x48, 0x89, 0x6C, 0x24, 0x18, 0x56, 0x57, 0x41, 0x56, 0x48, 0x83, 0xEC, 0x30 };
+
 static void install_hooks(void)
 {
     g_frame_orig = (frame_fn_t)detour(RVA_FRAME_FN, FRAME_FN_PROLOGUE, sizeof FRAME_FN_PROLOGUE, (void *)my_frame_fn, "the main loop's frame call");
     g_aoe_orig = (aoe_fn_t)detour(0x973E80, AOE_PROLOGUE, sizeof AOE_PROLOGUE, (void *)my_aoe, "explosions");
     g_resume_orig = (resume_fn_t)detour(0x12CDD70, RESUME_PROLOGUE, sizeof RESUME_PROLOGUE, (void *)my_resume, "script threads");
+    g_mkpart_orig = (mkpart_fn_t)detour(0x18435D0, MKPART_PROLOGUE, sizeof MKPART_PROLOGUE, (void *)my_mkpart, "prefab parts");
 }
 
 // ------------------------------------------------------------------ DirectInput proxy
@@ -1022,6 +1078,7 @@ BOOL WINAPI DllMain(HINSTANCE self, DWORD reason, LPVOID unused)
     if (reason != DLL_PROCESS_ATTACH) return TRUE;
     DisableThreadLibraryCalls(self);
     InitializeCriticalSection(&g_lock);
+    InitializeCriticalSection(&g_log_lock);
     QueryPerformanceFrequency(&g_qpf);
 
     char exe[MAX_PATH];

@@ -4469,7 +4469,9 @@ function P.log_pools()
     local cap, used = wml.read_u32(p + 0xA8), wml.read_u32(p + 0xAC)
     local empty = wml.read_u64(p + 8) == 0
     if cap > 0 and (empty or used * 10 >= cap * 9) then
-      if not said[tag] then said[tag] = true; wml.log(string.format("pool: tag %X %d of %d%s", tag, used, cap, empty and " EMPTY" or "")) end
+      -- said once at 90%, and again if it then runs out: many pools sit above 90% from the start (research_trace_bugs.md)
+      local state = empty and "empty" or "full"
+      if said[tag] ~= state and not (said[tag] == "empty" and state == "full") then said[tag] = state; wml.log(string.format("pool: tag %X %d of %d%s", tag, used, cap, empty and " EMPTY" or "")) end
     else
       said[tag] = nil
     end

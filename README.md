@@ -105,6 +105,7 @@ Weapons back to normal
 - **Toughness:** Vehicle god mode, No collision damage, Bulletproof tires, Keep vehicle repaired, Engine catches fire, Fire burn speed, Crash force, Floats on water, Never sink, Destroy this vehicle
 - **Aircraft and hover:** Aircraft speed, VTOL boost, Helicopter agility, Helicopter lift, Flight mode, Hover rise and lower, Hover top speed, Hover height, Hover jump, Hover guns
 - **Upgrades and parts:** Vehicle upgrade, Upgrade level, Rims, Tires, Off-road kit anywhere, Part slot, Part, Save vehicle to garage
+- **License plates:** License plate, Any license plate, Random license plate, Custom plate
 - **Paint:** Next paint, Any paint, Paint area, Paint colour, Pattern area, Pattern, Any colour: material, Any colour
 - **Lights and sound:** Underglow preset, Underglow colour, Underglow brightness, Headlights on, Brake lights stay on, Always tire marks, Always tire smoke, Any horn, Any engine sound
 - **Abilities:** Vehicle ability, Fire that ability, Stop that ability, Remove that ability, No ability cooldowns, Vehicle jump power, Crab steering strength, Air control strength, Honk blast strength, Ejector cannon, Hoverboard slam
@@ -206,6 +207,19 @@ If you've saved tweaks, the menu says how many are on the first time it opens. T
 `sr5\TweakMenu\saved_places.txt`. The help line says when a row can crash the game
 or should have a save behind it first.
 
+## Your own license plates
+
+A plate is 3 characters, a gap and 4 (`00X JS`), in capitals. With Python 3 and numpy installed, close the game and run:
+
+```
+python tools/plate_maker.py --install "00X JS" "SR5 MENU"
+```
+
+About two plates fit at once; the tool says which didn't. It draws the letters the game's plates lack (I, M, N, Q, W and
+punctuation) to match, writes `preview.png` to look at, and installs `data\sr_boot\sr_boot_patch.vpp_pc` and
+`TweakMenu\custom_plates.txt`. Start the game, get in a vehicle, and pick them on **Vehicles > License plates > Custom plate**.
+They show on your PC only; a co-op partner sees an ordinary plate. Delete the patch file to go back to the game's plates.
+
 ## Settings
 
 Every number is in `sr5\TweakMenu\SRTweakMenu\mod.ini`: the key that opens
@@ -277,6 +291,7 @@ opacity and Keep my save clean. Restart the game after changing them.
 | `cars.lua` | Vehicle parts, paint, guns, seats, physics and flight mode |
 | `drops.lua` | The glow on things lying on the ground, skin effects in other colours, and the underglow on you |
 | `clone.lua` | A clone of you: a second copy of the player's own body, dressed as you, and as a bodyguard |
+| `plates.lua` | License plates: every plate the game can draw, and your own from `tools/plate_maker.py` |
 | `creator.lua` | Creator mode: the camera, placing objects at any angle, layouts |
 | `weapons_mix.lua` | What one gun can borrow from another: signatures, blasts on hit, fire modes, a round every so many shots |
 | `extras.lua` | Name lists for the weapon swaps and world rows, generated |
